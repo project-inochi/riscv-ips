@@ -1,4 +1,4 @@
-package projectname
+package aplic
 
 import spinal.core._
 

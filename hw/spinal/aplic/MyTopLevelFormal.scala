@@ -1,4 +1,4 @@
-package projectname
+package aplic
 
 import spinal.core._
 import spinal.core.formal._
