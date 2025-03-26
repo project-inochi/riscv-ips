@@ -3,25 +3,27 @@ package aplic
 import spinal.core._
 import spinal.lib._
 import spinal.lib.bus.misc.BusSlaveFactory
-import scala.tools.nsc.doc.html.HtmlTags.Tr
-import scala.collection.Seq
-import spinal.lib.bus.amba4.axilite.AxiLite4SlaveFactory
 
-class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
-                                                           hartIds : Seq[Int],
+class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourcenum : Int,
+                                                           hartnum : Int,
                                                            busType: HardType[T],
                                                            factoryGen: T => BusSlaveFactory) extends Component{
+  val aplicMap = aplicMapping.aplicMap
+
   val io = new Bundle {
     val bus = slave(busType())
-    val sources = in Bits (sourceIds.size bits)
-    val targets = out Bits (hartIds.size bits)
-    val child0 = out Bits (sourceIds.size bits)
+    val sources = in Bits (sourcenum bits)
+    val targets = out Bits (hartnum bits)
+    val child0 = out Bits (sourcenum bits)
   }
 
   val child = Vec(io.child0)
 
   val domaincfg = new domaincfg()
   val setState = new setState()
+
+  val sourceIds = for (i <- 1 until sourcenum) yield i
+  val hartIds = for (i <- 0 until hartnum) yield i
 
   // sourceids
   val sources = for (sourceId <- sourceIds) yield new source(sourceId)
@@ -31,21 +33,28 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
 
   io.targets := idcs.map(_.target).asBits
 
-  // TODO:
-  // val bus = new AxiLite4SlaveFactory(io.bus)
-  // val mapping = PlicMapper(bus, plicMapping)(
-  //   gateways = gateways,
-  //   targets = targets
-  // )
-
+  val factory = factoryGen(io.bus)
+  val mapping = aplicMapper(factory, aplicMap)(
+    domaincfg = domaincfg,
+    setStatecfg = setState,
+    sources = sources,
+    idcs = idcs
+  )
 
   /*TODO:
-   * 1. setstate
-   * 2. bus寄存器
-   * 3. output分配
-   * 4. threshold
+   * 1. setstate maybe
+   * x2. bus寄存器
+   * x3. output分配
+   * x4. threshold
    */
 }
+
+case class TilelinkAplic(sourcenum : Int, hartnum : Int, p : bus.tilelink.BusParameter) extends MappedAplic[bus.tilelink.Bus](
+  sourcenum,
+  hartnum,
+  new bus.tilelink.Bus(p),
+  new bus.tilelink.SlaveFactory(_, true)
+)
 
 object aplicSourcemode extends SpinalEnum {
   val inactive, detached, rising, falling, high, low = newElement()
@@ -66,8 +75,8 @@ case class domaincfg() extends Bundle {
 }
 
 // sourceIds
-case class source(id : UInt) extends Bundle {
-  val idx = RegInit(id)
+case class source(id : Int) extends Bundle {
+  // val idx = RegInit(id)
   // sourcecfg
   val D = RegInit(False)
   val mode = RegInit(B(0x0, 10 bits))
@@ -97,6 +106,8 @@ case class source(id : UInt) extends Bundle {
   }otherwise{
     triiger := aplicSourcemode.inactive
   }
+  // doclaim doocmpletion
+  def doClaim(): Unit = ip := False
 }
 
 case class setState() extends Area {
@@ -104,12 +115,16 @@ case class setState() extends Area {
   val clripnum = RegInit(B(0x0, 32 bits))
   val setienum = RegInit(B(0x0, 32 bits))
   val clrienum = RegInit(B(0x0, 32 bits))
+
+  // val setipflag = RegInit(False)
+  // val setieflag = RegInit(False)
+  // val clripflag = RegInit(False)
+  // val clrieflag = RegInit(False)
 }
 
 // hartIds
-case class idc(sources : Seq[source], id : UInt) extends Bundle{
+case class idc(sources : Seq[source], id : Int) extends Bundle{
   val target = RegInit(False)
-  val idx = RegInit(id)
 
   val idelivery = RegInit(False)
   val iforce = RegInit(False)
@@ -130,9 +145,9 @@ case class idc(sources : Seq[source], id : UInt) extends Bundle{
     val valid = Bool()
   }
 
-  val requests = for (source <- sources) yield new Request(source.idx, source.iprio,
+  val requests = for (source <- sources) yield new Request(source.id, source.iprio,
                                                            source.valid &&
-                                                           source.hartindex.asUInt === idx)
+                                                           source.hartindex.asUInt === id)
 
   val bestRequest = RegNext(requests.reduceBalancedTree((a, b) => {
     val takeA = !b.valid || (a.valid && a.iprio <= b.iprio)
@@ -140,17 +155,15 @@ case class idc(sources : Seq[source], id : UInt) extends Bundle{
   }))
 
   when(bestRequest.valid === True){
-    val iep = bestRequest.iprio < topi_priority.asUInt ||
-              (bestRequest.iprio === topi_priority.asUInt &&
-               bestRequest.idx < topi_identity.asUInt)
+    val iep = bestRequest.iprio < ithreshold.asUInt
     when(iep === True){
       topi_identity := bestRequest.idx.asBits
       topi_priority := bestRequest.iprio.asBits
 
       // idcs(bestRequest.idx).claimi_identity := bestRequest.idx.asBits
       // idcs(bestRequest.idx).claimi_priority := bestRequest.iprio
+      target := True
     }
-    target := True
   }otherwise{
     target := False
   }
