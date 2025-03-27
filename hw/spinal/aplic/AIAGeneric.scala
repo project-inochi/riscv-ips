@@ -16,7 +16,7 @@ abstract class AIAInterruptSource(sourceId: Int) extends Area {
   val ie = Bool
   val ip = RegInit(False)
 
-  def asRequest(idWidth : Int) : AIARequest
+  def asRequest(idWidth : Int, targetHart: Int) : AIARequest
 }
 
 case class IMSICRequest(idWidth : Int) extends AIARequest(idWidth) {
@@ -31,7 +31,7 @@ case class IMSICRequest(idWidth : Int) extends AIARequest(idWidth) {
 }
 
 case class IMSICInterruptSource(sourceId : Int) extends AIAInterruptSource(sourceId) {
-  override def asRequest(idWidth : Int): AIARequest = {
+  override def asRequest(idWidth : Int, targetHart: Int): AIARequest = {
     val ret = new IMSICRequest(idWidth)
     ret.id := U(id)
     ret.valid := ip && ie
@@ -52,25 +52,26 @@ case class APLICRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(id
   }
 }
 
-case class APLICInterruptSource(sourceId: Int, priorityWidth: Int) extends AIAInterruptSource(sourceId) {
+case class APLICInterruptSource(sourceId: Int, idWidth : Int, priorityWidth: Int) extends AIAInterruptSource(sourceId) {
   val prio = UInt(priorityWidth bits)
+  val target = UInt(idWidth bits)
 
-  override def asRequest(idWidth : Int): AIARequest = {
+  override def asRequest(idWidth : Int, targetHart: Int): AIARequest = {
     val ret = new APLICRequest(idWidth, priorityWidth)
     ret.id := U(id)
-    ret.valid := ip && ie
+    ret.valid := ip && ie && target === targetHart
     ret.prio := prio
     ret
   }
 }
 
-case class AIAGeneric(interrupts: Seq[AIAInterruptSource]) extends Area {
+case class AIAGeneric(interrupts: Seq[AIAInterruptSource], targetHart: Int) extends Area {
   val maxSource = (interrupts.map(_.id) ++ Seq(0)).max + 1
   val idWidth = log2Up(maxSource)
   val threshold = UInt(idWidth bits)
 
 
-  val requests = interrupts.sortBy(_.id).map(g => g.asRequest(idWidth))
+  val requests = interrupts.sortBy(_.id).map(g => g.asRequest(idWidth, targetHart))
 
   val bestRequest = RegNext(requests.reduceBalancedTree((a, b) => {
     val takeA = a.prioritize(b)
@@ -82,7 +83,7 @@ case class AIAGeneric(interrupts: Seq[AIAInterruptSource]) extends Area {
 
   def doClaim(id: UInt) = new Area {
     for (interrupt <- interrupts) {
-      when (U(interrupt.id) === id) {
+      when (interrupt.id === id) {
         interrupt.ip := False
       }
     }
