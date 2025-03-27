@@ -81,7 +81,11 @@ case class AIAGeneric(interrupts: Seq[AIAInterruptSource]) extends Area {
   val claim = iep ? bestRequest.id | 0
 
   def doClaim(id: UInt) = new Area {
-    requests.find(_.id == id).map(_.valid := False)
+    for (interrupt <- interrupts) {
+      when (U(interrupt.id) === id) {
+        interrupt.ip := False
+      }
+    }
   }
 
   def doBestClaim() = new Area {
