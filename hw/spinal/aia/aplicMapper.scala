@@ -1,4 +1,4 @@
-package aplic
+package aia
 
 import spinal.core._
 import spinal.lib._

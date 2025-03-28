@@ -1,8 +1,9 @@
-package aplic
+package aia
 
 import spinal.core._
 import spinal.core.sim._
 import spinal.lib.bus.tilelink
+import config.Config
 
 object aplicSim extends App {
 
@@ -14,7 +15,7 @@ object aplicSim extends App {
 
   val aplicmap = aplicMapping.aplicMap
 
-  val compile = Config.sim.compile{
+  val compile = config.Config.sim.compile{
     val imsic = new TilelinkAplic(sourceIds, hartIds,
       tilelink.M2sParameters(
         sourceCount = 1,
