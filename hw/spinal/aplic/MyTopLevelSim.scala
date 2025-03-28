@@ -3,7 +3,6 @@ package aplic
 import spinal.core._
 import spinal.core.sim._
 import spinal.lib.bus.tilelink
-import aplic.aplicMapper.setip
 
 object aplicSim extends App {
 
@@ -36,7 +35,7 @@ object aplicSim extends App {
   compile.doSim{ dut =>
     dut.clockDomain.forkStimulus(10)
 
-    dut.io.sources #= 0
+    dut.io.sources #= 0x0
 
     implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
     val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
@@ -55,7 +54,7 @@ object aplicSim extends App {
     var targetdata = swapalign(BigInt(0x6))
     print(agent.putFullData(0, aplicmap.targetOffset + 4, targetdata))
 
-    targetdata = swapalign(BigInt(0x5))
+    targetdata = swapalign(BigInt(0x40005))
     print(agent.putFullData(0, aplicmap.targetOffset + 8, targetdata))
 
     targetdata = swapalign(BigInt(0x7))
@@ -75,7 +74,13 @@ object aplicSim extends App {
 
     setipnumdata = swapalign(BigInt(0x2))
     print(agent.putFullData(0, aplicmap.setipnumOffset, setipnumdata))
+    print(agent.get(0, aplicmap.idcOffset + aplicmap.claimiOffset, 4))
     dut.clockDomain.waitRisingEdge(10)
+
+    print(agent.get(0, aplicmap.idcOffset + aplicmap.claimiOffset, 4))
+    print(agent.get(0, aplicmap.idcOffset + aplicmap.idcGroup + aplicmap.claimiOffset, 4))
+    dut.clockDomain.waitRisingEdge(10)
+
     // dut.io.sources(0) #= true
     // dut.clockDomain.waitRisingEdge(10)
     // dut.io.sources(0) #= false

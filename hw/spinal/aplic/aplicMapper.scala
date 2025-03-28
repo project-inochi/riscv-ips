@@ -75,7 +75,6 @@ object aplicMapper{
     bus.readAndWrite(domaincfg.be, address = domaincfgOffset, bitOffset = 0)
 
     bus.read(setStatecfg.setipnum, address = setipnumOffset)
-
     val setipnum = bus.createAndDriveFlow(UInt(32 bits), setipnumOffset)
     when(setipnum.valid){
       setStatecfg.setipnum := setipnum.payload.asBits
@@ -83,7 +82,6 @@ object aplicMapper{
     }
 
     bus.read(setStatecfg.clripnum, address = clripnumOffset)
-
     val clripnum = bus.createAndDriveFlow(UInt(32 bits), clripnumOffset)
     when(clripnum.valid){
       setStatecfg.clripnum := clripnum.payload.asBits

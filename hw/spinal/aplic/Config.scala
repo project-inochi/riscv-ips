@@ -11,6 +11,7 @@ object Config {
     ),
     onlyStdLogicVectorAtTopLevelIo = true,
     removePruned = true,
+    genLineComments = true
   )
 
   def sim = SimConfig.withConfig(spinal).withFstWave

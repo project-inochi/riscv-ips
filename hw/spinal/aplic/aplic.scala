@@ -30,13 +30,13 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   // sourceids
   val sources = for (sourceId <- sourceIds) yield new source(sourceId)
 
-  val interrupts = for (source <- sources) yield new APLICInterruptSource(source.id, source.hartindex.getWidth,
-                                                                          source.iprio.getWidth){
-                                                                            ie := source.ie
-                                                                            ip := False
-                                                                            target := source.hartindex.asUInt
-                                                                            prio := source.iprio.asUInt
-                                                                          }
+  val interrupts = for (source <- sources)
+    yield new APLICInterruptSource(source.id, source.hartindex.getWidth, source.iprio.getWidth){
+      ie := source.ie
+      target := source.hartindex.asUInt
+      prio := source.iprio.asUInt
+    }
+
   val gateways = for ((source, idx) <- sources.zipWithIndex) yield
                  new aplicGateway(io.sources(idx), idx, source, domaincfg, interrupts(idx))
 
@@ -55,10 +55,10 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   )
 
   /*TODO:
-   * 1. setstate maybe
-   * x2. bus寄存器
-   * x3. output分配
-   * x4. threshold
+   * 1. source interupt re-triiger
+   * 2x. setipReg reset to 0?
+   * 3. gateway -> ie
+   * 4. allowUnsetRegToAvoidLatch()
    */
 }
 
@@ -81,7 +81,7 @@ object aplicSourcemode extends SpinalEnum {
 }
 
 case class domaincfg() extends Area {
-  val align = RegInit(B(0x80, 8 bits)).allowUnsetRegToAvoidLatch()
+  val align = RegInit(B(0x80, 8 bits))
   val ie = RegInit(False)
   val dm = RegInit(False)
   val be = RegInit(False)
@@ -124,15 +124,10 @@ case class source(id : Int) extends Bundle {
 }
 
 case class setState() extends Area {
-  val setipnum = RegInit(B(0x0, 32 bits)).allowUnsetRegToAvoidLatch()
-  val clripnum = RegInit(B(0x0, 32 bits)).allowUnsetRegToAvoidLatch()
+  val setipnum = RegInit(B(0x0, 32 bits))
+  val clripnum = RegInit(B(0x0, 32 bits))
   val setienum = RegInit(B(0x0, 32 bits))
   val clrienum = RegInit(B(0x0, 32 bits))
-
-  // val setipflag = RegInit(False)
-  // val setieflag = RegInit(False)
-  // val clripflag = RegInit(False)
-  // val clrieflag = RegInit(False)
 }
 
 // hartIds
