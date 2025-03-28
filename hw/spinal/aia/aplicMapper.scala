@@ -78,14 +78,14 @@ object aplicMapper{
     val setipnum = bus.createAndDriveFlow(UInt(32 bits), setipnumOffset)
     when(setipnum.valid){
       setStatecfg.setipnum := setipnum.payload
-      setip(interrupts, setipnum.payload, True)
+      AIAOperator.doSet(interrupts, setipnum.payload)
     }
 
     bus.read(setStatecfg.clripnum, address = clripnumOffset)
     val clripnum = bus.createAndDriveFlow(UInt(32 bits), clripnumOffset)
     when(clripnum.valid){
       setStatecfg.clripnum := clripnum.payload
-      setip(interrupts, clripnum.payload, False)
+      AIAOperator.doClaim(interrupts, clripnum.payload)
     }
 
     bus.readAndWrite(setStatecfg.setienum, address = setienumOffset)
@@ -119,7 +119,7 @@ object aplicMapper{
     claim.valid := False
     claim.payload.assignDontCare()
     when(claim.valid) {
-      AIAOperator.doClaim(claim.payload, interrupts)
+      AIAOperator.doClaim(interrupts, claim.payload)
     }
 
     val targetMapping = for(idc <- idcs) yield new Area {
@@ -141,14 +141,6 @@ object aplicMapper{
       }
     }
 	}
-
-  def setip(interrupts : Seq[APLICInterruptSource], id : UInt, state : Bool){
-      for (interrupt <- interrupts) {
-        when (interrupt.id === id) {
-          interrupt.ip := state
-        }
-      }
-  }
 }
 
 

@@ -51,14 +51,22 @@ case class IMSICInterruptSource(sourceId : Int) extends AIAInterruptSource(sourc
 }
 
 object AIAOperator {
-  def doClaim(id: UInt, interrupts : Seq[AIAInterruptSource]) = new Area {
+  def doClaim(interrupts : Seq[AIAInterruptSource], id: UInt) = new Area {
     for (interrupt <- interrupts) {
       when (interrupt.id === id) {
         interrupt.ip := False
       }
     }
   }
-}
+
+
+  def doSet(interrupts : Seq[APLICInterruptSource], id : UInt){
+      for (interrupt <- interrupts) {
+        when (interrupt.id === id) {
+          interrupt.ip := True
+        }
+      }
+  }}
 
 case class AIAGeneric(interrupts: Seq[AIAInterruptSource], targetHart: Int) extends Area {
   val maxSource = (interrupts.map(_.id) ++ Seq(0)).max + 1
@@ -77,6 +85,6 @@ case class AIAGeneric(interrupts: Seq[AIAInterruptSource], targetHart: Int) exte
   val claim = bestRequest.id
 
   def doBestClaim() = new Area {
-    AIAOperator.doClaim(bestRequest.id, interrupts)
+    AIAOperator.doClaim(interrupts, bestRequest.id)
   }
 }
