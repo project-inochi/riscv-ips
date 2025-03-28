@@ -138,22 +138,21 @@ object aplicMapper{
 
     val targetMapping = for(idc <- idcs) yield new Area {
       val idcThisOffset = idcOffset + (idc.id * idcGroup)
+      val nowRequest = idc.generic.bestRequest.asInstanceOf[APLICRequest]
 
       bus.readAndWrite(idc.idelivery, address = idcThisOffset + ideliveryOffset)
       bus.readAndWrite(idc.iforce, address = idcThisOffset + iforceOffset)
       bus.readAndWrite(idc.ithreshold, address = idcThisOffset + ithresholdOffset)
       // topi readonly
-      bus.read(idc.topi_priority, address = idcThisOffset + topiOffset, bitOffset = 0)
-      bus.read(idc.topi_identity, address = idcThisOffset + topiOffset, bitOffset = 16)
-      // claimi trrigrt
-      bus.read(idc.claimi_priority, address = idcThisOffset + claimiOffset, bitOffset = 0)
-      bus.read(idc.claimi_identity, address = idcThisOffset + claimiOffset, bitOffset = 16)
-      bus.onRead(address = idcThisOffset + claimiOffset){
+      bus.read(nowRequest.prio, address = idcThisOffset + topiOffset, bitOffset = 0)
+      bus.read(nowRequest.id, address = idcThisOffset + topiOffset, bitOffset = 16)
+      // reading claimi trigger clean the top interrupt
+      bus.read(nowRequest.prio, address = idcThisOffset + claimiOffset, bitOffset = 0)
+      bus.read(nowRequest.id, address = idcThisOffset + claimiOffset, bitOffset = 16)
+      bus.onRead(address = idcThisOffset + claimiOffset) {
         claim.valid := True
-        claim.payload := idc.claimi_identity.asUInt.resized
+        claim.payload := nowRequest.id
       }
-
-
     }
 
 	}
@@ -166,3 +165,5 @@ object aplicMapper{
       }
   }
 }
+
+

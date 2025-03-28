@@ -137,32 +137,15 @@ case class setState() extends Area {
 
 // hartIds
 case class idc(interrupts : Seq[APLICInterruptSource], id : Int) extends Bundle{
-  val output = RegInit(False).allowUnsetRegToAvoidLatch()
-
   val idelivery = RegInit(False)
   val iforce = RegInit(False)
-  val ithreshold = RegInit(B(0x0, 8 bits))
-  // topi
-  val topi_identity = RegInit(B(0x0, 10 bits))
-  val topi_priority = RegInit(B(0x0, 8 bits))
-  // claimi
-  val claimi_identity = RegInit(B(0x0, 10 bits))
-  val claimi_priority = RegInit(B(0x0, 8 bits))
+  val ithreshold = RegInit(U(0x0, 8 bits))
 
-  claimi_identity := topi_identity
-  claimi_priority := topi_priority
-
+  // topi can be found in generic.bestRequest
   val generic = AIAGeneric(interrupts, id)
-  generic.threshold := ithreshold.asUInt.resized
+  generic.threshold := ithreshold.resized
 
-  when(generic.claim > 0){
-    topi_identity := generic.claim.asBits.resized
-    topi_priority := generic.bestRequest.asInstanceOf[APLICRequest].prio.asBits.resized
-    output := True
-  }otherwise{
-    output := False
-  }
-
+  val output = generic.claim > 0
 }
 
 // case class aplicGateway(input : Bool, id : UInt, source : source, domaincfg : domaincfg, childbits : Vec[Bits]) extends Area{
