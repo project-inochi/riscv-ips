@@ -224,6 +224,14 @@ case class APLICRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(id
   override def pending(threshold: UInt): Bool = {
     valid && ((threshold === 0) || (prio < threshold))
   }
+
+  override def dummy(): AIARequest = {
+    val tmp = APLICRequest(idWidth, priorityWidth)
+    tmp.id := id
+    tmp.valid := False
+    tmp.prio := 0
+    tmp
+  }
 }
 
 case class APLICInterruptSource(sourceId : Int, idWidth : Int, priorityWidth : Int) extends AIAInterruptSource(sourceId) {

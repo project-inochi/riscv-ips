@@ -9,6 +9,10 @@ abstract class AIARequest(idWidth: Int) extends Bundle {
 
   def prioritize(other: AIARequest) : Bool
   def pending(threshold: UInt) : Bool
+  def dummy() : AIARequest
+  def verify(cond: Bool): AIARequest = {
+    Mux(cond, this, dummy())
+  }
 }
 
 abstract class AIAInterruptSource(sourceId: Int) extends Area {
@@ -27,6 +31,13 @@ case class IMSICRequest(idWidth : Int) extends AIARequest(idWidth) {
 
   override def pending(threshold: UInt): Bool = {
     valid && ((threshold === 0) || (id < threshold))
+  }
+
+  override def dummy(): AIARequest = {
+    val tmp = IMSICRequest(idWidth)
+    tmp.id := id
+    tmp.valid := False
+    tmp
   }
 }
 
@@ -56,13 +67,14 @@ case class AIAGeneric(interrupts: Seq[AIAInterruptSource], targetHart: Int) exte
 
   val requests = interrupts.sortBy(_.id).map(g => g.asRequest(idWidth, targetHart))
 
-  val bestRequest = RegNext(requests.reduceBalancedTree((a, b) => {
+  val resultRequest = RegNext(requests.reduceBalancedTree((a, b) => {
     val takeA = a.prioritize(b)
     takeA ? a | b
   }))
 
-  val iep = bestRequest.pending(threshold)
-  val claim = iep ? bestRequest.id | 0
+  val iep = resultRequest.pending(threshold)
+  val bestRequest = resultRequest.verify(iep)
+  val claim = bestRequest.id
 
   def doBestClaim() = new Area {
     AIAOperator.doClaim(bestRequest.id, interrupts)
