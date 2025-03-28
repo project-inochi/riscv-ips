@@ -35,7 +35,7 @@ case class IMSICRequest(idWidth : Int) extends AIARequest(idWidth) {
 
   override def dummy(): AIARequest = {
     val tmp = IMSICRequest(idWidth)
-    tmp.id := id
+    tmp.id := 0
     tmp.valid := False
     tmp
   }

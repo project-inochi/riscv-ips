@@ -210,7 +210,7 @@ case class APLICRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(id
 
   override def dummy(): AIARequest = {
     val tmp = APLICRequest(idWidth, priorityWidth)
-    tmp.id := id
+    tmp.id := 0
     tmp.valid := False
     tmp.prio := 0
     tmp
