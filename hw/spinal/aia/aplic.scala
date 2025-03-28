@@ -25,8 +25,8 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   val interrupts = for (source <- sources)
     yield new APLICInterruptSource(source.id, source.hartindex.getWidth, source.iprio.getWidth){
       ie := source.ie
-      target := source.hartindex.asUInt
-      prio := source.iprio.asUInt
+      target := source.hartindex
+      prio := source.iprio
     }
 
   val gateways = for ((source, idx) <- sources.zipWithIndex) yield
@@ -73,7 +73,7 @@ object aplicSourcemode extends SpinalEnum {
 }
 
 case class domaincfg() extends Area {
-  val align = RegInit(B(0x80, 8 bits))
+  val align = RegInit(U(0x80, 8 bits))
   val ie = RegInit(False)
   val dm = RegInit(False)
   val be = RegInit(False)
@@ -85,12 +85,12 @@ case class source(id : Int) extends Bundle {
   val mode = RegInit(B(0x0, 10 bits))
   val ie = RegInit(False)
 
-  val hartindex = RegInit(B(0x0, 14 bits))
+  val hartindex = RegInit(U(0x0, 14 bits))
   // for direct delivery mode
-  val iprio = RegInit(B(0x0, 8 bits))
+  val iprio = RegInit(U(0x0, 8 bits))
   // for msi delivery mode
-  val guestindex = RegInit(B(0x0, 6 bits))
-  val eiid = RegInit(B(0x0, 11 bits))
+  val guestindex = RegInit(U(0x0, 6 bits))
+  val eiid = RegInit(U(0x0, 11 bits))
 
   val triiger = aplicSourcemode()
   when(D === False){
@@ -108,10 +108,10 @@ case class source(id : Int) extends Bundle {
 }
 
 case class setState() extends Area {
-  val setipnum = RegInit(B(0x0, 32 bits))
-  val clripnum = RegInit(B(0x0, 32 bits))
-  val setienum = RegInit(B(0x0, 32 bits))
-  val clrienum = RegInit(B(0x0, 32 bits))
+  val setipnum = RegInit(U(0x0, 32 bits))
+  val clripnum = RegInit(U(0x0, 32 bits))
+  val setienum = RegInit(U(0x0, 32 bits))
+  val clrienum = RegInit(U(0x0, 32 bits))
 }
 
 // hartIds

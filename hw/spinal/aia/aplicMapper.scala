@@ -77,24 +77,24 @@ object aplicMapper{
     bus.read(setStatecfg.setipnum, address = setipnumOffset)
     val setipnum = bus.createAndDriveFlow(UInt(32 bits), setipnumOffset)
     when(setipnum.valid){
-      setStatecfg.setipnum := setipnum.payload.asBits
+      setStatecfg.setipnum := setipnum.payload
       setip(interrupts, setipnum.payload, True)
     }
 
     bus.read(setStatecfg.clripnum, address = clripnumOffset)
     val clripnum = bus.createAndDriveFlow(UInt(32 bits), clripnumOffset)
     when(clripnum.valid){
-      setStatecfg.clripnum := clripnum.payload.asBits
+      setStatecfg.clripnum := clripnum.payload
       setip(interrupts, clripnum.payload, False)
     }
 
     bus.readAndWrite(setStatecfg.setienum, address = setienumOffset)
     bus.onWrite(address = setienumOffset){
-      sources(setStatecfg.setienum.asUInt.resized).ie := True
+      sources(setStatecfg.setienum.resized).ie := True
     }
     bus.readAndWrite(setStatecfg.clrienum, address = clrienumOffset)
     bus.onWrite(address = clrienumOffset){
-      sources(setStatecfg.clrienum.asUInt.resized).ie := False
+      sources(setStatecfg.clrienum.resized).ie := False
     }
 
     bus.read(B(0), address = setipOffset, bitOffset = 0)
