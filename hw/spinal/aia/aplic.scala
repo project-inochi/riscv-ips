@@ -8,7 +8,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
                                                            hartIds : Seq[Int],
                                                            busType: HardType[T],
                                                            factoryGen: T => BusSlaveFactory) extends Component{
-  val aplicMap = aplicMapping.aplicMap
+  val aplicMap = APlicMapping.aplicMap
 
   val io = new Bundle {
     val bus = slave(busType())
@@ -20,7 +20,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   val setState = new setState()
 
   // sourceids
-  val sources = for (sourceId <- sourceIds) yield new source(sourceId)
+  val sources = for (sourceId <- sourceIds) yield new APlicSource(sourceId)
 
   val interrupts = for (source <- sources)
     yield new APLICInterruptSource(source.id, source.hartindex.getWidth, source.iprio.getWidth){
@@ -30,15 +30,15 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
     }
 
   val gateways = for ((source, idx) <- sources.zipWithIndex) yield
-                 new aplicGateway(io.sources(idx), idx, source, domaincfg, interrupts(idx))
+                 new APlicGateway(io.sources(idx), idx, source, domaincfg, interrupts(idx))
 
   // hartids
-  val idcs = for (hartId <- hartIds) yield new idc(interrupts, hartId)
+  val idcs = for (hartId <- hartIds) yield new APlicIDC(interrupts, hartId)
 
   io.targets := idcs.map(_.output).asBits
 
   val factory = factoryGen(io.bus)
-  val mapping = aplicMapper(factory, aplicMap)(
+  val mapping = APlicMapper(factory, aplicMap)(
     domaincfg = domaincfg,
     setStatecfg = setState,
     sources = sources,
@@ -51,6 +51,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
    * 2x. setipReg reset to 0?
    * 3. gateway -> ie
    * 4. allowUnsetRegToAvoidLatch()
+   * 5. replace magic number with enum APlicSourceMode
    */
 }
 
@@ -61,7 +62,7 @@ case class TilelinkAplic(sourceIds : Seq[Int], hartIds : Seq[Int], p : bus.tilel
   new bus.tilelink.SlaveFactory(_, true)
 )
 
-object aplicSourcemode extends SpinalEnum {
+object APlicSourceMode extends SpinalEnum {
   val inactive, detached, rising, falling, high, low = newElement()
   defaultEncoding = SpinalEnumEncoding("staticEncoding")(
     inactive -> 0,
@@ -80,7 +81,7 @@ case class domaincfg() extends Area {
 }
 
 // sourceIds
-case class source(id : Int) extends Bundle {
+case class APlicSource(id : Int) extends Bundle {
   val D = RegInit(False)
   val mode = RegInit(B(0x0, 10 bits))
   val ie = RegInit(False)
@@ -92,18 +93,18 @@ case class source(id : Int) extends Bundle {
   val guestindex = RegInit(U(0x0, 6 bits))
   val eiid = RegInit(U(0x0, 11 bits))
 
-  val triiger = aplicSourcemode()
+  val triiger = APlicSourceMode()
   when(D === False){
     switch (mode){
       is(0, 1, 4, 5, 6, 7){
         triiger.assignFromBits(mode.resized)
       }
       default{
-        triiger := aplicSourcemode.inactive
+        triiger := APlicSourceMode.inactive
       }
     }
   }otherwise{
-    triiger := aplicSourcemode.inactive
+    triiger := APlicSourceMode.inactive
   }
 }
 
@@ -115,7 +116,7 @@ case class setState() extends Area {
 }
 
 // hartIds
-case class idc(interrupts : Seq[APLICInterruptSource], id : Int) extends Bundle{
+case class APlicIDC(interrupts : Seq[APLICInterruptSource], id : Int) extends Bundle{
   val idelivery = RegInit(False)
   val iforce = RegInit(False)
   val ithreshold = RegInit(U(0x0, 8 bits))
@@ -127,38 +128,38 @@ case class idc(interrupts : Seq[APLICInterruptSource], id : Int) extends Bundle{
   val output = generic.claim > 0
 }
 
-case class aplicGateway(input : Bool, idx : UInt, source : source, domaincfg : domaincfg, interrupt : AIAInterruptSource) extends Area{
+case class APlicGateway(input : Bool, idx : UInt, source : APlicSource, domaincfg : domaincfg, interrupt : AIAInterruptSource) extends Area{
   when(domaincfg.ie === True){
     when(source.D === True){
       source.ie := False
     }otherwise {
       switch(source.triiger){
-        is(aplicSourcemode.inactive){
+        is(APlicSourceMode.inactive){
           interrupt.ip := False
           source.ie := False
         }
-        is(aplicSourcemode.detached){
+        is(APlicSourceMode.detached){
           source.ie := True
         }
-        is(aplicSourcemode.rising){
+        is(APlicSourceMode.rising){
           when(input.rise()){
             source.ie := True
             interrupt.ip := True
           }
         }
-        is(aplicSourcemode.falling){
+        is(APlicSourceMode.falling){
           when(input.fall()){
             source.ie := True
             interrupt.ip := True
           }
         }
-        is(aplicSourcemode.high){
+        is(APlicSourceMode.high){
           when(input === True){
             source.ie := True
             interrupt.ip := True
           }
         }
-        is(aplicSourcemode.low){
+        is(APlicSourceMode.low){
           when(input === False){
             source.ie := True
             interrupt.ip := True

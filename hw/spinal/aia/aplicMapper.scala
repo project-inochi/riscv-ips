@@ -4,7 +4,7 @@ import spinal.core._
 import spinal.lib._
 import spinal.lib.bus.misc.{BusSlaveFactory, AllMapping, SingleMapping}
 
-case class aplicMapping(
+case class APlicMapping(
   domaincfgOffset 	: Int,
   sourcecfgOffset 	: Int,
   mmsiaddrcfgOffset 	: Int,
@@ -33,8 +33,8 @@ case class aplicMapping(
   claimiOffset : Int
 )
 
-object aplicMapping{
-  def aplicMap = aplicMapping(
+object APlicMapping{
+  def aplicMap = APlicMapping(
   domaincfgOffset 	= 0x0000,
   sourcecfgOffset 	= 0x0004 - 4,
   mmsiaddrcfgOffset 	= 0x1BC0,
@@ -65,8 +65,8 @@ object aplicMapping{
   )
 }
 
-object aplicMapper{
-	def apply(bus: BusSlaveFactory, mapping: aplicMapping)(domaincfg : domaincfg, setStatecfg : setState, sources : Seq[source], idcs : Seq[idc], interrupts : Seq[APLICInterruptSource]) = new Area{
+object APlicMapper{
+	def apply(bus: BusSlaveFactory, mapping: APlicMapping)(domaincfg : domaincfg, setStatecfg : setState, sources : Seq[APlicSource], idcs : Seq[APlicIDC], interrupts : Seq[APLICInterruptSource]) = new Area{
     import mapping._
 
     bus.read(domaincfg.align, address = domaincfgOffset, bitOffset = 24)

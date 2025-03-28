@@ -5,7 +5,7 @@ import spinal.core.sim._
 import spinal.lib.bus.tilelink
 import config.Config
 
-object aplicSim extends App {
+object APlicSim extends App {
 
   val sourcenum = 8
   val hartnum = 2
@@ -13,7 +13,7 @@ object aplicSim extends App {
   val sourceIds = for (i <- 1 until sourcenum) yield i
   val hartIds = for (i <- 0 until hartnum) yield i
 
-  val aplicmap = aplicMapping.aplicMap
+  val aplicmap = APlicMapping.aplicMap
 
   val compile = config.Config.sim.compile{
     val imsic = new TilelinkAplic(sourceIds, hartIds,
