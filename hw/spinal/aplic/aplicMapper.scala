@@ -137,16 +137,18 @@ object aplicMapper{
     // }
 
     val targetMapping = for(idc <- idcs) yield new Area {
-      bus.readAndWrite(idc.idelivery, address = idcOffset + (idc.id * idcGroup) + ideliveryOffset)
-      bus.readAndWrite(idc.iforce, address = idcOffset + (idc.id * idcGroup) + iforceOffset)
-      bus.readAndWrite(idc.ithreshold, address = idcOffset + (idc.id * idcGroup) + ithresholdOffset)
+      val idcThisOffset = idcOffset + (idc.id * idcGroup)
+
+      bus.readAndWrite(idc.idelivery, address = idcThisOffset + ideliveryOffset)
+      bus.readAndWrite(idc.iforce, address = idcThisOffset + iforceOffset)
+      bus.readAndWrite(idc.ithreshold, address = idcThisOffset + ithresholdOffset)
       // topi readonly
-      bus.read(idc.topi_priority, address = idcOffset + (idc.id * idcGroup) + topiOffset, bitOffset = 0)
-      bus.read(idc.topi_identity, address = idcOffset + (idc.id * idcGroup) + topiOffset, bitOffset = 16)
+      bus.read(idc.topi_priority, address = idcThisOffset + topiOffset, bitOffset = 0)
+      bus.read(idc.topi_identity, address = idcThisOffset + topiOffset, bitOffset = 16)
       // claimi trrigrt
-      bus.read(idc.claimi_priority, address = idcOffset + (idc.id * idcGroup) + claimiOffset, bitOffset = 0)
-      bus.read(idc.claimi_identity, address = idcOffset + (idc.id * idcGroup) + claimiOffset, bitOffset = 16)
-      bus.onRead(address = idcOffset + (idc.id * idcGroup) + claimiOffset){
+      bus.read(idc.claimi_priority, address = idcThisOffset + claimiOffset, bitOffset = 0)
+      bus.read(idc.claimi_identity, address = idcThisOffset + claimiOffset, bitOffset = 16)
+      bus.onRead(address = idcThisOffset + claimiOffset){
         claim.valid := True
         claim.payload := idc.claimi_identity.asUInt.resized
       }
