@@ -14,15 +14,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
     val bus = slave(busType())
     val sources = in Bits (sourceIds.size bits)
     val targets = out Bits (hartIds.size bits)
-    // val child0 = out Bits (sourcenum-1 bits)
   }
-
-  // val child = Vec(io.child0)
-  // val childbits = Vec(RegInit(B(0x0, sourcenum-1 bits)))
-  // for(i <- 0 until sourcenum-1){
-  //   child(0)(i) := childbits(0)(i)
-  // }
-  // childbits.allowUnsetRegToAvoidLatch()
 
   val domaincfg = new domaincfg()
   val setState = new setState()
@@ -89,20 +81,14 @@ case class domaincfg() extends Area {
 
 // sourceIds
 case class source(id : Int) extends Bundle {
-  // val idx = RegInit(id)
-  // sourcecfg
   val D = RegInit(False)
   val mode = RegInit(B(0x0, 10 bits))
-  // setip
   val ie = RegInit(False)
-  // val ip = RegInit(False)
 
-  // val valid = ie && ip
-  // target
   val hartindex = RegInit(B(0x0, 14 bits))
-    // for direct delivery mode
+  // for direct delivery mode
   val iprio = RegInit(B(0x0, 8 bits))
-    // for msi delivery mode
+  // for msi delivery mode
   val guestindex = RegInit(B(0x0, 6 bits))
   val eiid = RegInit(B(0x0, 11 bits))
 
@@ -119,8 +105,6 @@ case class source(id : Int) extends Bundle {
   }otherwise{
     triiger := aplicSourcemode.inactive
   }
-  // doclaim doocmpletion
-  // def doClaim(): Unit = ip := False
 }
 
 case class setState() extends Area {
@@ -143,11 +127,9 @@ case class idc(interrupts : Seq[APLICInterruptSource], id : Int) extends Bundle{
   val output = generic.claim > 0
 }
 
-// case class aplicGateway(input : Bool, id : UInt, source : source, domaincfg : domaincfg, childbits : Vec[Bits]) extends Area{
 case class aplicGateway(input : Bool, idx : UInt, source : source, domaincfg : domaincfg, interrupt : AIAInterruptSource) extends Area{
   when(domaincfg.ie === True){
     when(source.D === True){
-      // childbits(source.mode.asUInt.resized)(id) := input
       source.ie := False
     }otherwise {
       switch(source.triiger){
@@ -182,10 +164,6 @@ case class aplicGateway(input : Bool, idx : UInt, source : source, domaincfg : d
             interrupt.ip := True
           }
         }
-        // default{
-        //   source.ip := False
-        //   source.ie := False
-        // }
       }
     }
   }
@@ -223,21 +201,4 @@ case class APLICInterruptSource(sourceId : Int, idWidth : Int, priorityWidth : I
     ret.prio := prio
     ret
   }
-
-
 }
-
-// case class TilelinkAplic(sources : Int, hartIds : Int, p : bus.tilelink.BusParameter) extends MappedAplic[bus.tilelink.Bus](
-//   sources,
-//   hartIds,
-//   new bus.tilelink.Bus(p),
-//   new bus.tilelink.SlaveFactory(_, true)
-// )
-
-// object MyTopLevelVerilog extends App {
-//   Config.spinal.generateVerilog(aplic())
-// }
-
-// object MyTopLevelVhdl extends App {
-//   Config.spinal.generateVhdl(aplic())
-// }

@@ -122,18 +122,6 @@ object aplicMapper{
       AIAOperator.doClaim(claim.payload, interrupts)
     }
 
-    // val coherencyStall = Counter(2)
-    // when(coherencyStall =/= 0){
-    //   bus.readHalt()
-    //   coherencyStall.increment()
-    // }
-    // bus.onReadPrimitive(AllMapping, haltSensitive = false, documentation = ""){
-    //   coherencyStall.increment()
-    // }
-    // bus.onWritePrimitive(AllMapping, haltSensitive = false, documentation = ""){
-    //   coherencyStall.increment()
-    // }
-
     val targetMapping = for(idc <- idcs) yield new Area {
       val idcThisOffset = idcOffset + (idc.id * idcGroup)
       val nowRequest = idc.generic.bestRequest.asInstanceOf[APLICRequest]
@@ -152,7 +140,6 @@ object aplicMapper{
         claim.payload := nowRequest.id
       }
     }
-
 	}
 
   def setip(interrupts : Seq[APLICInterruptSource], id : UInt, state : Bool){
