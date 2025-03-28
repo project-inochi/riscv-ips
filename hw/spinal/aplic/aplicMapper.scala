@@ -36,7 +36,7 @@ case class aplicMapping(
 object aplicMapping{
   def aplicMap = aplicMapping(
   domaincfgOffset 	= 0x0000,
-  sourcecfgOffset 	= 0x0004,
+  sourcecfgOffset 	= 0x0004 - 4,
   mmsiaddrcfgOffset 	= 0x1BC0,
   mmsiaddrcfghOffset 	= 0x1BC4,
   smsiaddrcfgOffset 	= 0x1BC8,
@@ -52,10 +52,10 @@ object aplicMapping{
   setipnum_leOffset 	= 0x2000,
   setipnum_beOffset 	= 0x2004,
   genmsiOffset 	= 0x3000,
-  targetOffset 	= 0x3004,
+  targetOffset 	= 0x3004 - 4,
   idcOffset 		= 0x4000,
   idShift = 2,
-  idcGroup = 20,
+  idcGroup = 32,
   ideliveryOffset = 0x00,
   iforceOffset = 0x04,
   ithresholdOffset = 0x08,
@@ -66,44 +66,54 @@ object aplicMapping{
 }
 
 object aplicMapper{
-	def apply(bus: BusSlaveFactory, mapping: aplicMapping)(domaincfg : domaincfg, setStatecfg : setState, sources : Seq[source], idcs : Seq[idc]) = new Area{
+	def apply(bus: BusSlaveFactory, mapping: aplicMapping)(domaincfg : domaincfg, setStatecfg : setState, sources : Seq[source], idcs : Seq[idc], interrupts : Seq[APLICInterruptSource]) = new Area{
     import mapping._
 
     bus.read(domaincfg.align, address = domaincfgOffset, bitOffset = 24)
-    bus.driveAndRead(domaincfg.ie, address = domaincfgOffset, bitOffset = 8)
-    bus.driveAndRead(domaincfg.dm, address = domaincfgOffset, bitOffset = 2)
-    bus.driveAndRead(domaincfg.be, address = domaincfgOffset, bitOffset = 0)
+    bus.readAndWrite(domaincfg.ie, address = domaincfgOffset, bitOffset = 8)
+    bus.readAndWrite(domaincfg.dm, address = domaincfgOffset, bitOffset = 2)
+    bus.readAndWrite(domaincfg.be, address = domaincfgOffset, bitOffset = 0)
 
-    // todo:setstatereg onread
-    // not sure
-    bus.driveAndRead(setStatecfg.setipnum, address = setipnumOffset)
-    bus.onWrite(address = setipnumOffset){
-      sources(setStatecfg.setipnum.asUInt).ip := True
+    bus.read(setStatecfg.setipnum, address = setipnumOffset)
+
+    val setipnum = bus.createAndDriveFlow(UInt(32 bits), setipnumOffset)
+    when(setipnum.valid){
+      setStatecfg.setipnum := setipnum.payload.asBits
+      setip(interrupts, setipnum.payload, True)
     }
-    bus.driveAndRead(setStatecfg.clripnum, address = clripnumOffset)
-    bus.onWrite(address = clripnumOffset){
-      sources(setStatecfg.clripnum.asUInt).ip := False
+
+    bus.read(setStatecfg.clripnum, address = clripnumOffset)
+
+    val clripnum = bus.createAndDriveFlow(UInt(32 bits), clripnumOffset)
+    when(clripnum.valid){
+      setStatecfg.clripnum := clripnum.payload.asBits
+      setip(interrupts, clripnum.payload, False)
     }
-    bus.driveAndRead(setStatecfg.setienum, address = setienumOffset)
+
+    bus.readAndWrite(setStatecfg.setienum, address = setienumOffset)
     bus.onWrite(address = setienumOffset){
-      sources(setStatecfg.setienum.asUInt).ie := True
+      sources(setStatecfg.setienum.asUInt.resized).ie := True
     }
-    bus.driveAndRead(setStatecfg.clrienum, address = clrienumOffset)
+    bus.readAndWrite(setStatecfg.clrienum, address = clrienumOffset)
     bus.onWrite(address = clrienumOffset){
-      sources(setStatecfg.clrienum.asUInt).ie := False
+      sources(setStatecfg.clrienum.asUInt.resized).ie := False
     }
 
+    bus.read(B(0), address = setipOffset, bitOffset = 0)
+    bus.read(B(0), address = setieOffset, bitOffset = 0)
     val sourceMapping = for(source <- sources) yield new Area{
-      bus.driveAndRead(source.mode, address = sourcecfgOffset + (source.id << idShift), bitOffset = 0)
-      bus.driveAndRead(source.D, address = sourcecfgOffset + (source.id << idShift), bitOffset = 10)
+      bus.readAndWrite(source.mode, address = sourcecfgOffset + (source.id << idShift), bitOffset = 0)
+      bus.readAndWrite(source.D, address = sourcecfgOffset + (source.id << idShift), bitOffset = 10)
 
-      bus.driveAndRead(source.ip, address = setipOffset + (source.id/bus.busDataWidth)*bus.busDataWidth/8,
+      bus.readAndWrite(source.ie, address = setieOffset + (source.id/bus.busDataWidth)*bus.busDataWidth/8,
                        bitOffset = source.id % bus.busDataWidth)
-      bus.driveAndRead(source.ie, address = setieOffset + (source.id/bus.busDataWidth)*bus.busDataWidth/8,
-                       bitOffset = source.id % bus.busDataWidth)
+      bus.readAndWrite(source.iprio, address = targetOffset + (source.id << idShift), bitOffset = 0)
+      bus.readAndWrite(source.hartindex, address = targetOffset + (source.id << idShift), bitOffset = 18)
+    }
 
-      bus.driveAndRead(source.iprio, address = targetOffset + (source.id << idShift), bitOffset = 0)
-      bus.driveAndRead(source.hartindex, address = targetOffset + (source.id << idShift), bitOffset = 18)
+    val interuptMapping = for(interrupt <- interrupts) yield new Area{
+      bus.readAndWrite(interrupt.ip, address = setipOffset + (interrupt.id/bus.busDataWidth)*bus.busDataWidth/8,
+                       bitOffset = interrupt.id % bus.busDataWidth)
     }
 
     val idWidth = log2Up((sources.map(_.id) ++ Seq(0)).max + 1)
@@ -111,31 +121,25 @@ object aplicMapper{
     claim.valid := False
     claim.payload.assignDontCare()
     when(claim.valid) {
-      switch(claim.payload) {
-        for (source <- sources) {
-          is(source.id) {
-            source.doClaim()
-          }
-        }
-      }
+      AIAOperator.doClaim(claim.payload, interrupts)
     }
 
-    val coherencyStall = Counter(2)
-    when(coherencyStall =/= 0){
-      bus.readHalt()
-      coherencyStall.increment()
-    }
-    bus.onReadPrimitive(AllMapping, haltSensitive = false, documentation = ""){
-      coherencyStall.increment()
-    }
-    bus.onWritePrimitive(AllMapping, haltSensitive = false, documentation = ""){
-      coherencyStall.increment()
-    }
+    // val coherencyStall = Counter(2)
+    // when(coherencyStall =/= 0){
+    //   bus.readHalt()
+    //   coherencyStall.increment()
+    // }
+    // bus.onReadPrimitive(AllMapping, haltSensitive = false, documentation = ""){
+    //   coherencyStall.increment()
+    // }
+    // bus.onWritePrimitive(AllMapping, haltSensitive = false, documentation = ""){
+    //   coherencyStall.increment()
+    // }
 
     val targetMapping = for(idc <- idcs) yield new Area {
-      bus.driveAndRead(idc.idelivery, address = idcOffset + (idc.id * idcGroup) + ideliveryOffset)
-      bus.driveAndRead(idc.iforce, address = idcOffset + (idc.id * idcGroup) + iforceOffset)
-      bus.driveAndRead(idc.ithreshold, address = idcOffset + (idc.id * idcGroup) + ithresholdOffset)
+      bus.readAndWrite(idc.idelivery, address = idcOffset + (idc.id * idcGroup) + ideliveryOffset)
+      bus.readAndWrite(idc.iforce, address = idcOffset + (idc.id * idcGroup) + iforceOffset)
+      bus.readAndWrite(idc.ithreshold, address = idcOffset + (idc.id * idcGroup) + ithresholdOffset)
       // topi readonly
       bus.read(idc.topi_priority, address = idcOffset + (idc.id * idcGroup) + topiOffset, bitOffset = 0)
       bus.read(idc.topi_identity, address = idcOffset + (idc.id * idcGroup) + topiOffset, bitOffset = 16)
@@ -144,11 +148,19 @@ object aplicMapper{
       bus.read(idc.claimi_identity, address = idcOffset + (idc.id * idcGroup) + claimiOffset, bitOffset = 16)
       bus.onRead(address = idcOffset + (idc.id * idcGroup) + claimiOffset){
         claim.valid := True
-        claim.payload := idc.claimi_identity.asUInt
+        claim.payload := idc.claimi_identity.asUInt.resized
       }
 
 
     }
 
 	}
+
+  def setip(interrupts : Seq[APLICInterruptSource], id : UInt, state : Bool){
+      for (interrupt <- interrupts) {
+        when (interrupt.id === id) {
+          interrupt.ip := state
+        }
+      }
+  }
 }

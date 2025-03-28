@@ -3,15 +3,20 @@ package aplic
 import spinal.core._
 import spinal.core.sim._
 import spinal.lib.bus.tilelink
-import spinal.core
+import aplic.aplicMapper.setip
 
 object aplicSim extends App {
 
   val sourcenum = 8
-  val hartnum = 8
+  val hartnum = 2
+
+  val sourceIds = for (i <- 1 until sourcenum) yield i
+  val hartIds = for (i <- 0 until hartnum) yield i
+
+  val aplicmap = aplicMapping.aplicMap
 
   val compile = Config.sim.compile{
-    val imsic = new TilelinkAplic(sourcenum, hartnum,
+    val imsic = new TilelinkAplic(sourceIds, hartIds,
       tilelink.M2sParameters(
         sourceCount = 1,
         support = tilelink.M2sSupport(
@@ -31,31 +36,67 @@ object aplicSim extends App {
   compile.doSim{ dut =>
     dut.clockDomain.forkStimulus(10)
 
+    dut.io.sources #= 0
+
     implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
     val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
 
-    val domaincfgdata = BigInt(0x80000100).toByteArray
-    print(agent.putFullData(0, 0x0, domaincfgdata))
+    val sourcecfgdata = swapalign(BigInt(0x6))
+    for (i <- 1 until sourcenum){
+      print(agent.putFullData(0, aplicmap.sourcecfgOffset + (i << aplicmap.idShift), sourcecfgdata))
+    }
 
-    val sourcecfgdata = BigInt(0x6).toByteArray
-    print(agent.putFullData(0, 0x6, domaincfgdata))
+    val setiedata = swapalign(BigInt(0xffffffff))
+    print(agent.putFullData(0, aplicmap.setieOffset, setiedata))
 
+    // var data = BigInt(0x6).toByteArray
+    // var fixedData = Array.fill(4 - data.length)(0.toByte) ++ data
+
+    var targetdata = swapalign(BigInt(0x6))
+    print(agent.putFullData(0, aplicmap.targetOffset + 4, targetdata))
+
+    targetdata = swapalign(BigInt(0x5))
+    print(agent.putFullData(0, aplicmap.targetOffset + 8, targetdata))
+
+    targetdata = swapalign(BigInt(0x7))
+    for (i <- 3 until sourcenum){
+      print(agent.putFullData(0, aplicmap.targetOffset + (i << aplicmap.idShift), targetdata))
+    }
+
+    val domaincfgdata = swapalign(BigInt(0x80000100))
+    print(agent.putFullData(0, aplicmap.domaincfgOffset, domaincfgdata))
+
+    // val setipdata = swapalign((BigInt(0x0)))
+    // print(agent.putFullData(0, aplicmap.setipOffset, setipdata))
+
+    var setipnumdata = swapalign(BigInt(0x1))
+    print(agent.putFullData(0, aplicmap.setipnumOffset, setipnumdata))
+    dut.clockDomain.waitRisingEdge(10)
+
+    setipnumdata = swapalign(BigInt(0x2))
+    print(agent.putFullData(0, aplicmap.setipnumOffset, setipnumdata))
+    dut.clockDomain.waitRisingEdge(10)
+    // dut.io.sources(0) #= true
+    // dut.clockDomain.waitRisingEdge(10)
+    // dut.io.sources(0) #= false
+    // dut.io.sources(1) #= true
+    // dut.clockDomain.waitRisingEdge(10)
+    // dut.io.sources(1) #= false
+    // dut.clockDomain.waitRisingEdge(10)
+    // print(agent.get(0, aplicmap.claimiOffset, 4))
+    // dut.clockDomain.waitRisingEdge(10)
+    // print(agent.get(0, aplicmap.claimiOffset, 4))
 
   }
 
-
-
-
-  // Config.sim.compile(aplic()).doSim { dut =>
-  //   // Fork a process to generate the reset and the clock on the dut
-  //   dut.clockDomain.forkStimulus(period = 10)
-
-  //   var modelState = 0
-  //   for (idx <- 0 to 99) {
-  //     // Drive the dut inputs with random values
-
-  //     // Wait a rising edge on the clock
-  //     dut.clockDomain.waitRisingEdge()
-  //   }
-  // }
+  def swapalign(data : BigInt) : Array[Byte] = {
+    val swapdata = Array.fill(4)(0.toByte)
+    val tmpdata = data.toByteArray
+    val fixedData = Array.fill(4 - tmpdata.length)(0.toByte) ++ tmpdata
+    swapdata(3) = fixedData(0)
+    swapdata(2) = fixedData(1)
+    swapdata(1)  = fixedData(2)
+    swapdata(0)   = fixedData(3)
+    swapdata
+  }
 }

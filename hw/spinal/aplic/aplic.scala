@@ -4,41 +4,54 @@ import spinal.core._
 import spinal.lib._
 import spinal.lib.bus.misc.BusSlaveFactory
 
-class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourcenum : Int,
-                                                           hartnum : Int,
+class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
+                                                           hartIds : Seq[Int],
                                                            busType: HardType[T],
                                                            factoryGen: T => BusSlaveFactory) extends Component{
   val aplicMap = aplicMapping.aplicMap
 
   val io = new Bundle {
     val bus = slave(busType())
-    val sources = in Bits (sourcenum bits)
-    val targets = out Bits (hartnum bits)
-    val child0 = out Bits (sourcenum bits)
+    val sources = in Bits (sourceIds.size bits)
+    val targets = out Bits (hartIds.size bits)
+    // val child0 = out Bits (sourcenum-1 bits)
   }
 
-  val child = Vec(io.child0)
+  // val child = Vec(io.child0)
+  // val childbits = Vec(RegInit(B(0x0, sourcenum-1 bits)))
+  // for(i <- 0 until sourcenum-1){
+  //   child(0)(i) := childbits(0)(i)
+  // }
+  // childbits.allowUnsetRegToAvoidLatch()
 
   val domaincfg = new domaincfg()
   val setState = new setState()
 
-  val sourceIds = for (i <- 1 until sourcenum) yield i
-  val hartIds = for (i <- 0 until hartnum) yield i
-
   // sourceids
   val sources = for (sourceId <- sourceIds) yield new source(sourceId)
-  val gateways = for ((source, idx) <- sources.zipWithIndex) yield new aplicGateway(io.sources(idx), idx, source, domaincfg, child)
-  // hartids
-  val idcs = for (hartId <- hartIds) yield new idc(sources, hartId)
 
-  io.targets := idcs.map(_.target).asBits
+  val interrupts = for (source <- sources) yield new APLICInterruptSource(source.id, source.hartindex.getWidth,
+                                                                          source.iprio.getWidth){
+                                                                            ie := source.ie
+                                                                            ip := False
+                                                                            target := source.hartindex.asUInt
+                                                                            prio := source.iprio.asUInt
+                                                                          }
+  val gateways = for ((source, idx) <- sources.zipWithIndex) yield
+                 new aplicGateway(io.sources(idx), idx, source, domaincfg, interrupts(idx))
+
+  // hartids
+  val idcs = for (hartId <- hartIds) yield new idc(interrupts, hartId)
+
+  io.targets := idcs.map(_.output).asBits
 
   val factory = factoryGen(io.bus)
   val mapping = aplicMapper(factory, aplicMap)(
     domaincfg = domaincfg,
     setStatecfg = setState,
     sources = sources,
-    idcs = idcs
+    idcs = idcs,
+    interrupts = interrupts
   )
 
   /*TODO:
@@ -49,9 +62,9 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourcenum : Int,
    */
 }
 
-case class TilelinkAplic(sourcenum : Int, hartnum : Int, p : bus.tilelink.BusParameter) extends MappedAplic[bus.tilelink.Bus](
-  sourcenum,
-  hartnum,
+case class TilelinkAplic(sourceIds : Seq[Int], hartIds : Seq[Int], p : bus.tilelink.BusParameter) extends MappedAplic[bus.tilelink.Bus](
+  sourceIds,
+  hartIds,
   new bus.tilelink.Bus(p),
   new bus.tilelink.SlaveFactory(_, true)
 )
@@ -67,8 +80,8 @@ object aplicSourcemode extends SpinalEnum {
     low -> 7)
 }
 
-case class domaincfg() extends Bundle {
-  val align = RegInit(B(0x80, 8 bits))
+case class domaincfg() extends Area {
+  val align = RegInit(B(0x80, 8 bits)).allowUnsetRegToAvoidLatch()
   val ie = RegInit(False)
   val dm = RegInit(False)
   val be = RegInit(False)
@@ -82,9 +95,9 @@ case class source(id : Int) extends Bundle {
   val mode = RegInit(B(0x0, 10 bits))
   // setip
   val ie = RegInit(False)
-  val ip = RegInit(False)
+  // val ip = RegInit(False)
 
-  val valid = ie && ip
+  // val valid = ie && ip
   // target
   val hartindex = RegInit(B(0x0, 14 bits))
     // for direct delivery mode
@@ -97,7 +110,7 @@ case class source(id : Int) extends Bundle {
   when(D === False){
     switch (mode){
       is(0, 1, 4, 5, 6, 7){
-        triiger.assignFromBits(mode)
+        triiger.assignFromBits(mode.resized)
       }
       default{
         triiger := aplicSourcemode.inactive
@@ -107,12 +120,12 @@ case class source(id : Int) extends Bundle {
     triiger := aplicSourcemode.inactive
   }
   // doclaim doocmpletion
-  def doClaim(): Unit = ip := False
+  // def doClaim(): Unit = ip := False
 }
 
 case class setState() extends Area {
-  val setipnum = RegInit(B(0x0, 32 bits))
-  val clripnum = RegInit(B(0x0, 32 bits))
+  val setipnum = RegInit(B(0x0, 32 bits)).allowUnsetRegToAvoidLatch()
+  val clripnum = RegInit(B(0x0, 32 bits)).allowUnsetRegToAvoidLatch()
   val setienum = RegInit(B(0x0, 32 bits))
   val clrienum = RegInit(B(0x0, 32 bits))
 
@@ -123,8 +136,8 @@ case class setState() extends Area {
 }
 
 // hartIds
-case class idc(sources : Seq[source], id : Int) extends Bundle{
-  val target = RegInit(False)
+case class idc(interrupts : Seq[APLICInterruptSource], id : Int) extends Bundle{
+  val output = RegInit(False).allowUnsetRegToAvoidLatch()
 
   val idelivery = RegInit(False)
   val iforce = RegInit(False)
@@ -137,47 +150,31 @@ case class idc(sources : Seq[source], id : Int) extends Bundle{
   val claimi_priority = RegInit(B(0x0, 8 bits))
 
   claimi_identity := topi_identity
-  claimi_identity := topi_priority
+  claimi_priority := topi_priority
 
-  case class Request(id : UInt, priority : Bits, Valid : Bool) extends Bundle{
-    val idx = UInt(10 bits)
-    val iprio = UInt(8 bits)
-    val valid = Bool()
-  }
+  val generic = AIAGeneric(interrupts, id)
+  generic.threshold := ithreshold.asUInt.resized
 
-  val requests = for (source <- sources) yield new Request(source.id, source.iprio,
-                                                           source.valid &&
-                                                           source.hartindex.asUInt === id)
-
-  val bestRequest = RegNext(requests.reduceBalancedTree((a, b) => {
-    val takeA = !b.valid || (a.valid && a.iprio <= b.iprio)
-    takeA ? a | b
-  }))
-
-  when(bestRequest.valid === True){
-    val iep = bestRequest.iprio < ithreshold.asUInt
-    when(iep === True){
-      topi_identity := bestRequest.idx.asBits
-      topi_priority := bestRequest.iprio.asBits
-
-      // idcs(bestRequest.idx).claimi_identity := bestRequest.idx.asBits
-      // idcs(bestRequest.idx).claimi_priority := bestRequest.iprio
-      target := True
-    }
+  when(generic.claim > 0){
+    topi_identity := generic.claim.asBits.resized
+    topi_priority := generic.bestRequest.asInstanceOf[APLICRequest].prio.asBits.resized
+    output := True
   }otherwise{
-    target := False
+    output := False
   }
+
 }
 
-case class aplicGateway(input : Bool, id : UInt, source : source, domaincfg : domaincfg, child : Vec[Bits]) extends Area{
+// case class aplicGateway(input : Bool, id : UInt, source : source, domaincfg : domaincfg, childbits : Vec[Bits]) extends Area{
+case class aplicGateway(input : Bool, idx : UInt, source : source, domaincfg : domaincfg, interrupt : AIAInterruptSource) extends Area{
   when(domaincfg.ie === True){
     when(source.D === True){
-          child(source.mode.asUInt)(id) := input
-          source.ie := False
+      // childbits(source.mode.asUInt.resized)(id) := input
+      source.ie := False
     }otherwise {
       switch(source.triiger){
         is(aplicSourcemode.inactive){
-          source.ip := False
+          interrupt.ip := False
           source.ie := False
         }
         is(aplicSourcemode.detached){
@@ -186,34 +183,62 @@ case class aplicGateway(input : Bool, id : UInt, source : source, domaincfg : do
         is(aplicSourcemode.rising){
           when(input.rise()){
             source.ie := True
-            source.ip := True
+            interrupt.ip := True
           }
         }
         is(aplicSourcemode.falling){
           when(input.fall()){
             source.ie := True
-            source.ip := True
+            interrupt.ip := True
           }
         }
         is(aplicSourcemode.high){
           when(input === True){
             source.ie := True
-            source.ip := True
+            interrupt.ip := True
           }
         }
         is(aplicSourcemode.low){
           when(input === False){
             source.ie := True
-            source.ip := True
+            interrupt.ip := True
           }
         }
-        default{
-          source.ip := False
-          source.ie := False
-        }
+        // default{
+        //   source.ip := False
+        //   source.ie := False
+        // }
       }
     }
   }
+}
+
+case class APLICRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(idWidth) {
+  val prio = UInt(priorityWidth bits)
+
+  override def prioritize(other: AIARequest): Bool = {
+    val x = other.asInstanceOf[APLICRequest]
+    !x.valid || (valid && ((prio < x.prio) || ((prio === x.prio) && (id <= x.id))))
+  }
+
+  override def pending(threshold: UInt): Bool = {
+    valid && ((threshold === 0) || (prio < threshold))
+  }
+}
+
+case class APLICInterruptSource(sourceId : Int, idWidth : Int, priorityWidth : Int) extends AIAInterruptSource(sourceId) {
+  val target = UInt(idWidth bits)
+  val prio = UInt(priorityWidth bits)
+
+  override def asRequest(idWidth : Int, targetHart : Int): AIARequest = {
+    val ret = new APLICRequest(idWidth, priorityWidth)
+    ret.id := U(id)
+    ret.valid := ip && ie && (target === targetHart)
+    ret.prio := prio
+    ret
+  }
+
+
 }
 
 // case class TilelinkAplic(sources : Int, hartIds : Int, p : bus.tilelink.BusParameter) extends MappedAplic[bus.tilelink.Bus](

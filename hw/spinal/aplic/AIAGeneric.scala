@@ -39,29 +39,13 @@ case class IMSICInterruptSource(sourceId : Int) extends AIAInterruptSource(sourc
   }
 }
 
-case class APLICRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(idWidth) {
-  val prio = UInt(priorityWidth bits)
-
-  override def prioritize(other: AIARequest): Bool = {
-    val x = other.asInstanceOf[APLICRequest]
-    !x.valid || (valid && ((prio < x.prio) || ((prio === x.prio) && (id <= x.id))))
-  }
-
-  override def pending(threshold: UInt): Bool = {
-    valid && ((threshold === 0) || (prio < threshold))
-  }
-}
-
-case class APLICInterruptSource(sourceId: Int, idWidth : Int, priorityWidth: Int) extends AIAInterruptSource(sourceId) {
-  val prio = UInt(priorityWidth bits)
-  val target = UInt(idWidth bits)
-
-  override def asRequest(idWidth : Int, targetHart: Int): AIARequest = {
-    val ret = new APLICRequest(idWidth, priorityWidth)
-    ret.id := U(id)
-    ret.valid := ip && ie && target === targetHart
-    ret.prio := prio
-    ret
+object AIAOperator {
+  def doClaim(id: UInt, interrupts : Seq[AIAInterruptSource]) = new Area {
+    for (interrupt <- interrupts) {
+      when (interrupt.id === id) {
+        interrupt.ip := False
+      }
+    }
   }
 }
 
@@ -69,7 +53,6 @@ case class AIAGeneric(interrupts: Seq[AIAInterruptSource], targetHart: Int) exte
   val maxSource = (interrupts.map(_.id) ++ Seq(0)).max + 1
   val idWidth = log2Up(maxSource)
   val threshold = UInt(idWidth bits)
-
 
   val requests = interrupts.sortBy(_.id).map(g => g.asRequest(idWidth, targetHart))
 
@@ -81,15 +64,7 @@ case class AIAGeneric(interrupts: Seq[AIAInterruptSource], targetHart: Int) exte
   val iep = bestRequest.pending(threshold)
   val claim = iep ? bestRequest.id | 0
 
-  def doClaim(id: UInt) = new Area {
-    for (interrupt <- interrupts) {
-      when (interrupt.id === id) {
-        interrupt.ip := False
-      }
-    }
-  }
-
   def doBestClaim() = new Area {
-    doClaim(bestRequest.id)
+    AIAOperator.doClaim(bestRequest.id, interrupts)
   }
 }
