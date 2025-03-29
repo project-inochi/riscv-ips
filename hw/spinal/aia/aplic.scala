@@ -33,7 +33,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
                  new APlicGateway(io.sources(idx), idx, source, domaincfg, interrupts(idx))
 
   // hartids
-  val idcs = for (hartId <- hartIds) yield new APlicIDC(interrupts, hartId)
+  val idcs = for (i <- 0 to hartIds.max) yield new APlicIDC(interrupts, i)
 
   io.targets := idcs.map(_.output).asBits
 
@@ -52,7 +52,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
    * 3x. gateway -> ie
    * 4x. allowUnsetRegToAvoidLatch()
    * 5x. replace magic number with enum APlicSourceMode
-   * 6. idcmap
+   * 6x. idcmap
    */
 }
 
