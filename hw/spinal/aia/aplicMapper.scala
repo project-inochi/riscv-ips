@@ -110,8 +110,19 @@ object APlicMapper{
     }
 
     val interuptMapping = for(interrupt <- interrupts) yield new Area{
-      bus.readAndWrite(interrupt.ip, address = setipOffset + (interrupt.id/bus.busDataWidth)*bus.busDataWidth/8,
-                       bitOffset = interrupt.id % bus.busDataWidth)
+      val ipAddress = setipOffset + (interrupt.id / bus.busDataWidth) * bus.busDataWidth / 8
+      val ipBitOffset = interrupt.id % bus.busDataWidth
+
+      bus.read(interrupt.ip, address = ipAddress, bitOffset = ipBitOffset)
+      val ipDrive = bus.createAndDriveFlow(Bool, address = ipAddress, bitOffset = ipBitOffset)
+
+      when(ipDrive.valid) {
+        when(ipDrive.payload) {
+          interrupt.doSet()
+        } otherwise {
+          interrupt.doClaim()
+        }
+      }
     }
 
     val idWidth = log2Up((sources.map(_.id) ++ Seq(0)).max + 1)
