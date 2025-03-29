@@ -67,14 +67,14 @@ object AIAOperator {
     }
   }
 
-
-  def doSet(interrupts : Seq[APLICInterruptSource], id : UInt){
-      for (interrupt <- interrupts) {
-        when (interrupt.id === id) {
-          interrupt.doSet()
-        }
+  def doSet(interrupts : Seq[AIAInterruptSource], id : UInt){
+    for (interrupt <- interrupts) {
+      when (interrupt.id === id) {
+        interrupt.doSet()
       }
-  }}
+    }
+  }
+}
 
 case class AIAGeneric(interrupts: Seq[AIAInterruptSource], targetHart: Int) extends Area {
   val maxSource = (interrupts.map(_.id) ++ Seq(0)).max + 1
