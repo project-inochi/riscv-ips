@@ -21,6 +21,14 @@ abstract class AIAInterruptSource(sourceId: Int) extends Area {
   val ip = RegInit(False)
 
   def asRequest(idWidth : Int, targetHart: Int) : AIARequest
+
+  def doClaim(): Unit = {
+    ip := False
+  }
+
+  def doSet(): Unit = {
+    ip := True
+  }
 }
 
 case class IMSICRequest(idWidth : Int) extends AIARequest(idWidth) {
@@ -54,7 +62,7 @@ object AIAOperator {
   def doClaim(interrupts : Seq[AIAInterruptSource], id: UInt) = new Area {
     for (interrupt <- interrupts) {
       when (interrupt.id === id) {
-        interrupt.ip := False
+        interrupt.doClaim()
       }
     }
   }
@@ -63,7 +71,7 @@ object AIAOperator {
   def doSet(interrupts : Seq[APLICInterruptSource], id : UInt){
       for (interrupt <- interrupts) {
         when (interrupt.id === id) {
-          interrupt.ip := True
+          interrupt.doClaim()
         }
       }
   }}
