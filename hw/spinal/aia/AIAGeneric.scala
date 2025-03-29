@@ -71,7 +71,7 @@ object AIAOperator {
   def doSet(interrupts : Seq[APLICInterruptSource], id : UInt){
       for (interrupt <- interrupts) {
         when (interrupt.id === id) {
-          interrupt.doClaim()
+          interrupt.doSet()
         }
       }
   }}
