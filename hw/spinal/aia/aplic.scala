@@ -81,7 +81,7 @@ case class domaincfg() extends Area {
 }
 
 // sourceIds
-case class APlicSource(id : Int) extends Bundle {
+case class APlicSource(id : Int) extends Area {
   val D = RegInit(False)
   val mode = RegInit(B(0x0, 10 bits))
   val ie = RegInit(False)

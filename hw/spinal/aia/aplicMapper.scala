@@ -90,11 +90,11 @@ object APlicMapper{
 
     bus.readAndWrite(setStatecfg.setienum, address = setienumOffset)
     bus.onWrite(address = setienumOffset){
-      sources(setStatecfg.setienum.resized).ie := True
+      setIE(sources, setStatecfg.setienum)
     }
     bus.readAndWrite(setStatecfg.clrienum, address = clrienumOffset)
     bus.onWrite(address = clrienumOffset){
-      sources(setStatecfg.clrienum.resized).ie := False
+      clrIE(sources, setStatecfg.clrienum)
     }
 
     bus.read(B(0), address = setipOffset, bitOffset = 0)
@@ -141,4 +141,20 @@ object APlicMapper{
       }
     }
 	}
+
+  def setIE(sources : Seq[APlicSource], id : UInt) = new Area{
+    for (source <- sources) {
+      when (source.id === id) {
+        source.ie := True
+      }
+    }
+  }
+
+  def clrIE(sources : Seq[APlicSource], id : UInt) = new Area{
+    for (source <- sources) {
+      when (source.id === id) {
+        source.ie := False
+      }
+    }
+  }
 }
