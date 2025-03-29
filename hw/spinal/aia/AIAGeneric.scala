@@ -31,33 +31,6 @@ abstract class AIAInterruptSource(sourceId: Int) extends Area {
   }
 }
 
-case class IMSICRequest(idWidth : Int) extends AIARequest(idWidth) {
-  override def prioritize(other: AIARequest): Bool = {
-    val x = other.asInstanceOf[IMSICRequest]
-    !x.valid || (valid && id <= x.id)
-  }
-
-  override def pending(threshold: UInt): Bool = {
-    valid && ((threshold === 0) || (id < threshold))
-  }
-
-  override def dummy(): AIARequest = {
-    val tmp = IMSICRequest(idWidth)
-    tmp.id := 0
-    tmp.valid := False
-    tmp
-  }
-}
-
-case class IMSICInterruptSource(sourceId : Int) extends AIAInterruptSource(sourceId) {
-  override def asRequest(idWidth : Int, targetHart: Int): AIARequest = {
-    val ret = new IMSICRequest(idWidth)
-    ret.id := U(id)
-    ret.valid := ip && ie
-    ret
-  }
-}
-
 object AIAOperator {
   def doClaim(interrupts : Seq[AIAInterruptSource], id: UInt) = new Area {
     for (interrupt <- interrupts) {
