@@ -27,6 +27,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
       ie := source.ie
       target := source.hartindex
       prio := source.iprio
+      triigerLevel := (source.triiger === APlicSourceMode.high) || (source.triiger === APlicSourceMode.low)
     }
 
   val gateways = for ((source, idx) <- sources.zipWithIndex) yield
@@ -47,12 +48,9 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   )
 
   /*TODO:
-   * 1. source interupt re-triiger  <pending>
-   * 2x. setipReg reset to 0?
-   * 3x. gateway -> ie
-   * 4x. allowUnsetRegToAvoidLatch()
-   * 5x. replace magic number with enum APlicSourceMode
-   * 6x. idcmap
+   * 1. source interupt re-triiger  <setie/setip>
+   * 2. complete sim process
+   * 3. MSIkkk
    */
 }
 
@@ -155,14 +153,12 @@ case class APlicGateway(input : Bool, idx : UInt, source : APlicSource, domaincf
         }
         is(APlicSourceMode.high){
           when(input === True){
-            source.ie := True
-            interrupt.ip := True
+            interrupt.ip := input
           }
         }
         is(APlicSourceMode.low){
           when(input === False){
-            source.ie := True
-            interrupt.ip := True
+            interrupt.ip := ~input
           }
         }
       }
@@ -194,6 +190,7 @@ case class APLICRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(id
 case class APLICInterruptSource(sourceId : Int, idWidth : Int, priorityWidth : Int) extends AIAInterruptSource(sourceId) {
   val target = UInt(idWidth bits)
   val prio = UInt(priorityWidth bits)
+  val triigerLevel = Bool
 
   override def asRequest(idWidth : Int, targetHart : Int): AIARequest = {
     val ret = new APLICRequest(idWidth, priorityWidth)
@@ -201,5 +198,17 @@ case class APLICInterruptSource(sourceId : Int, idWidth : Int, priorityWidth : I
     ret.valid := ip && ie && (target === targetHart)
     ret.prio := prio
     ret
+  }
+
+  override def doClaim(): Unit = {
+    when(triigerLevel === False){
+      ip := False
+    }
+  }
+
+  override def doSet(): Unit = {
+    when(triigerLevel === False){
+      ip := True
+    }
   }
 }
