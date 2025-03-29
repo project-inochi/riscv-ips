@@ -69,7 +69,7 @@ object APlicMapper{
 	def apply(bus: BusSlaveFactory, mapping: APlicMapping)(domaincfg : domaincfg, setStatecfg : setState, sources : Seq[APlicSource], idcs : Seq[APlicIDC], interrupts : Seq[APLICInterruptSource]) = new Area{
     import mapping._
 
-    bus.read(domaincfg.align, address = domaincfgOffset, bitOffset = 24)
+    bus.read(U(0x80), address = domaincfgOffset, bitOffset = 24)
     bus.readAndWrite(domaincfg.ie, address = domaincfgOffset, bitOffset = 8)
     bus.readAndWrite(domaincfg.dm, address = domaincfgOffset, bitOffset = 2)
     bus.readAndWrite(domaincfg.be, address = domaincfgOffset, bitOffset = 0)
@@ -142,5 +142,3 @@ object APlicMapper{
     }
 	}
 }
-
-

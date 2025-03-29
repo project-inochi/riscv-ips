@@ -36,7 +36,7 @@ object APlicSim extends App {
   compile.doSim{ dut =>
     dut.clockDomain.forkStimulus(10)
 
-    dut.io.sources #= 0x0
+    dut.io.sources #= 0x4
 
     implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
     val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)

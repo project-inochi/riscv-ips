@@ -47,11 +47,12 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   )
 
   /*TODO:
-   * 1. source interupt re-triiger
+   * 1. source interupt re-triiger  <pending>
    * 2x. setipReg reset to 0?
-   * 3. gateway -> ie
-   * 4. allowUnsetRegToAvoidLatch()
-   * 5. replace magic number with enum APlicSourceMode
+   * 3x. gateway -> ie
+   * 4x. allowUnsetRegToAvoidLatch()
+   * 5x. replace magic number with enum APlicSourceMode
+   * 6. idcmap
    */
 }
 
@@ -74,7 +75,6 @@ object APlicSourceMode extends SpinalEnum {
 }
 
 case class domaincfg() extends Area {
-  val align = RegInit(U(0x80, 8 bits))
   val ie = RegInit(False)
   val dm = RegInit(False)
   val be = RegInit(False)
@@ -95,11 +95,13 @@ case class APlicSource(id : Int) extends Bundle {
 
   val triiger = APlicSourceMode()
   when(D === False){
-    switch (mode){
-      is(0, 1, 4, 5, 6, 7){
-        triiger.assignFromBits(mode.resized)
+    switch(mode) {
+      for (state <- APlicSourceMode.elements) {
+        is(state.asBits.resized) {
+          triiger := state
+        }
       }
-      default{
+      default {
         triiger := APlicSourceMode.inactive
       }
     }
@@ -139,17 +141,15 @@ case class APlicGateway(input : Bool, idx : UInt, source : APlicSource, domaincf
           source.ie := False
         }
         is(APlicSourceMode.detached){
-          source.ie := True
+
         }
         is(APlicSourceMode.rising){
           when(input.rise()){
-            source.ie := True
             interrupt.ip := True
           }
         }
         is(APlicSourceMode.falling){
           when(input.fall()){
-            source.ie := True
             interrupt.ip := True
           }
         }
