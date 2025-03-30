@@ -153,14 +153,10 @@ case class APlicGateway(input : Bool, idx : UInt, source : APlicSource, domaincf
           }
         }
         is(APlicSourceMode.high){
-          when(input === True){
             interrupt.ip := input
-          }
         }
         is(APlicSourceMode.low){
-          when(input === False){
             interrupt.ip := ~input
-          }
         }
       }
     }
