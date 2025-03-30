@@ -48,7 +48,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   )
 
   /*TODO:
-   * 1. source interupt re-triiger  <setie/setip>
+   * 1. use createAndDriveFlow to achieve setienum/clrienum
    * 2. complete sim process
    * 3. MSI
    * 4x. rename filename
