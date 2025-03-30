@@ -11,7 +11,7 @@ class SimUIntFix(width: Int)(number: BigInt, endian: Endianness = LITTLE) {
 
 object SimUIntFix {
   implicit def simUintFix2SeqByte(intx: SimUIntFix): Seq[Byte] = {
-    intx.value.toBytes(intx.bits, intx.endianness)
+    intx.value.toBytes(intx.bits, intx.endianness).toIndexedSeq
   }
 }
 

@@ -17,7 +17,7 @@ abstract class AIARequest(idWidth: Int) extends Bundle {
 
 abstract class AIAInterruptSource(sourceId: Int) extends Area {
   val id = sourceId
-  val ie = Bool
+  val ie = Bool()
   val ip = RegInit(False)
 
   def asRequest(idWidth : Int, targetHart: Int) : AIARequest
@@ -40,7 +40,7 @@ object AIAOperator {
     }
   }
 
-  def doSet(interrupts : Seq[AIAInterruptSource], id : UInt){
+  def doSet(interrupts : Seq[AIAInterruptSource], id : UInt) = new Area {
     for (interrupt <- interrupts) {
       when (interrupt.id === id) {
         interrupt.doSet()

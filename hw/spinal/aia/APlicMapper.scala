@@ -114,7 +114,7 @@ object APlicMapper{
       val ipBitOffset = interrupt.id % bus.busDataWidth
 
       bus.read(interrupt.ip, address = ipAddress, bitOffset = ipBitOffset)
-      val ipDrive = bus.createAndDriveFlow(Bool, address = ipAddress, bitOffset = ipBitOffset)
+      val ipDrive = bus.createAndDriveFlow(Bool(), address = ipAddress, bitOffset = ipBitOffset)
 
       when(ipDrive.valid) {
         when(ipDrive.payload) {

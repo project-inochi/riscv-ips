@@ -187,7 +187,7 @@ case class APLICRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(id
 case class APLICInterruptSource(sourceId : Int, idWidth : Int, priorityWidth : Int) extends AIAInterruptSource(sourceId) {
   val target = UInt(idWidth bits)
   val prio = UInt(priorityWidth bits)
-  val triigerLevel = Bool
+  val triigerLevel = Bool()
 
   override def asRequest(idWidth : Int, targetHart : Int): AIARequest = {
     val ret = new APLICRequest(idWidth, priorityWidth)
