@@ -36,39 +36,36 @@ object APlicSim extends App {
   compile.doSim{ dut =>
     dut.clockDomain.forkStimulus(10)
 
-    dut.io.sources #= 0x4
+    dut.io.sources #= 0x0
 
     implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
     val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
 
-    val sourcecfgdata = swapalign(BigInt(0x6))
-    for (i <- 1 until sourcenum){
-      print(agent.putFullData(0, aplicmap.sourcecfgOffset + (i << aplicmap.idShift), sourcecfgdata))
-    }
+    print(agent.putFullData(0, aplicmap.sourcecfgOffset + 4, swapalign(BigInt(0x1))))
+    print(agent.putFullData(0, aplicmap.sourcecfgOffset + 8, swapalign(BigInt(0x1))))
+    print(agent.putFullData(0, aplicmap.sourcecfgOffset + 12, swapalign(BigInt(0x4))))
+    print(agent.putFullData(0, aplicmap.sourcecfgOffset + 16, swapalign(BigInt(0x5))))
+    print(agent.putFullData(0, aplicmap.sourcecfgOffset + 20, swapalign(BigInt(0x6))))
+    print(agent.putFullData(0, aplicmap.sourcecfgOffset + 24, swapalign(BigInt(0x6))))
+    print(agent.putFullData(0, aplicmap.sourcecfgOffset + 28, swapalign(BigInt(0x7))))
 
-    val setiedata = swapalign(BigInt(0xffffffff))
-    print(agent.putFullData(0, aplicmap.setieOffset, setiedata))
+    print(agent.putFullData(0, aplicmap.setieOffset, swapalign(BigInt(0xffffffff))))
 
-    // var data = BigInt(0x6).toByteArray
-    // var fixedData = Array.fill(4 - data.length)(0.toByte) ++ data
+    print(agent.putFullData(0, aplicmap.targetOffset + 4, swapalign(BigInt(0x1))))
+    print(agent.putFullData(0, aplicmap.targetOffset + 8, swapalign(BigInt(0x2))))
+    print(agent.putFullData(0, aplicmap.targetOffset + 12, swapalign(BigInt(0x3))))
+    print(agent.putFullData(0, aplicmap.targetOffset + 16, swapalign(BigInt(0x4))))
+    print(agent.putFullData(0, aplicmap.targetOffset + 20, swapalign(BigInt(0x5))))
+    print(agent.putFullData(0, aplicmap.targetOffset + 24, swapalign(BigInt(0x6))))
+    print(agent.putFullData(0, aplicmap.targetOffset + 28, swapalign(BigInt(0x40007))))
 
-    var targetdata = swapalign(BigInt(0x6))
-    print(agent.putFullData(0, aplicmap.targetOffset + 4, targetdata))
-
-    targetdata = swapalign(BigInt(0x40005))
-    print(agent.putFullData(0, aplicmap.targetOffset + 8, targetdata))
-
-    targetdata = swapalign(BigInt(0x7))
-    for (i <- 3 until sourcenum){
-      print(agent.putFullData(0, aplicmap.targetOffset + (i << aplicmap.idShift), targetdata))
-    }
+    val setipdata = swapalign((BigInt(0x0)))
+    print(agent.putFullData(0, aplicmap.setipOffset, setipdata))
 
     val domaincfgdata = swapalign(BigInt(0x80000100))
     print(agent.putFullData(0, aplicmap.domaincfgOffset, domaincfgdata))
 
-    // val setipdata = swapalign((BigInt(0x0)))
-    // print(agent.putFullData(0, aplicmap.setipOffset, setipdata))
-
+    // begin
     var setipnumdata = swapalign(BigInt(0x1))
     print(agent.putFullData(0, aplicmap.setipnumOffset, setipnumdata))
     dut.clockDomain.waitRisingEdge(10)
@@ -80,19 +77,8 @@ object APlicSim extends App {
 
     print(agent.get(0, aplicmap.idcOffset + aplicmap.claimiOffset, 4))
     print(agent.get(0, aplicmap.idcOffset + aplicmap.idcGroup + aplicmap.claimiOffset, 4))
+    print(agent.get(0, aplicmap.idcOffset + aplicmap.idcGroup + aplicmap.claimiOffset, 4))
     dut.clockDomain.waitRisingEdge(10)
-
-    // dut.io.sources(0) #= true
-    // dut.clockDomain.waitRisingEdge(10)
-    // dut.io.sources(0) #= false
-    // dut.io.sources(1) #= true
-    // dut.clockDomain.waitRisingEdge(10)
-    // dut.io.sources(1) #= false
-    // dut.clockDomain.waitRisingEdge(10)
-    // print(agent.get(0, aplicmap.claimiOffset, 4))
-    // dut.clockDomain.waitRisingEdge(10)
-    // print(agent.get(0, aplicmap.claimiOffset, 4))
-
   }
 
   def swapalign(data : BigInt) : Array[Byte] = {
