@@ -74,34 +74,37 @@ object APlicMapper{
     bus.readAndWrite(domaincfg.dm, address = domaincfgOffset, bitOffset = 2)
     bus.readAndWrite(domaincfg.be, address = domaincfgOffset, bitOffset = 0)
 
-    bus.read(setStatecfg.setipnum, address = setipnumOffset)
     val setipnum = bus.createAndDriveFlow(UInt(32 bits), setipnumOffset)
     when(setipnum.valid){
       setStatecfg.setipnum := setipnum.payload
       AIAOperator.doSet(interrupts, setipnum.payload)
     }
 
-    bus.read(setStatecfg.clripnum, address = clripnumOffset)
     val clripnum = bus.createAndDriveFlow(UInt(32 bits), clripnumOffset)
     when(clripnum.valid){
       setStatecfg.clripnum := clripnum.payload
       AIAOperator.doClaim(interrupts, clripnum.payload)
     }
 
-    bus.readAndWrite(setStatecfg.setienum, address = setienumOffset)
-    bus.onWrite(address = setienumOffset){
-      setIE(sources, setStatecfg.setienum)
+    val setienum = bus.createAndDriveFlow(UInt(32 bits), setienumOffset)
+    when(setienum.valid){
+      setStatecfg.setienum := setienum.payload
+      setIE(sources, setienum.payload)
     }
-    bus.readAndWrite(setStatecfg.clrienum, address = clrienumOffset)
-    bus.onWrite(address = clrienumOffset){
-      clrIE(sources, setStatecfg.clrienum)
+
+    val clrienum = bus.createAndDriveFlow(UInt(32 bits), clrienumOffset)
+    when(clrienum.valid){
+      setStatecfg.clrienum := clrienum.payload
+      clrIE(sources, clrienum.payload)
     }
 
     bus.read(B(0), address = setipOffset, bitOffset = 0)
     bus.read(B(0), address = setieOffset, bitOffset = 0)
     val sourceMapping = for(source <- sources) yield new Area{
-      bus.readAndWrite(source.mode, address = sourcecfgOffset + (source.id << idShift), bitOffset = 0)
-      bus.readAndWrite(source.D, address = sourcecfgOffset + (source.id << idShift), bitOffset = 10)
+      val sourceflow = bus.createAndDriveFlow(UInt(11 bits), sourcecfgOffset + (source.id << idShift))
+      when(sourceflow.valid){
+        (source.D, source.mode) := sourceflow.payload
+      }
 
       bus.readAndWrite(source.ie, address = setieOffset + (source.id/bus.busDataWidth)*bus.busDataWidth/8,
                        bitOffset = source.id % bus.busDataWidth)
