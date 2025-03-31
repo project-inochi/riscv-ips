@@ -88,13 +88,17 @@ object APlicMapper{
       AIAOperator.doClaim(interrupts, clripnum.payload)
     }
 
-    bus.readAndWrite(setStatecfg.setienum, address = setienumOffset)
-    bus.onWrite(address = setienumOffset){
-      setIE(sources, setStatecfg.setienum)
+    bus.read(setStatecfg.setienum, address = setienumOffset)
+    val setienum = bus.createAndDriveFlow(UInt(32 bits), setienumOffset)
+    when(setienum.valid){
+      setStatecfg.setienum := setienum.payload
+      setIE(sources, setienum.payload)
     }
-    bus.readAndWrite(setStatecfg.clrienum, address = clrienumOffset)
-    bus.onWrite(address = clrienumOffset){
-      clrIE(sources, setStatecfg.clrienum)
+    bus.read(setStatecfg.clrienum, address = clrienumOffset)
+    val clrienum = bus.createAndDriveFlow(UInt(32 bits), clrienumOffset)
+    when(clrienum.valid){
+      setStatecfg.clrienum := clrienum.payload
+      clrIE(sources, clrienum.payload)
     }
 
     bus.read(B(0), address = setipOffset, bitOffset = 0)
