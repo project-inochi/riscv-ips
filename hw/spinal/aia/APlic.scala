@@ -24,7 +24,6 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
 
   val interrupts = for (source <- sources)
     yield new APLICInterruptSource(source.id, source.hartindex.getWidth, source.iprio.getWidth){
-      ie := source.ie
       target := source.hartindex
       prio := source.iprio
       triigerLevel := (source.triiger === APlicSourceMode.high) || (source.triiger === APlicSourceMode.low)
@@ -84,7 +83,6 @@ case class domaincfg() extends Area {
 case class APlicSource(id : Int) extends Area {
   val D = RegInit(False)
   val mode = RegInit(B(0x0, 10 bits))
-  val ie = RegInit(False)
 
   val hartindex = RegInit(U(0x0, 14 bits))
   // for direct delivery mode
@@ -133,12 +131,12 @@ case class APlicIDC(interrupts : Seq[APLICInterruptSource], id : Int) extends Bu
 case class APlicGateway(input : Bool, idx : UInt, source : APlicSource, domaincfg : domaincfg, interrupt : AIAInterruptSource) extends Area{
   when(domaincfg.ie === True){
     when(source.D === True){
-      source.ie := False
+      interrupt.ie := False
     }otherwise {
       switch(source.triiger){
         is(APlicSourceMode.inactive){
           interrupt.ip := False
-          source.ie := False
+          interrupt.ie := False
         }
         is(APlicSourceMode.detached){
 

@@ -89,13 +89,13 @@ object APlicMapper{
     val setienum = bus.createAndDriveFlow(UInt(32 bits), setienumOffset)
     when(setienum.valid){
       setStatecfg.setienum := setienum.payload
-      setIE(sources, setienum.payload)
+      AIAOperator.enable(interrupts, setienum.payload)
     }
 
     val clrienum = bus.createAndDriveFlow(UInt(32 bits), clrienumOffset)
     when(clrienum.valid){
       setStatecfg.clrienum := clrienum.payload
-      clrIE(sources, clrienum.payload)
+      AIAOperator.disable(interrupts, setienum.payload)
     }
 
     bus.read(B(0), address = setipOffset, bitOffset = 0)
@@ -106,18 +106,19 @@ object APlicMapper{
         (source.D, source.mode) := sourceflow.payload
       }
 
-      bus.readAndWrite(source.ie, address = setieOffset + (source.id/bus.busDataWidth)*bus.busDataWidth/8,
-                       bitOffset = source.id % bus.busDataWidth)
       bus.readAndWrite(source.iprio, address = targetOffset + (source.id << idShift), bitOffset = 0)
       bus.readAndWrite(source.hartindex, address = targetOffset + (source.id << idShift), bitOffset = 18)
     }
 
     val interuptMapping = for(interrupt <- interrupts) yield new Area{
-      val ipAddress = setipOffset + (interrupt.id / bus.busDataWidth) * bus.busDataWidth / 8
-      val ipBitOffset = interrupt.id % bus.busDataWidth
+      val interruptOffset = (interrupt.id / bus.busDataWidth) * bus.busDataWidth / 8
+      val interruptBitOffset = interrupt.id % bus.busDataWidth
 
-      bus.read(interrupt.ip, address = ipAddress, bitOffset = ipBitOffset)
-      val ipDrive = bus.createAndDriveFlow(Bool(), address = ipAddress, bitOffset = ipBitOffset)
+      bus.readAndWrite(interrupt.ie, address = setieOffset + interruptOffset,
+                       bitOffset = interruptBitOffset)
+
+      bus.read(interrupt.ip, address = setipOffset + interruptOffset, bitOffset = interruptBitOffset)
+      val ipDrive = bus.createAndDriveFlow(Bool(), address = setipOffset + interruptOffset, bitOffset = interruptBitOffset)
 
       when(ipDrive.valid) {
         when(ipDrive.payload) {
@@ -155,20 +156,4 @@ object APlicMapper{
       }
     }
 	}
-
-  def setIE(sources : Seq[APlicSource], id : UInt) = new Area{
-    for (source <- sources) {
-      when (source.id === id) {
-        source.ie := True
-      }
-    }
-  }
-
-  def clrIE(sources : Seq[APlicSource], id : UInt) = new Area{
-    for (source <- sources) {
-      when (source.id === id) {
-        source.ie := False
-      }
-    }
-  }
 }
