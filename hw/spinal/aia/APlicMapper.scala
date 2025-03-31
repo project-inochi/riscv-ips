@@ -66,7 +66,7 @@ object APlicMapping{
 }
 
 object APlicMapper{
-	def apply(bus: BusSlaveFactory, mapping: APlicMapping)(domaincfg : domaincfg, setStatecfg : setState, sources : Seq[APlicSource], idcs : Seq[APlicIDC], interrupts : Seq[APLICInterruptSource]) = new Area{
+	def apply(bus: BusSlaveFactory, mapping: APlicMapping)(domaincfg : domaincfg, sources : Seq[APlicSource], idcs : Seq[APlicIDC], interrupts : Seq[APLICInterruptSource]) = new Area{
     import mapping._
 
     bus.read(U(0x80), address = domaincfgOffset, bitOffset = 24)
@@ -76,25 +76,21 @@ object APlicMapper{
 
     val setipnum = bus.createAndDriveFlow(UInt(32 bits), setipnumOffset)
     when(setipnum.valid){
-      setStatecfg.setipnum := setipnum.payload
       AIAOperator.doSet(interrupts, setipnum.payload)
     }
 
     val clripnum = bus.createAndDriveFlow(UInt(32 bits), clripnumOffset)
     when(clripnum.valid){
-      setStatecfg.clripnum := clripnum.payload
       AIAOperator.doClaim(interrupts, clripnum.payload)
     }
 
     val setienum = bus.createAndDriveFlow(UInt(32 bits), setienumOffset)
     when(setienum.valid){
-      setStatecfg.setienum := setienum.payload
       AIAOperator.enable(interrupts, setienum.payload)
     }
 
     val clrienum = bus.createAndDriveFlow(UInt(32 bits), clrienumOffset)
     when(clrienum.valid){
-      setStatecfg.clrienum := clrienum.payload
       AIAOperator.disable(interrupts, setienum.payload)
     }
 

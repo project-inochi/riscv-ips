@@ -17,7 +17,6 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   }
 
   val domaincfg = new domaincfg()
-  val setState = new setState()
 
   // sourceids
   val sources = for (i <- 1 to sourceIds.max) yield new APlicSource(i)
@@ -40,7 +39,6 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   val factory = factoryGen(io.bus)
   val mapping = APlicMapper(factory, aplicMap)(
     domaincfg = domaincfg,
-    setStatecfg = setState,
     sources = sources,
     idcs = idcs,
     interrupts = interrupts
