@@ -31,17 +31,9 @@ case class IMSICInterruptSource(sourceId : Int) extends AIAInterruptSource(sourc
   }
 }
 
-case class IMSIC(sources: Seq[IMSICInterruptSource], targetHart: Int) extends Area {
+case class IMSIC(sources: Seq[AIAInterruptSource], targetHart: Int) extends Area {
   val maxSource = (sources.map(_.id) ++ Seq(0)).max + 1
   val idWidth = log2Up(maxSource)
-
-  val generic = AIAGeneric(sources, targetHart);
-
-  val claim = UInt(idWidth bits)
-  val threshold = UInt(idWidth bits)
-
-  claim := generic.claim
-  generic.threshold := threshold
 
   def driveFrom(bus: BusSlaveFactory, baseAddress: BigInt) = new Area{
     val SETEIPNUM_LE_ADDR = 0x000
