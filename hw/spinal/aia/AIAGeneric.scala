@@ -65,7 +65,7 @@ object AIAOperator {
   }
 }
 
-case class AIAGeneric(interrupts: Seq[AIAInterruptSource], targetHart: Int) extends Area {
+case class AIAGeneric(interrupts: Seq[AIAInterruptSource], targetHart: Int, guestId: Int = 0) extends Area {
   val maxSource = (interrupts.map(_.id) ++ Seq(0)).max + 1
   val idWidth = log2Up(maxSource)
   val threshold = UInt(idWidth bits)
