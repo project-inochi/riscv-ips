@@ -20,7 +20,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   val setState = new setState()
 
   // sourceids
-  val sources = for (sourceId <- sourceIds) yield new APlicSource(sourceId)
+  val sources = for (i <- 1 to sourceIds.max) yield new APlicSource(i)
 
   val interrupts = for (source <- sources)
     yield new APLICInterruptSource(source.id, source.hartindex.getWidth, source.iprio.getWidth){
