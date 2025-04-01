@@ -6,6 +6,7 @@ import spinal.lib.bus.misc.BusSlaveFactory
 
 class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
                                                            hartIds : Seq[Int],
+                                                           slaves : Seq[MappedAplic[T]],
                                                            busType: HardType[T],
                                                            factoryGen: T => BusSlaveFactory) extends Component{
   val aplicMap = APlicMapping.aplicMap
@@ -14,14 +15,18 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
     val bus = slave(busType())
     val sources = in Bits (sourceIds.size bits)
     val targets = out Bits (hartIds.size bits)
+    val slaveio = slaves.nonEmpty generate Vec(slaves.map(slave => out Bits (slave.interrupts.length bits)))
+    //val slaveio = out Bits (sourceIds.size bits)
   }
+
+  // io.slaveio.foreach(slaves(0).io.sources := _(0))
 
   val domaincfg = new domaincfg()
 
   val interrupts = for (i <- 1 to sourceIds.max) yield new APLICInterruptSource(i)
 
   val gateways = for ((interrupt, idx) <- interrupts.zipWithIndex) yield
-                 new APlicGateway(io.sources(idx), idx, domaincfg, interrupt)
+                 new APlicGateway(io.sources(idx), idx, domaincfg, interrupt, io.slaveio)
 
   // hartids
   val idcs = for (i <- 0 to hartIds.max) yield new APlicIDC(interrupts, i)
@@ -42,9 +47,10 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
    */
 }
 
-case class TilelinkAplic(sourceIds : Seq[Int], hartIds : Seq[Int], p : bus.tilelink.BusParameter) extends MappedAplic[bus.tilelink.Bus](
+case class TilelinkAplic(sourceIds : Seq[Int], hartIds : Seq[Int], slaves : Seq[TilelinkAplic], p : bus.tilelink.BusParameter) extends MappedAplic[bus.tilelink.Bus](
   sourceIds,
   hartIds,
+  slaves,
   new bus.tilelink.Bus(p),
   new bus.tilelink.SlaveFactory(_, true)
 )
@@ -79,11 +85,14 @@ case class APlicIDC(interrupts : Seq[APLICInterruptSource], id : Int) extends Bu
   val output = generic.claim > 0
 }
 
-case class APlicGateway(input : Bool, idx : UInt, domaincfg : domaincfg, interrupt : APLICInterruptSource) extends Area{
+case class APlicGateway(input : Bool, idx : UInt, domaincfg : domaincfg, interrupt : APLICInterruptSource, slaveio : Vec[Bits]) extends Area{
   when(domaincfg.ie === True){
     when(interrupt.D === True){
       interrupt.ie := False
+      slaveio(0)(idx) := input
     }otherwise {
+      // should high resistance
+      slaveio(0)(idx) := False
       switch(interrupt.triiger){
         is(APlicSourceMode.inactive){
           interrupt.ip := False
