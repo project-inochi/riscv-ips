@@ -28,7 +28,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   val slaveIO = for (((slave, slaveIO), slaveIdx) <- slaves.zip(io.slaveIOs).zipWithIndex) yield new Area {
     for ((slaveInterrupt, idx) <- slave.interrupts.zipWithIndex) yield new Area {
       interrupts.find(_.id == slaveInterrupt.id).map(interrupt => new Area {
-        when(domaincfg.ie && interrupt.D && interrupt.childIdx === slaveIdx) {
+        when(domaincfg.ie && interrupt.D && (Bool(slaves.size == 1) || interrupt.childIdx === slaveIdx)) {
           slaveIO(idx) := interrupt.input
         } otherwise {
           slaveIO(idx) := False
