@@ -66,7 +66,7 @@ object APlicMapping{
 }
 
 object APlicMapper{
-	def apply(bus: BusSlaveFactory, mapping: APlicMapping)(domaincfg : domaincfg, sources : Seq[APlicSource], idcs : Seq[APlicIDC], interrupts : Seq[APLICInterruptSource]) = new Area{
+	def apply(bus: BusSlaveFactory, mapping: APlicMapping)(domaincfg : domaincfg, idcs : Seq[APlicIDC], interrupts : Seq[APLICInterruptSource]) = new Area{
     import mapping._
 
     bus.read(U(0x80), address = domaincfgOffset, bitOffset = 24)
@@ -96,14 +96,14 @@ object APlicMapper{
 
     bus.read(B(0), address = setipOffset, bitOffset = 0)
     bus.read(B(0), address = setieOffset, bitOffset = 0)
-    val sourceMapping = for(source <- sources) yield new Area{
-      val sourceflow = bus.createAndDriveFlow(UInt(11 bits), sourcecfgOffset + (source.id << idShift))
+    val interruptMapping = for(interrupt <- interrupts) yield new Area{
+      val sourceflow = bus.createAndDriveFlow(UInt(11 bits), sourcecfgOffset + (interrupt.id << idShift))
       when(sourceflow.valid){
-        (source.D, source.mode) := sourceflow.payload
+        (interrupt.D, interrupt.mode) := sourceflow.payload
       }
 
-      bus.readAndWrite(source.iprio, address = targetOffset + (source.id << idShift), bitOffset = 0)
-      bus.readAndWrite(source.hartindex, address = targetOffset + (source.id << idShift), bitOffset = 18)
+      bus.readAndWrite(interrupt.prio, address = targetOffset + (interrupt.id << idShift), bitOffset = 0)
+      bus.readAndWrite(interrupt.target, address = targetOffset + (interrupt.id << idShift), bitOffset = 18)
     }
 
     val interuptMapping = for(interrupt <- interrupts) yield new Area{
@@ -125,7 +125,7 @@ object APlicMapper{
       }
     }
 
-    val idWidth = log2Up((sources.map(_.id) ++ Seq(0)).max + 1)
+    val idWidth = log2Up((interrupts.map(_.id) ++ Seq(0)).max + 1)
     val claim = Flow(UInt(idWidth bits))
     claim.valid := False
     claim.payload.assignDontCare()

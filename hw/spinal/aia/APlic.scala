@@ -18,18 +18,10 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
 
   val domaincfg = new domaincfg()
 
-  // sourceids
-  val sources = for (i <- 1 to sourceIds.max) yield new APlicSource(i)
+  val interrupts = for (i <- 1 to sourceIds.max) yield new APLICInterruptSource(i)
 
-  val interrupts = for (source <- sources)
-    yield new APLICInterruptSource(source.id, source.hartindex.getWidth, source.iprio.getWidth){
-      target := source.hartindex
-      prio := source.iprio
-      triigerLevel := (source.triiger === APlicSourceMode.high) || (source.triiger === APlicSourceMode.low)
-    }
-
-  val gateways = for ((source, idx) <- sources.zipWithIndex) yield
-                 new APlicGateway(io.sources(idx), idx, source, domaincfg, interrupts(idx))
+  val gateways = for ((interrupt, idx) <- interrupts.zipWithIndex) yield
+                 new APlicGateway(io.sources(idx), idx, domaincfg, interrupt)
 
   // hartids
   val idcs = for (i <- 0 to hartIds.max) yield new APlicIDC(interrupts, i)
@@ -39,17 +31,14 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   val factory = factoryGen(io.bus)
   val mapping = APlicMapper(factory, aplicMap)(
     domaincfg = domaincfg,
-    sources = sources,
     idcs = idcs,
     interrupts = interrupts
   )
 
   /*TODO:
-   * 1x. use createAndDriveFlow to achieve setienum/clrienum
-   * 2. complete sim process
-   * 3. MSI
-   * 4x. rename filename
-   * 5. child
+   * complete sim process
+   * MSI
+   * child
    */
 }
 
@@ -77,35 +66,6 @@ case class domaincfg() extends Area {
   val be = RegInit(False)
 }
 
-// sourceIds
-case class APlicSource(id : Int) extends Area {
-  val D = RegInit(False)
-  val mode = RegInit(B(0x0, 10 bits))
-
-  val hartindex = RegInit(U(0x0, 14 bits))
-  // for direct delivery mode
-  val iprio = RegInit(U(0x0, 8 bits))
-  // for msi delivery mode
-  val guestindex = RegInit(U(0x0, 6 bits))
-  val eiid = RegInit(U(0x0, 11 bits))
-
-  val triiger = APlicSourceMode()
-  when(D === False){
-    switch(mode) {
-      for (state <- APlicSourceMode.elements) {
-        is(state.asBits.resized) {
-          triiger := state
-        }
-      }
-      default {
-        triiger := APlicSourceMode.inactive
-      }
-    }
-  }otherwise{
-    triiger := APlicSourceMode.inactive
-  }
-}
-
 // hartIds
 case class APlicIDC(interrupts : Seq[APLICInterruptSource], id : Int) extends Bundle{
   val idelivery = RegInit(False)
@@ -119,12 +79,12 @@ case class APlicIDC(interrupts : Seq[APLICInterruptSource], id : Int) extends Bu
   val output = generic.claim > 0
 }
 
-case class APlicGateway(input : Bool, idx : UInt, source : APlicSource, domaincfg : domaincfg, interrupt : AIAInterruptSource) extends Area{
+case class APlicGateway(input : Bool, idx : UInt, domaincfg : domaincfg, interrupt : APLICInterruptSource) extends Area{
   when(domaincfg.ie === True){
-    when(source.D === True){
+    when(interrupt.D === True){
       interrupt.ie := False
     }otherwise {
-      switch(source.triiger){
+      switch(interrupt.triiger){
         is(APlicSourceMode.inactive){
           interrupt.ip := False
           interrupt.ie := False
@@ -174,13 +134,38 @@ case class APLICRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(id
   }
 }
 
-case class APLICInterruptSource(sourceId : Int, idWidth : Int, priorityWidth : Int) extends AIAInterruptSource(sourceId) {
-  val target = UInt(idWidth bits)
-  val prio = UInt(priorityWidth bits)
+case class APLICInterruptSource(sourceId : Int) extends AIAInterruptSource(sourceId) {
+  val D = RegInit(False)
+  val mode = RegInit(B(0x0, 10 bits))
+
+  val target = RegInit(U(0x0, 14 bits))
+  val prio = RegInit(U(0x0, 8 bits))
   val triigerLevel = Bool()
 
+  // for msi delivery mode
+  val guestindex = RegInit(U(0x0, 6 bits))
+  val eiid = RegInit(U(0x0, 11 bits))
+
+  val triiger = APlicSourceMode()
+  triigerLevel := (triiger === APlicSourceMode.high) || (triiger === APlicSourceMode.low)
+
+  when(D === False){
+    switch(mode) {
+      for (state <- APlicSourceMode.elements) {
+        is(state.asBits.resized) {
+          triiger := state
+        }
+      }
+      default {
+        triiger := APlicSourceMode.inactive
+      }
+    }
+  }otherwise{
+    triiger := APlicSourceMode.inactive
+  }
+
   override def asRequest(idWidth : Int, targetHart : Int): AIARequest = {
-    val ret = new APLICRequest(idWidth, priorityWidth)
+    val ret = new APLICRequest(idWidth, prio.getWidth)
     ret.id := U(id)
     ret.valid := ip && ie && (target === targetHart)
     ret.prio := prio
