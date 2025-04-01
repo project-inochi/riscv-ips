@@ -106,13 +106,6 @@ case class APlicSource(id : Int) extends Area {
   }
 }
 
-case class setState() extends Area {
-  val setipnum = RegInit(U(0x0, 32 bits))
-  val clripnum = RegInit(U(0x0, 32 bits))
-  val setienum = RegInit(U(0x0, 32 bits))
-  val clrienum = RegInit(U(0x0, 32 bits))
-}
-
 // hartIds
 case class APlicIDC(interrupts : Seq[APLICInterruptSource], id : Int) extends Bundle{
   val idelivery = RegInit(False)
