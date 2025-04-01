@@ -17,7 +17,7 @@ object APlicSim extends App {
   val aplicmap = APlicMapping.aplicMap
 
   val compile = config.Config.sim.compile{
-    val imsic = new TilelinkAplic(sourceIds, hartIds,
+    val aplic = new TilelinkAplic(sourceIds, hartIds, Seq(),
       tilelink.M2sParameters(
         sourceCount = 1,
         support = tilelink.M2sSupport(
@@ -31,7 +31,7 @@ object APlicSim extends App {
       ).toNodeParameters().toBusParameter()
     )
 
-    imsic
+    aplic
   }
 
   compile.doSim{ dut =>

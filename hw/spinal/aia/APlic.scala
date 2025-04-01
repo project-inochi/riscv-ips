@@ -15,18 +15,24 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
     val bus = slave(busType())
     val sources = in Bits (sourceIds.size bits)
     val targets = out Bits (hartIds.size bits)
-    val slaveio = slaves.nonEmpty generate Vec(slaves.map(slave => out Bits (slave.interrupts.length bits)))
-    //val slaveio = out Bits (sourceIds.size bits)
+    val slaveIOs = out Vec(slaves.map(slave => Bits(slave.interrupts.size bits)))
   }
-
-  // io.slaveio.foreach(slaves(0).io.sources := _(0))
 
   val domaincfg = new domaincfg()
 
-  val interrupts = for (i <- 1 to sourceIds.max) yield new APLICInterruptSource(i)
+  val interrupts: Seq[APLICInterruptSource] = for ((sourceId, i) <- sourceIds.zipWithIndex) yield new APLICInterruptSource(sourceId, domaincfg.ie, io.sources(i))
 
-  val gateways = for ((interrupt, idx) <- interrupts.zipWithIndex) yield
-                 new APlicGateway(io.sources(idx), idx, domaincfg, interrupt, io.slaveio)
+  val slaveIO = for (((slave, slaveIO), slaveIdx) <- slaves.zip(io.slaveIOs).zipWithIndex) yield new Area {
+    for ((slaveInterrupt, idx) <- slave.interrupts.zipWithIndex) yield new Area {
+      interrupts.find(_.id == slaveInterrupt.id).map(interrupt => new Area {
+        when(domaincfg.ie && interrupt.D && interrupt.childIdx === slaveIdx) {
+          slaveIO(idx) := interrupt.input
+        } otherwise {
+          slaveIO(idx) := False
+        }
+      })
+    }
+  }
 
   // hartids
   val idcs = for (i <- 0 to hartIds.max) yield new APlicIDC(interrupts, i)
@@ -85,43 +91,6 @@ case class APlicIDC(interrupts : Seq[APLICInterruptSource], id : Int) extends Bu
   val output = generic.claim > 0
 }
 
-case class APlicGateway(input : Bool, idx : UInt, domaincfg : domaincfg, interrupt : APLICInterruptSource, slaveio : Vec[Bits]) extends Area{
-  when(domaincfg.ie === True){
-    when(interrupt.D === True){
-      interrupt.ie := False
-      slaveio(0)(idx) := input
-    }otherwise {
-      // should high resistance
-      slaveio(0)(idx) := False
-      switch(interrupt.triiger){
-        is(APlicSourceMode.inactive){
-          interrupt.ip := False
-          interrupt.ie := False
-        }
-        is(APlicSourceMode.detached){
-
-        }
-        is(APlicSourceMode.rising){
-          when(input.rise()){
-            interrupt.ip := True
-          }
-        }
-        is(APlicSourceMode.falling){
-          when(input.fall()){
-            interrupt.ip := True
-          }
-        }
-        is(APlicSourceMode.high){
-            interrupt.ip := input
-        }
-        is(APlicSourceMode.low){
-            interrupt.ip := ~input
-        }
-      }
-    }
-  }
-}
-
 case class APLICRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(idWidth) {
   val prio = UInt(priorityWidth bits)
 
@@ -143,7 +112,7 @@ case class APLICRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(id
   }
 }
 
-case class APLICInterruptSource(sourceId : Int) extends AIAInterruptSource(sourceId) {
+case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) extends AIAInterruptSource(sourceId) {
   val D = RegInit(False)
   val mode = RegInit(B(0x0, 10 bits))
 
@@ -172,6 +141,38 @@ case class APLICInterruptSource(sourceId : Int) extends AIAInterruptSource(sourc
   }otherwise{
     triiger := APlicSourceMode.inactive
   }
+
+  when(globalIE) {
+    when(D) {
+      ie := False
+    } otherwise {
+      switch(triiger) {
+        is(APlicSourceMode.inactive) {
+          ip := False
+          ie := False
+        }
+        is(APlicSourceMode.detached) {
+        }
+        is(APlicSourceMode.rising) {
+          when(input.rise()) {
+            ip := True
+          }
+        }
+        is(APlicSourceMode.falling) {
+          when(input.fall()) {
+            ip := True
+          }
+        }
+        is(APlicSourceMode.high) {
+            ip := input
+        }
+        is(APlicSourceMode.low) {
+            ip := ~input
+        }
+      }
+    }
+  }
+
 
   override def asRequest(idWidth : Int, targetHart : Int): AIARequest = {
     val ret = new APLICRequest(idWidth, prio.getWidth)
