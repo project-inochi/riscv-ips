@@ -91,7 +91,7 @@ object APlicMapper{
 
     val clrienum = bus.createAndDriveFlow(UInt(32 bits), clrienumOffset)
     when(clrienum.valid){
-      AIAOperator.disable(interrupts, setienum.payload)
+      AIAOperator.disable(interrupts, clrienum.payload)
     }
 
     bus.read(B(0), address = setipOffset, bitOffset = 0)
