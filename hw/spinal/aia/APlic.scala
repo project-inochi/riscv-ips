@@ -9,6 +9,9 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
                                                            slaves : Seq[MappedAplic[T]],
                                                            busType: HardType[T],
                                                            factoryGen: T => BusSlaveFactory) extends Component{
+  require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
+  require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")
+
   val aplicMap = APlicMapping.aplicMap
 
   val io = new Bundle {
@@ -114,6 +117,7 @@ case class APLICRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(id
 
 case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) extends AIAInterruptSource(sourceId) {
   val D = RegInit(False)
+  val childIdx = RegInit(U(0, 10 bits))
   val mode = RegInit(B(0x0, 10 bits))
 
   val target = RegInit(U(0x0, 14 bits))
