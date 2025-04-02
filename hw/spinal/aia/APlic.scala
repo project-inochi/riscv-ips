@@ -117,8 +117,9 @@ case class APLICRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(id
 
 case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) extends AIAInterruptSource(sourceId) {
   val D = RegInit(False)
-  val childIdx = RegInit(U(0, 10 bits))
-  val mode = RegInit(B(0x0, 10 bits))
+  val config = RegInit(U(0, 10 bits))
+  val childIdx = config
+  val mode = D ? U(0) | config(2 downto 0)
 
   val target = RegInit(U(0x0, 14 bits))
   val prio = RegInit(U(0x0, 8 bits))
@@ -134,7 +135,7 @@ case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) ex
   when(D === False){
     switch(mode) {
       for (state <- APlicSourceMode.elements) {
-        is(state.asBits.resized) {
+        is(state.asBits.asUInt) {
           triiger := state
         }
       }

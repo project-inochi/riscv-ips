@@ -99,7 +99,7 @@ object APlicMapper{
     val interruptMapping = for(interrupt <- interrupts) yield new Area{
       val sourceflow = bus.createAndDriveFlow(UInt(11 bits), sourcecfgOffset + (interrupt.id << idShift))
       when(sourceflow.valid){
-        (interrupt.D, interrupt.mode) := sourceflow.payload
+        (interrupt.D, interrupt.config) := sourceflow.payload
       }
 
       bus.readAndWrite(interrupt.prio, address = targetOffset + (interrupt.id << idShift), bitOffset = 0)
