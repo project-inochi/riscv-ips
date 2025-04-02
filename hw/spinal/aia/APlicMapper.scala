@@ -110,7 +110,7 @@ object APlicMapper{
             interrupt.config := sourceflow.payload
           }
         } otherwise {
-          interrupt.config := sourceflow.payload
+          interrupt.config := sourceflow.payload(2 downto 0).resized
         }
       }
 
