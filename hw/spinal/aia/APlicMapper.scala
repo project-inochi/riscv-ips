@@ -66,7 +66,7 @@ object APlicMapping{
 }
 
 object APlicMapper{
-	def apply(bus: BusSlaveFactory, mapping: APlicMapping)(domaincfg : domaincfg, idcs : Seq[APlicIDC], interrupts : Seq[APLICInterruptSource]) = new Area{
+	def apply(bus: BusSlaveFactory, mapping: APlicMapping)(domaincfg : domaincfg, idcs : Seq[APlicIDC], interrupts : Seq[APLICInterruptSource], slaveInterruptIds : Seq[Int]) = new Area{
     import mapping._
 
     bus.read(U(0x80), address = domaincfgOffset, bitOffset = 24)
@@ -97,9 +97,21 @@ object APlicMapper{
     bus.read(B(0), address = setipOffset, bitOffset = 0)
     bus.read(B(0), address = setieOffset, bitOffset = 0)
     val interruptMapping = for(interrupt <- interrupts) yield new Area{
+      val notDelegated = slaveInterruptIds.find(_ == interrupt.id).isEmpty
+
       val sourceflow = bus.createAndDriveFlow(UInt(11 bits), sourcecfgOffset + (interrupt.id << idShift))
-      when(sourceflow.valid){
-        (interrupt.D, interrupt.config) := sourceflow.payload
+      when(sourceflow.valid) {
+        val delegated = sourceflow.payload(10)
+
+        when (delegated) {
+          if (notDelegated) {
+            interrupt.config := 0
+          } else {
+            interrupt.config := sourceflow.payload
+          }
+        } otherwise {
+          interrupt.config := sourceflow.payload
+        }
       }
 
       bus.readAndWrite(interrupt.prio, address = targetOffset + (interrupt.id << idShift), bitOffset = 0)

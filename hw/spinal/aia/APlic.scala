@@ -38,16 +38,6 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   }
 
   val slaveInterruptIds = slaves.flatMap(slave => slave.interrupts.map(_.id)).distinct
-  val sourceDelegationCheck = for (interrupt <- interrupts) yield new Area {
-    val notDelegation = slaveInterruptIds.find(_ == interrupt.id).isEmpty
-
-    val delegationResets = notDelegation generate new Area {
-      when (interrupt.D) {
-        interrupt.config := 0
-        interrupt.D := False
-      }
-    }
-  }
 
   // hartids
   val idcs = for (i <- 0 to hartIds.max) yield new APlicIDC(interrupts, i)
@@ -58,7 +48,8 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   val mapping = APlicMapper(factory, aplicMap)(
     domaincfg = domaincfg,
     idcs = idcs,
-    interrupts = interrupts
+    interrupts = interrupts,
+    slaveInterruptIds = slaveInterruptIds,
   )
 
   /*TODO:
@@ -129,8 +120,8 @@ case class APLICRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(id
 }
 
 case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) extends AIAInterruptSource(sourceId) {
-  val D = RegInit(False)
-  val config = RegInit(U(0, 10 bits))
+  val config = RegInit(U(0, 11 bits))
+  val D = config(10)
   val childIdx = config
   val mode = D ? U(0) | config(2 downto 0)
 
