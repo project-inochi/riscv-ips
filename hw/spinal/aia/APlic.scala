@@ -37,6 +37,18 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
     }
   }
 
+  val slaveInterruptIds = slaves.flatMap(slave => slave.interrupts.map(_.id)).distinct
+  val sourceDelegationCheck = for (interrupt <- interrupts) yield new Area {
+    val notDelegation = slaveInterruptIds.find(_ == interrupt.id).isEmpty
+
+    val delegationResets = notDelegation generate new Area {
+      when (interrupt.D) {
+        interrupt.config := 0
+        interrupt.D := False
+      }
+    }
+  }
+
   // hartids
   val idcs = for (i <- 0 to hartIds.max) yield new APlicIDC(interrupts, i)
 
