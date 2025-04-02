@@ -18,20 +18,20 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
     val bus = slave(busType())
     val sources = in Bits (sourceIds.size bits)
     val targets = out Bits (hartIds.size bits)
-    val slaveIOs = out Vec(slaves.map(slave => Bits(slave.interrupts.size bits)))
+    val slaveSources = out Vec(slaves.map(slave => Bits(slave.interrupts.size bits)))
   }
 
   val domaincfg = new domaincfg()
 
   val interrupts: Seq[APLICInterruptSource] = for ((sourceId, i) <- sourceIds.zipWithIndex) yield new APLICInterruptSource(sourceId, domaincfg.ie, io.sources(i))
 
-  val slaveIO = for (((slave, slaveIO), slaveIdx) <- slaves.zip(io.slaveIOs).zipWithIndex) yield new Area {
+  val slaveMappings = for (((slave, slaveSource), slaveIdx) <- slaves.zip(io.slaveSources).zipWithIndex) yield new Area {
     for ((slaveInterrupt, idx) <- slave.interrupts.zipWithIndex) yield new Area {
       interrupts.find(_.id == slaveInterrupt.id).map(interrupt => new Area {
         when(domaincfg.ie && interrupt.D && (Bool(slaves.size == 1) || interrupt.childIdx === slaveIdx)) {
-          slaveIO(idx) := interrupt.input
+          slaveSource(idx) := interrupt.input
         } otherwise {
-          slaveIO(idx) := False
+          slaveSource(idx) := False
         }
       })
     }
