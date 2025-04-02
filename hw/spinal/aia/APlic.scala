@@ -123,7 +123,10 @@ case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) ex
   val config = RegInit(U(0, 11 bits))
   val delegated = config(10)
   val childIdx = config(9 downto 0)
-  val mode = delegated ? U(0) | config(2 downto 0)
+  val modeBit = delegated ? APlicSourceMode.INACTIVE.asBits | config(2 downto 0).asBits
+  val mode = APlicSourceMode()
+
+  mode.assignFromBits(modeBit)
 
   val target = RegInit(U(0x0, 14 bits))
   val prio = RegInit(U(0x0, 8 bits))
@@ -133,36 +136,20 @@ case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) ex
   val guestindex = RegInit(U(0x0, 6 bits))
   val eiid = RegInit(U(0x0, 11 bits))
 
-  val triiger = APlicSourceMode()
-  switch(triiger){
-    is (APlicSourceMode.HIGH, APlicSourceMode.LOW, APlicSourceMode.INACTIVE){
+  switch(mode) {
+    is (APlicSourceMode.HIGH, APlicSourceMode.LOW, APlicSourceMode.INACTIVE) {
       blockip := True
     }
-    default{
+    default {
       blockip := delegated
     }
-  }
-
-  when(!delegated){
-    switch(mode) {
-      for (state <- APlicSourceMode.elements) {
-        is(state.asBits.asUInt) {
-          triiger := state
-        }
-      }
-      default {
-        triiger := APlicSourceMode.INACTIVE
-      }
-    }
-  }otherwise{
-    triiger := APlicSourceMode.INACTIVE
   }
 
   when(globalIE) {
     when(delegated) {
       ie := False
     } otherwise {
-      switch(triiger) {
+      switch(mode) {
         is(APlicSourceMode.INACTIVE) {
           ip := False
           ie := False

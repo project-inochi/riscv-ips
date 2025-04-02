@@ -110,7 +110,20 @@ object APlicMapper{
             interrupt.config := sourceflow.payload
           }
         } otherwise {
-          interrupt.config := sourceflow.payload(2 downto 0).resized
+          val mode = sourceflow.payload(2 downto 0)
+
+          switch (mode) {
+            for (state <- APlicSourceMode.elements) {
+              is(state.asBits.asUInt) {
+                interrupt.config := sourceflow.payload(2 downto 0).resized
+              }
+            }
+
+            default {
+              interrupt.config := 0
+            }
+          }
+
         }
       }
 
