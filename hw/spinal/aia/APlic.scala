@@ -28,7 +28,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   val slaveMappings = for (((slave, slaveSource), slaveIdx) <- slaves.zip(io.slaveSources).zipWithIndex) yield new Area {
     for ((slaveInterrupt, idx) <- slave.interrupts.zipWithIndex) yield new Area {
       interrupts.find(_.id == slaveInterrupt.id).map(interrupt => new Area {
-        when(domaincfg.ie && interrupt.D && (Bool(slaves.size == 1) || interrupt.childIdx === slaveIdx)) {
+        when(domaincfg.ie && interrupt.delegated && (Bool(slaves.size == 1) || interrupt.childIdx === slaveIdx)) {
           slaveSource(idx) := interrupt.input
         } otherwise {
           slaveSource(idx) := False
@@ -55,7 +55,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   /*TODO:
    * complete sim process
    * MSI
-   * discard write operations if D = 1
+   * discard write operations if delegated = 1
    * mode prefix when sim
    */
 }
@@ -121,9 +121,9 @@ case class APLICRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(id
 
 case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) extends AIAInterruptSource(sourceId) {
   val config = RegInit(U(0, 11 bits))
-  val D = config(10)
+  val delegated = config(10)
   val childIdx = config
-  val mode = D ? U(0) | config(2 downto 0)
+  val mode = delegated ? U(0) | config(2 downto 0)
 
   val target = RegInit(U(0x0, 14 bits))
   val prio = RegInit(U(0x0, 8 bits))
@@ -134,9 +134,9 @@ case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) ex
   val eiid = RegInit(U(0x0, 11 bits))
 
   val triiger = APlicSourceMode()
-  blockip := (triiger === APlicSourceMode.high) || (triiger === APlicSourceMode.low) || (D === True)
+  blockip := (triiger === APlicSourceMode.high) || (triiger === APlicSourceMode.low) || delegated
 
-  when(D === False){
+  when(!delegated){
     switch(mode) {
       for (state <- APlicSourceMode.elements) {
         is(state.asBits.asUInt) {
@@ -152,7 +152,7 @@ case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) ex
   }
 
   when(globalIE) {
-    when(D) {
+    when(delegated) {
       ie := False
     } otherwise {
       switch(triiger) {
