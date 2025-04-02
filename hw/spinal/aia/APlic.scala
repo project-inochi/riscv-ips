@@ -56,7 +56,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
    * complete sim process
    * MSI
    * discard write operations if delegated = 1
-   * mode prefix when sim
+   * sim part pin
    */
 }
 
@@ -122,7 +122,7 @@ case class APLICRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(id
 case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) extends AIAInterruptSource(sourceId) {
   val config = RegInit(U(0, 11 bits))
   val delegated = config(10)
-  val childIdx = config
+  val childIdx = config(9 downto 0)
   val mode = delegated ? U(0) | config(2 downto 0)
 
   val target = RegInit(U(0x0, 14 bits))
@@ -134,7 +134,14 @@ case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) ex
   val eiid = RegInit(U(0x0, 11 bits))
 
   val triiger = APlicSourceMode()
-  blockip := (triiger === APlicSourceMode.high) || (triiger === APlicSourceMode.low) || delegated
+  switch(triiger){
+    is (APlicSourceMode.high, APlicSourceMode.low, APlicSourceMode.inactive){
+      blockip := True
+    }
+    default{
+      blockip := delegated
+    }
+  }
 
   when(!delegated){
     switch(mode) {
