@@ -52,7 +52,8 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   /*TODO:
    * complete sim process
    * MSI
-   * child
+   * discard write operations if D = 1
+   * mode prefix when sim
    */
 }
 
@@ -123,14 +124,14 @@ case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) ex
 
   val target = RegInit(U(0x0, 14 bits))
   val prio = RegInit(U(0x0, 8 bits))
-  val triigerLevel = Bool()
+  val blockip = Bool()
 
   // for msi delivery mode
   val guestindex = RegInit(U(0x0, 6 bits))
   val eiid = RegInit(U(0x0, 11 bits))
 
   val triiger = APlicSourceMode()
-  triigerLevel := (triiger === APlicSourceMode.high) || (triiger === APlicSourceMode.low)
+  blockip := (triiger === APlicSourceMode.high) || (triiger === APlicSourceMode.low) || (D === True)
 
   when(D === False){
     switch(mode) {
@@ -188,13 +189,13 @@ case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) ex
   }
 
   override def doClaim(): Unit = {
-    when(triigerLevel === False){
+    when(blockip === False){
       ip := False
     }
   }
 
   override def doSet(): Unit = {
-    when(triigerLevel === False){
+    when(blockip === False){
       ip := True
     }
   }
