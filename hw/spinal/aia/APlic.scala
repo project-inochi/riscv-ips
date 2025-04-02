@@ -69,14 +69,14 @@ case class TilelinkAplic(sourceIds : Seq[Int], hartIds : Seq[Int], slaves : Seq[
 )
 
 object APlicSourceMode extends SpinalEnum {
-  val inactive, detached, rising, falling, high, low = newElement()
-  defaultEncoding = SpinalEnumEncoding("staticEncoding")(
-    inactive -> 0,
-    detached -> 1,
-    rising -> 4,
-    falling -> 5,
-    high -> 6,
-    low -> 7)
+  val INACTIVE, DETACHED, RISING, FALLING, HIGH, LOW = newElement()
+  defaultEncoding = SpinalEnumEncoding("sm")(
+    INACTIVE -> 0,
+    DETACHED -> 1,
+    RISING -> 4,
+    FALLING -> 5,
+    HIGH -> 6,
+    LOW -> 7)
 }
 
 case class domaincfg() extends Area {
@@ -135,7 +135,7 @@ case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) ex
 
   val triiger = APlicSourceMode()
   switch(triiger){
-    is (APlicSourceMode.high, APlicSourceMode.low, APlicSourceMode.inactive){
+    is (APlicSourceMode.HIGH, APlicSourceMode.LOW, APlicSourceMode.INACTIVE){
       blockip := True
     }
     default{
@@ -151,11 +151,11 @@ case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) ex
         }
       }
       default {
-        triiger := APlicSourceMode.inactive
+        triiger := APlicSourceMode.INACTIVE
       }
     }
   }otherwise{
-    triiger := APlicSourceMode.inactive
+    triiger := APlicSourceMode.INACTIVE
   }
 
   when(globalIE) {
@@ -163,26 +163,26 @@ case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) ex
       ie := False
     } otherwise {
       switch(triiger) {
-        is(APlicSourceMode.inactive) {
+        is(APlicSourceMode.INACTIVE) {
           ip := False
           ie := False
         }
-        is(APlicSourceMode.detached) {
+        is(APlicSourceMode.DETACHED) {
         }
-        is(APlicSourceMode.rising) {
+        is(APlicSourceMode.RISING) {
           when(input.rise()) {
             ip := True
           }
         }
-        is(APlicSourceMode.falling) {
+        is(APlicSourceMode.FALLING) {
           when(input.fall()) {
             ip := True
           }
         }
-        is(APlicSourceMode.high) {
+        is(APlicSourceMode.HIGH) {
             ip := input
         }
-        is(APlicSourceMode.low) {
+        is(APlicSourceMode.LOW) {
             ip := ~input
         }
       }
