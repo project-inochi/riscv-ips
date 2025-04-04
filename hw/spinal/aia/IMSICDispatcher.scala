@@ -43,13 +43,13 @@ object IMSICDispatcherMapping {
 }
 
 case class IMSICDispatcherBuildInfo(
-  sources       : Seq[IMSICInterruptSource],
-  guestSources  : Seq[Seq[IMSICInterruptSource]],
+  sources       : Seq[SxAIAInterruptSource],
+  guestSources  : Seq[Seq[SxAIAInterruptSource]],
   hartId        : Int,
 )
 
 case class IMSICDispatcherInfo(
-  sources       : Seq[IMSICInterruptSource],
+  sources       : Seq[SxAIAInterruptSource],
   hartId        : Int,
   guestId       : Int,
   groupId       : Int,

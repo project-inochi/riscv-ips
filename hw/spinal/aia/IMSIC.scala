@@ -4,33 +4,6 @@ import spinal.core._
 import spinal.lib._
 import spinal.lib.bus.misc._
 
-case class IMSICRequest(idWidth : Int) extends AIARequest(idWidth) {
-  override def prioritize(other: AIARequest): Bool = {
-    val x = other.asInstanceOf[IMSICRequest]
-    !x.valid || (valid && id <= x.id)
-  }
-
-  override def pending(threshold: UInt): Bool = {
-    valid && ((threshold === 0) || (id < threshold))
-  }
-
-  override def dummy(): AIARequest = {
-    val tmp = IMSICRequest(idWidth)
-    tmp.id := 0
-    tmp.valid := False
-    tmp
-  }
-}
-
-case class IMSICInterruptSource(sourceId : Int) extends AIAInterruptSource(sourceId) {
-  override def asRequest(idWidth : Int, targetHart: Int): AIARequest = {
-    val ret = new IMSICRequest(idWidth)
-    ret.id := U(id)
-    ret.valid := ip && ie
-    ret
-  }
-}
-
 case class IMSIC(sources: Seq[AIAInterruptSource], targetHart: Int) extends Area {
   val maxSource = (sources.map(_.id) ++ Seq(0)).max + 1
   val idWidth = log2Up(maxSource)
