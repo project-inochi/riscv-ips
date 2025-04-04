@@ -4,8 +4,8 @@ import spinal.core._
 import spinal.lib._
 import spinal.lib.bus.misc._
 
-case class IMSIC(sources: Seq[AIAInterruptSource], targetHart: Int) extends Area {
-  val maxSource = (sources.map(_.id) ++ Seq(0)).max + 1
+case class IMSIC(registers: SxAIA) extends Area {
+  val maxSource = (registers.interrupts.map(_.id) ++ Seq(0)).max + 1
   val idWidth = log2Up(maxSource)
 
   def driveFrom(bus: BusSlaveFactory, baseAddress: BigInt) = new Area{
@@ -19,7 +19,7 @@ case class IMSIC(sources: Seq[AIAInterruptSource], targetHart: Int) extends Area
     target.valid := False
     target.payload.assignDontCare()
     when(target.valid) {
-      AIAOperator.doSet(sources, target.payload)
+      AIAOperator.doSet(registers.interrupts, target.payload)
     }
 
     val targetDriveLE = busWithOffset.createAndDriveFlow(UInt(32 bits), address = SETEIPNUM_LE_ADDR, documentation = "Set External Interrupt-Pending bit by Little-Endian Number")
