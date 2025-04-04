@@ -37,6 +37,22 @@ abstract class AIAInterruptSource(sourceId: Int) extends Area {
       doClaim()
     }
   }
+
+  def doEnable(): Unit = {
+    ie := True
+  }
+
+  def doDisable(): Unit = {
+    ie := False
+  }
+
+  def doEnableUpdate(enabled: Bool): Unit = {
+    when(enabled) {
+      doEnable()
+    } otherwise {
+      doDisable()
+    }
+  }
 }
 
 object AIAOperator {
@@ -59,7 +75,7 @@ object AIAOperator {
   def enable(interrupts : Seq[AIAInterruptSource], id : UInt) = new Area{
     for (interrupt <- interrupts) {
       when (interrupt.id === id) {
-        interrupt.ie := True
+        interrupt.doEnable()
       }
     }
   }
@@ -67,7 +83,7 @@ object AIAOperator {
   def disable(interrupts : Seq[AIAInterruptSource], id : UInt) = new Area{
     for (interrupt <- interrupts) {
       when (interrupt.id === id) {
-        interrupt.ie := False
+        interrupt.doDisable()
       }
     }
   }
