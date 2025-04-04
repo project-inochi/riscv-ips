@@ -142,11 +142,7 @@ object APlicMapper{
       val ipDrive = bus.createAndDriveFlow(Bool(), address = setipOffset + interruptOffset, bitOffset = interruptBitOffset)
 
       when(ipDrive.valid) {
-        when(ipDrive.payload) {
-          interrupt.doSet()
-        } otherwise {
-          interrupt.doClaim()
-        }
+        interrupt.doPendingUpdate(ipDrive.payload)
       }
     }
 

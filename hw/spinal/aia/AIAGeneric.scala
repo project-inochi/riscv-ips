@@ -29,6 +29,14 @@ abstract class AIAInterruptSource(sourceId: Int) extends Area {
   def doSet(): Unit = {
     ip := True
   }
+
+  def doPendingUpdate(pending: Bool): Unit = {
+    when(pending) {
+      doSet()
+    } otherwise {
+      doClaim()
+    }
+  }
 }
 
 object AIAOperator {
