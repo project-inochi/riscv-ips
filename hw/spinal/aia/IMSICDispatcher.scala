@@ -42,16 +42,8 @@ object IMSICDispatcherMapping {
   )
 }
 
-case class IMSICDispatcherBuildInfo(
-  sources       : Seq[SxAIAInterruptSource],
-  guestSources  : Seq[Seq[SxAIAInterruptSource]],
-  hartId        : Int,
-)
-
 case class IMSICDispatcherInfo(
-  sources       : Seq[SxAIAInterruptSource],
-  hartId        : Int,
-  guestId       : Int,
+  sources       : SxAIA,
   groupId       : Int,
   groupHartId   : Int,
 )
@@ -67,7 +59,7 @@ object IMSICDispatcher {
     require(interruptFileGroupSize == 0 || isPow2(interruptFileGroupSize), "interruptFileGroupSize should be power of 2")
 
     val realInterruptFileSize = if (interruptFileSize != 0) interruptFileSize else interuptFileSize
-    val interruptFileNumber =  1 << log2Up(infos.map(_.guestId).max + 1)
+    val interruptFileNumber =  1 << log2Up(infos.map(_.sources.guestId).max + 1)
     val interruptFileMask = interruptFileNumber - 1
 
     val realInterruptFileGroupSize = if (interruptFileGroupSize != 0) interruptFileGroupSize else realInterruptFileSize * interruptFileNumber
@@ -78,25 +70,10 @@ object IMSICDispatcher {
     require((interruptTestMask & interruptFileOffset) != 0, "interruptFileOffset should not cover any interrupt file")
 
     for (info <- infos) yield new Area {
-      val imsic = IMSIC(info.sources, info.hartId)
-      val offset = info.groupId * interruptFileGroupSize + info.groupHartId * interruptFileGroupSize + interruptFileOffset + info.guestId * realInterruptFileSize
+      val imsic = IMSIC(info.sources)
+      val offset = info.groupId * interruptFileGroupSize + info.groupHartId * interruptFileGroupSize + interruptFileOffset + info.sources.guestId * realInterruptFileSize
 
       imsic.driveFrom(bus, offset)
     }
-  }
-
-  def buildDispatcherInfo(hartsPreGroup : Int = 0)(infos : Seq[IMSICDispatcherBuildInfo]) : Seq[IMSICDispatcherInfo] = {
-    val numHartsPreGroup = if (hartsPreGroup == 0) infos.map(_.hartId).max + 1 else hartsPreGroup
-
-    infos.flatMap(info => {
-      var sources = Seq(info.sources) ++ info.guestSources
-      sources.zipWithIndex.map(g => IMSICDispatcherInfo(
-        sources = g._1,
-        hartId = info.hartId,
-        guestId = g._2,
-        groupId = info.hartId / numHartsPreGroup,
-        groupHartId = info.hartId % numHartsPreGroup,
-      ))
-    })
   }
 }
