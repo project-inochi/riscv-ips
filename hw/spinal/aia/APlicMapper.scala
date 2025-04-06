@@ -66,7 +66,7 @@ object APlicMapping{
 }
 
 object APlicMapper{
-	def apply(bus: BusSlaveFactory, mapping: APlicMapping)(domaincfg : domaincfg, idcs : Seq[APlicIDC], interrupts : Seq[APLICInterruptSource], slaveInterruptIds : Seq[Int]) = new Area{
+	def apply(bus: BusSlaveFactory, mapping: APlicMapping)(domaincfg : domaincfg, idcs : Seq[APlicIDC], interrupts : Seq[APlicInterruptSource], slaveInterruptIds : Seq[Int]) = new Area{
     import mapping._
 
     bus.read(U(0x80), address = domaincfgOffset, bitOffset = 24)
@@ -156,7 +156,7 @@ object APlicMapper{
 
     val targetMapping = for(idc <- idcs) yield new Area {
       val idcThisOffset = idcOffset + (idc.id * idcGroup)
-      val nowRequest = idc.generic.bestRequest.asInstanceOf[APLICRequest]
+      val nowRequest = idc.generic.bestRequest.asInstanceOf[APlicRequest]
 
       bus.readAndWrite(idc.idelivery, address = idcThisOffset + ideliveryOffset)
       bus.readAndWrite(idc.iforce, address = idcThisOffset + iforceOffset)

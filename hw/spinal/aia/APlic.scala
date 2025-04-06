@@ -23,7 +23,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
 
   val domaincfg = new domaincfg()
 
-  val interrupts: Seq[APLICInterruptSource] = for ((sourceId, i) <- sourceIds.zipWithIndex) yield new APLICInterruptSource(sourceId, domaincfg.ie, io.sources(i))
+  val interrupts: Seq[APlicInterruptSource] = for ((sourceId, i) <- sourceIds.zipWithIndex) yield new APlicInterruptSource(sourceId, domaincfg.ie, io.sources(i))
 
   val slaveMappings = for (((slave, slaveSource), slaveIdx) <- slaves.zip(io.slaveSources).zipWithIndex) yield new Area {
     for ((slaveInterrupt, idx) <- slave.interrupts.zipWithIndex) yield new Area {
@@ -89,7 +89,7 @@ case class domaincfg() extends Area {
 }
 
 // hartIds
-case class APlicIDC(interrupts : Seq[APLICInterruptSource], id : Int) extends Bundle{
+case class APlicIDC(interrupts : Seq[APlicInterruptSource], id : Int) extends Bundle{
   val idelivery = RegInit(False)
   val iforce = RegInit(False)
   val ithreshold = RegInit(U(0x0, 8 bits))
@@ -101,11 +101,11 @@ case class APlicIDC(interrupts : Seq[APLICInterruptSource], id : Int) extends Bu
   val output = generic.claim > 0
 }
 
-case class APLICRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(idWidth) {
+case class APlicRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(idWidth) {
   val prio = UInt(priorityWidth bits)
 
   override def prioritize(other: AIARequest): Bool = {
-    val x = other.asInstanceOf[APLICRequest]
+    val x = other.asInstanceOf[APlicRequest]
     !x.valid || (valid && ((prio < x.prio) || ((prio === x.prio) && (id <= x.id))))
   }
 
@@ -114,7 +114,7 @@ case class APLICRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(id
   }
 
   override def dummy(): AIARequest = {
-    val tmp = APLICRequest(idWidth, priorityWidth)
+    val tmp = APlicRequest(idWidth, priorityWidth)
     tmp.id := 0
     tmp.valid := False
     tmp.prio := 0
@@ -122,7 +122,7 @@ case class APLICRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(id
   }
 }
 
-case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) extends AIAInterruptSource(sourceId) {
+case class APlicInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) extends AIAInterruptSource(sourceId) {
   val config = RegInit(U(0, 11 bits))
   val delegated = config(10)
   val childIdx = config(9 downto 0)
@@ -181,7 +181,7 @@ case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) ex
 
 
   override def asRequest(idWidth : Int, targetHart : Int): AIARequest = {
-    val ret = new APLICRequest(idWidth, prio.getWidth)
+    val ret = new APlicRequest(idWidth, prio.getWidth)
     ret.id := U(id)
     ret.valid := ip && ie && (target === targetHart)
     ret.prio := prio
