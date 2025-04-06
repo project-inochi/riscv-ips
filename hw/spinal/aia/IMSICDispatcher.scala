@@ -35,6 +35,7 @@ object IMSICDispatcher {
     require(numberGuest < 16, "Per hart can only have max 15 guest interrupt files.")
     require(interruptFileHartSize == 0 || isPow2(interruptFileHartSize), "interruptFileHartSize should be power of 2")
     require(interruptFileGroupSize == 0 || isPow2(interruptFileGroupSize), "interruptFileGroupSize should be power of 2")
+    require(!(interruptFileHartOffset != 0 && interruptFileGroupSize == 0), "Can not auto calcuate interruptFileGroupSize when interruptFileHartOffset != 0")
 
     val intFileNumber = 1 << log2Up(infos.map(_.sources.guestId).max + 1)
     val minIntFileHartSize = interruptFileSize * intFileNumber
