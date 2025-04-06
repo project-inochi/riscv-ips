@@ -5,20 +5,36 @@ import spinal.lib._
 import spinal.lib.bus.misc.BusSlaveFactory
 import aia.APlicSim.hartIds
 
+/**
+ * IMSICDispatcherMapping: IMSIC interrupt file mapping info
+ *
+ * Each interrupt file address should be calcuated as below:
+ * g * 2^E + B + h * 2^D
+ *
+ * g is the IMSIC group id and the h is the hart id in the group
+ *
+ * @interruptFileHartSize:
+ *   The interrupt file size for one hart, for IMSIC supports guest
+ *   interrupt file, this size should cover all guest interrupt
+ *   file. This argument is 2^D in the address formula.
+ * @interruptFileHartOffset:
+ *   The offset of the interrupt file size for one hart. This
+ *   argument is B in the address formula.
+ * @interruptFileGroupSize:
+ *   The group size for one interrupt file group, This argument is
+ *   2^E in the address formula.
+ *
+ * For convenient, all the arguments could be set to zero for auto
+ * calcuation. But when `interruptFileHartOffset` is not zero,
+ * `interruptFileGroupSize` must be set non-zero, or the calcuation
+ * will fail.
+ *
+ */
 case class IMSICDispatcherMapping(
-  numberGuest                 : Int,
   interruptFileHartSize       : BigInt = 0,
   interruptFileHartOffset     : BigInt = 0,
   interruptFileGroupSize      : BigInt = 0,
 )
-
-object IMSICDispatcherMapping {
-  val r1g0 = IMSICDispatcherMapping(numberGuest = 0)
-  val r1g1 = IMSICDispatcherMapping(numberGuest = 1)
-  val r1g3 = IMSICDispatcherMapping(numberGuest = 3)
-  val r1g7 = IMSICDispatcherMapping(numberGuest = 7)
-  val r1g15 = IMSICDispatcherMapping(numberGuest = 15)
-}
 
 case class IMSICDispatcherInfo(
   sources       : SxAIA,
@@ -32,12 +48,14 @@ object IMSICDispatcher {
   def apply(bus: BusSlaveFactory, mapping : IMSICDispatcherMapping)(infos : Seq[IMSICDispatcherInfo]) = new Area {
     import mapping._
 
-    require(numberGuest < 16, "Per hart can only have max 15 guest interrupt files.")
     require(interruptFileHartSize == 0 || isPow2(interruptFileHartSize), "interruptFileHartSize should be power of 2")
     require(interruptFileGroupSize == 0 || isPow2(interruptFileGroupSize), "interruptFileGroupSize should be power of 2")
     require(!(interruptFileHartOffset != 0 && interruptFileGroupSize == 0), "Can not auto calcuate interruptFileGroupSize when interruptFileHartOffset != 0")
 
-    val intFileNumber = 1 << log2Up(infos.map(_.sources.guestId).max + 1)
+    val numberGuest = infos.map(_.sources.guestId).max
+    require(numberGuest < 16, "Per hart can only have max 15 guest interrupt files.")
+
+    val intFileNumber = 1 << log2Up(numberGuest + 1)
     val minIntFileHartSize = interruptFileSize * intFileNumber
     val realIntFileHartSize = if (interruptFileHartSize != 0) interruptFileHartSize else minIntFileHartSize
     require(realIntFileHartSize >= minIntFileHartSize)
