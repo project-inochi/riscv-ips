@@ -70,9 +70,9 @@ object APlicMapper{
     import mapping._
 
     bus.read(U(0x80, 8 bits), address = domaincfgOffset, bitOffset = 24)
-    bus.readAndWrite(aplic.domaincfg.ie, address = domaincfgOffset, bitOffset = 8)
-    bus.readAndWrite(aplic.domaincfg.dm, address = domaincfgOffset, bitOffset = 2)
-    bus.readAndWrite(aplic.domaincfg.be, address = domaincfgOffset, bitOffset = 0)
+    bus.readAndWrite(aplic.domainEnable, address = domaincfgOffset, bitOffset = 8)
+    bus.readAndWrite(aplic.deliveryMode, address = domaincfgOffset, bitOffset = 2)
+    bus.readAndWrite(aplic.bigEndian, address = domaincfgOffset, bitOffset = 0)
 
     val setipnum = bus.createAndDriveFlow(UInt(32 bits), setipnumOffset)
     when(setipnum.valid){

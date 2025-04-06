@@ -15,15 +15,17 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int],  slaves: Seq[APlic]) ex
   val slaveInterruptIds = slaves.flatMap(slave => slave.interrupts.map(_.id)).distinct
   val interruptDelegatable = for (sourceId <- sourceIds) yield slaveInterruptIds.find(_ == sourceId).isDefined
 
-  val domaincfg = new domaincfg()
+  val domainEnable = RegInit(False)
+  val deliveryMode = RegInit(False)
+  val bigEndian = RegInit(False)
 
   val interrupts: Seq[APlicInterruptSource] = for (((sourceId, delegatable), i) <- sourceIds.zip(interruptDelegatable).zipWithIndex)
-    yield new APlicInterruptSource(sourceId, delegatable, domaincfg.ie, sources(i))
+    yield new APlicInterruptSource(sourceId, delegatable, domainEnable, sources(i))
 
   val slaveMappings = for (((slave, slaveSource), slaveIdx) <- slaves.zip(slaveSources).zipWithIndex) yield new Area {
     for ((slaveInterrupt, idx) <- slave.interrupts.zipWithIndex) yield new Area {
       interrupts.find(_.id == slaveInterrupt.id).map(interrupt => new Area {
-        when(domaincfg.ie && interrupt.delegated && (Bool(slaves.size == 1) || interrupt.childIdx === slaveIdx)) {
+        when(domainEnable && interrupt.delegated && (Bool(slaves.size == 1) || interrupt.childIdx === slaveIdx)) {
           slaveSource(idx) := interrupt.input
         } otherwise {
           slaveSource(idx) := False
@@ -90,12 +92,6 @@ object APlicSourceMode extends SpinalEnum {
     EDGE0 -> 5,
     LEVEL1 -> 6,
     LEVEL0 -> 7)
-}
-
-case class domaincfg() extends Area {
-  val ie = RegInit(False)
-  val dm = RegInit(False)
-  val be = RegInit(False)
 }
 
 // hartIds
