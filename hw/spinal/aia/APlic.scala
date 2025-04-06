@@ -24,7 +24,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   val domaincfg = new domaincfg()
 
   val slaveInterruptIds = slaves.flatMap(slave => slave.interrupts.map(_.id)).distinct
-  val interruptDelegatable = for (sourceId <- sourceIds) yield slaveInterruptIds.find(_ == sourceId).isEmpty
+  val interruptDelegatable = for (sourceId <- sourceIds) yield slaveInterruptIds.find(_ == sourceId).isDefined
 
   val interrupts: Seq[APlicInterruptSource] = for (((sourceId, delegatable), i) <- sourceIds.zip(interruptDelegatable).zipWithIndex)
     yield new APlicInterruptSource(sourceId, delegatable, domaincfg.ie, io.sources(i))
