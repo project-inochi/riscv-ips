@@ -97,34 +97,9 @@ object APlicMapper{
     bus.read(B(0), address = setipOffset, bitOffset = 0)
     bus.read(B(0), address = setieOffset, bitOffset = 0)
     val interruptMapping = for(interrupt <- interrupts) yield new Area{
-      val notDelegated = slaveInterruptIds.find(_ == interrupt.id).isEmpty
-
       val sourceflow = bus.createAndDriveFlow(UInt(11 bits), sourcecfgOffset + (interrupt.id << idShift))
       when(sourceflow.valid) {
-        val delegated = sourceflow.payload(10)
-
-        when (delegated) {
-          if (notDelegated) {
-            interrupt.config := 0
-          } else {
-            interrupt.config := sourceflow.payload
-          }
-        } otherwise {
-          val mode = sourceflow.payload(2 downto 0)
-
-          switch (mode) {
-            for (state <- APlicSourceMode.elements) {
-              is(state.asBits.asUInt) {
-                interrupt.config := sourceflow.payload(2 downto 0).resized
-              }
-            }
-
-            default {
-              interrupt.config := 0
-            }
-          }
-
-        }
+        interrupt.setConfig(sourceflow.payload)
       }
 
       bus.readAndWrite(interrupt.prio, address = targetOffset + (interrupt.id << idShift), bitOffset = 0)
