@@ -129,7 +129,7 @@ object APlicMapper{
       AIAOperator.doClaim(aplic.interrupts, claim.payload)
     }
 
-    val targetMapping = for(idc <- aplic.idcs) yield new Area {
+    val targetMapping = for(idc <- aplic.directGateways) yield new Area {
       val idcThisOffset = idcOffset + (idc.id * idcGroup)
       val nowRequest = idc.generic.bestRequest.asInstanceOf[APlicRequest]
 

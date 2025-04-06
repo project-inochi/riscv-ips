@@ -35,9 +35,9 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int],  slaves: Seq[APlic]) ex
   }
 
   // hartids
-  val idcs = for (i <- 0 to hartIds.max) yield new APlicIDC(interrupts, i)
+  val directGateways = for (hartId <- hartIds) yield new APlicDirectGateway(interrupts, hartId)
 
-  directTargets := idcs.map(_.output).asBits
+  directTargets := directGateways.map(_.output).asBits
 }
 
 class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
@@ -95,7 +95,7 @@ object APlicSourceMode extends SpinalEnum {
 }
 
 // hartIds
-case class APlicIDC(interrupts : Seq[APlicInterruptSource], id : Int) extends Bundle{
+case class APlicDirectGateway(interrupts : Seq[APlicInterruptSource], id : Int) extends Bundle{
   val idelivery = RegInit(False)
   val iforce = RegInit(False)
   val ithreshold = RegInit(U(0x0, 8 bits))
