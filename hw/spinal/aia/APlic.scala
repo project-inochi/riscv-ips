@@ -68,15 +68,18 @@ case class TilelinkAplic(sourceIds : Seq[Int], hartIds : Seq[Int], slaves : Seq[
   new bus.tilelink.SlaveFactory(_, true)
 )
 
+/**
+ * Trigger mode for interrupt source
+ */
 object APlicSourceMode extends SpinalEnum {
-  val INACTIVE, DETACHED, RISING, FALLING, HIGH, LOW = newElement()
+  val INACTIVE, DETACHED, EDGE1, EDGE0, LEVEL1, LEVEL0 = newElement()
   defaultEncoding = SpinalEnumEncoding("sm")(
     INACTIVE -> 0,
     DETACHED -> 1,
-    RISING -> 4,
-    FALLING -> 5,
-    HIGH -> 6,
-    LOW -> 7)
+    EDGE1 -> 4,
+    EDGE0 -> 5,
+    LEVEL1 -> 6,
+    LEVEL0 -> 7)
 }
 
 case class domaincfg() extends Area {
@@ -137,7 +140,7 @@ case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) ex
   val eiid = RegInit(U(0x0, 11 bits))
 
   switch(mode) {
-    is (APlicSourceMode.HIGH, APlicSourceMode.LOW, APlicSourceMode.INACTIVE) {
+    is (APlicSourceMode.LEVEL1, APlicSourceMode.LEVEL0, APlicSourceMode.INACTIVE) {
       blockip := True
     }
     default {
@@ -156,20 +159,20 @@ case class APLICInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) ex
         }
         is(APlicSourceMode.DETACHED) {
         }
-        is(APlicSourceMode.RISING) {
+        is(APlicSourceMode.EDGE1) {
           when(input.rise()) {
             ip := True
           }
         }
-        is(APlicSourceMode.FALLING) {
+        is(APlicSourceMode.EDGE0) {
           when(input.fall()) {
             ip := True
           }
         }
-        is(APlicSourceMode.HIGH) {
+        is(APlicSourceMode.LEVEL1) {
             ip := input
         }
-        is(APlicSourceMode.LOW) {
+        is(APlicSourceMode.LEVEL0) {
             ip := ~input
         }
       }
