@@ -70,7 +70,7 @@ object IMSICDispatcher {
     val intFileTestMask = intFileGroupMask + realIntFileGroupSize * intFileGroupIdMask
     require((interruptFileHartOffset & intFileTestMask) == 0, "interruptFileHartOffset should not cover any interrupt file")
 
-    for (info <- infos) yield new Area {
+    val imsics = for (info <- infos) yield new Area {
       val imsic = IMSIC(info.sources)
       val offset = info.groupId * realIntFileGroupSize + info.groupHartId * realIntFileHartSize + interruptFileHartOffset + info.sources.guestId * interruptFileSize
 
