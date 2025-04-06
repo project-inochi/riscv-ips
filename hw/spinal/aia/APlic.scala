@@ -53,10 +53,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   )
 
   /*TODO:
-   * complete sim process
    * MSI
-   * discard write operations if delegated = 1
-   * sim part pin
    */
 }
 

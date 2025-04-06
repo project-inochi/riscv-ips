@@ -17,7 +17,7 @@ object APlicSim extends App {
 
   val aplicmap = APlicMapping.aplicMap
 
-  val compile = config.Config.sim.compile{
+  val compile = Config.sim.compile{
     val aplics = new aplics()
     aplics
   }
