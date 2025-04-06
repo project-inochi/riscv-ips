@@ -126,7 +126,7 @@ object APlicSim extends App {
 
     dut.io.sources #= 0b1000001
     //end
-    print("All sim points are succsee!\n")
+    print("All sim points are success!\n")
     dut.clockDomain.waitRisingEdge(10)
   }
 
