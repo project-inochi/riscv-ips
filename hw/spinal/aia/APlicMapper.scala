@@ -66,37 +66,37 @@ object APlicMapping{
 }
 
 object APlicMapper{
-	def apply(bus: BusSlaveFactory, mapping: APlicMapping)(domaincfg : domaincfg, idcs : Seq[APlicIDC], interrupts : Seq[APlicInterruptSource], slaveInterruptIds : Seq[Int]) = new Area{
+	def apply(bus: BusSlaveFactory, mapping: APlicMapping)(aplic: APlic) = new Area{
     import mapping._
 
-    bus.read(U(0x80), address = domaincfgOffset, bitOffset = 24)
-    bus.readAndWrite(domaincfg.ie, address = domaincfgOffset, bitOffset = 8)
-    bus.readAndWrite(domaincfg.dm, address = domaincfgOffset, bitOffset = 2)
-    bus.readAndWrite(domaincfg.be, address = domaincfgOffset, bitOffset = 0)
+    bus.read(U(0x80, 8 bits), address = domaincfgOffset, bitOffset = 24)
+    bus.readAndWrite(aplic.domaincfg.ie, address = domaincfgOffset, bitOffset = 8)
+    bus.readAndWrite(aplic.domaincfg.dm, address = domaincfgOffset, bitOffset = 2)
+    bus.readAndWrite(aplic.domaincfg.be, address = domaincfgOffset, bitOffset = 0)
 
     val setipnum = bus.createAndDriveFlow(UInt(32 bits), setipnumOffset)
     when(setipnum.valid){
-      AIAOperator.doSet(interrupts, setipnum.payload)
+      AIAOperator.doSet(aplic.interrupts, setipnum.payload)
     }
 
     val clripnum = bus.createAndDriveFlow(UInt(32 bits), clripnumOffset)
     when(clripnum.valid){
-      AIAOperator.doClaim(interrupts, clripnum.payload)
+      AIAOperator.doClaim(aplic.interrupts, clripnum.payload)
     }
 
     val setienum = bus.createAndDriveFlow(UInt(32 bits), setienumOffset)
     when(setienum.valid){
-      AIAOperator.enable(interrupts, setienum.payload)
+      AIAOperator.enable(aplic.interrupts, setienum.payload)
     }
 
     val clrienum = bus.createAndDriveFlow(UInt(32 bits), clrienumOffset)
     when(clrienum.valid){
-      AIAOperator.disable(interrupts, clrienum.payload)
+      AIAOperator.disable(aplic.interrupts, clrienum.payload)
     }
 
     bus.read(B(0), address = setipOffset, bitOffset = 0)
     bus.read(B(0), address = setieOffset, bitOffset = 0)
-    val interruptMapping = for(interrupt <- interrupts) yield new Area{
+    val interruptMapping = for(interrupt <- aplic.interrupts) yield new Area{
       val sourceflow = bus.createAndDriveFlow(UInt(11 bits), sourcecfgOffset + (interrupt.id << idShift))
       when(sourceflow.valid) {
         interrupt.setConfig(sourceflow.payload)
@@ -106,7 +106,7 @@ object APlicMapper{
       bus.readAndWrite(interrupt.target, address = targetOffset + (interrupt.id << idShift), bitOffset = 18)
     }
 
-    val interuptMapping = for(interrupt <- interrupts) yield new Area{
+    val interuptMapping = for(interrupt <- aplic.interrupts) yield new Area{
       val interruptOffset = (interrupt.id / bus.busDataWidth) * bus.busDataWidth / 8
       val interruptBitOffset = interrupt.id % bus.busDataWidth
 
@@ -121,15 +121,15 @@ object APlicMapper{
       }
     }
 
-    val idWidth = log2Up((interrupts.map(_.id) ++ Seq(0)).max + 1)
+    val idWidth = log2Up((aplic.interrupts.map(_.id) ++ Seq(0)).max + 1)
     val claim = Flow(UInt(idWidth bits))
     claim.valid := False
     claim.payload.assignDontCare()
     when(claim.valid) {
-      AIAOperator.doClaim(interrupts, claim.payload)
+      AIAOperator.doClaim(aplic.interrupts, claim.payload)
     }
 
-    val targetMapping = for(idc <- idcs) yield new Area {
+    val targetMapping = for(idc <- aplic.idcs) yield new Area {
       val idcThisOffset = idcOffset + (idc.id * idcGroup)
       val nowRequest = idc.generic.bestRequest.asInstanceOf[APlicRequest]
 

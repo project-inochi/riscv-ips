@@ -63,12 +63,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   io.slaveSources := aplic.slaveSources
 
   val factory = factoryGen(io.bus)
-  val mapping = APlicMapper(factory, aplicMap)(
-    domaincfg = aplic.domaincfg,
-    idcs = aplic.idcs,
-    interrupts = aplic.interrupts,
-    slaveInterruptIds = aplic.slaveInterruptIds,
-  )
+  val mapping = APlicMapper(factory, aplicMap)(aplic)
 
   /*TODO:
    * MSI
