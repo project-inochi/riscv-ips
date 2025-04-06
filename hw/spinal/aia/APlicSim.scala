@@ -75,25 +75,28 @@ object APlicSim extends App {
     print(agentmaster.putFullData(0, aplicmap.setipnumOffset, SimUInt32(0x2)))
     dut.clockDomain.waitRisingEdge(10)
 
-    assertState(dut.aplicmaster.interrupts(1).ip, true, "master")
+    val aplicmaster = dut.aplicmaster.aplic
+    val aplicslave = dut.aplicslave.aplic
+
+    assertState(aplicmaster.interrupts(1).ip, true, "master")
     print(agentmaster.putFullData(0, aplicmap.setipnumOffset, SimUInt32(0x1)))
-    assertState(dut.aplicmaster.interrupts(0).ip, false, "master")
+    assertState(aplicmaster.interrupts(0).ip, false, "master")
 
     assertData(agentmaster.get(0, aplicmap.idcOffset + aplicmap.claimiOffset, 4), "00020002", "masterclaimi")
-    assertState(dut.aplicmaster.interrupts(1).ip, false, "master")
+    assertState(aplicmaster.interrupts(1).ip, false, "master")
     dut.clockDomain.waitRisingEdge(10)
 
     // setip and the block of setip(num) when mode is high or low
     print(agentmaster.putFullData(0, aplicmap.setipnumOffset, SimUInt32(0x5)))
-    assertState(dut.aplicmaster.interrupts(4).ip, true, "master")
+    assertState(aplicmaster.interrupts(4).ip, true, "master")
     print(agentmaster.putFullData(0, aplicmap.setipnumOffset, SimUInt32(0x6)))
-    assertState(dut.aplicmaster.interrupts(5).ip, false, "master")
+    assertState(aplicmaster.interrupts(5).ip, false, "master")
     print(agentmaster.putFullData(0, aplicmap.setipnumOffset, SimUInt32(0x7)))
-    assertState(dut.aplicmaster.interrupts(6).ip, false, "master")
+    assertState(aplicmaster.interrupts(6).ip, false, "master")
     print(agentmaster.putFullData(0, aplicmap.setipOffset, SimUInt32(0b00001100)))
-    assertState(dut.aplicmaster.interrupts(4).ip, false, "master")
-    assertState(dut.aplicmaster.interrupts(1).ip, true, "master")
-    assertState(dut.aplicmaster.interrupts(2).ip, true, "master")
+    assertState(aplicmaster.interrupts(4).ip, false, "master")
+    assertState(aplicmaster.interrupts(1).ip, true, "master")
+    assertState(aplicmaster.interrupts(2).ip, true, "master")
 
     assertData(agentmaster.get(0, aplicmap.idcOffset + aplicmap.claimiOffset, 4), "00020002", "masterclaimi")
     assertData(agentmaster.get(0, aplicmap.idcOffset + aplicmap.claimiOffset, 4), "00030003", "masterclaimi")
@@ -101,16 +104,16 @@ object APlicSim extends App {
     // input and delagation
     dut.io.sources #= 0b0111110
     dut.clockDomain.waitRisingEdge(2)
-    assertState(dut.aplicslave.interrupts(0).ip, true, "slave")
-    assertState(dut.aplicslave.interrupts(1).ip, false, "slave")
-    assertState(dut.aplicmaster.interrupts(2).ip, true, "master")
-    assertState(dut.aplicmaster.interrupts(5).ip, true, "master")
-    assertState(dut.aplicmaster.interrupts(6).ip, true, "master")
+    assertState(aplicslave.interrupts(0).ip, true, "slave")
+    assertState(aplicslave.interrupts(1).ip, false, "slave")
+    assertState(aplicmaster.interrupts(2).ip, true, "master")
+    assertState(aplicmaster.interrupts(5).ip, true, "master")
+    assertState(aplicmaster.interrupts(6).ip, true, "master")
 
     dut.io.sources #= 0b0100110
     dut.clockDomain.waitRisingEdge(2)
-    assertState(dut.aplicslave.interrupts(1).ip, true, "slave")
-    assertState(dut.aplicmaster.interrupts(4).ip, true, "master")
+    assertState(aplicslave.interrupts(1).ip, true, "slave")
+    assertState(aplicmaster.interrupts(4).ip, true, "master")
 
     // master
     assertData(agentmaster.get(0, aplicmap.idcOffset + aplicmap.claimiOffset, 4), "00030003", "masterclaimi")
@@ -177,8 +180,10 @@ case class aplics(hartIds : Seq[Int], sourceIds : Seq[Int], slavesourceIds: Seq[
     ).toNodeParameters().toBusParameter()
   )
 
-  aplicmaster.interrupts.foreach(_.ip.simPublic())
-  aplicslave.interrupts.foreach(_.ip.simPublic())
+  aplicmaster.io.simPublic()
+  aplicslave.io.simPublic()
+  aplicmaster.aplic.interrupts.foreach(_.ip.simPublic())
+  aplicslave.aplic.interrupts.foreach(_.ip.simPublic())
 
   val io = new Bundle {
     val busmaster = slave(new bus.tilelink.Bus(tilelink.M2sParameters(

@@ -4,32 +4,23 @@ import spinal.core._
 import spinal.lib._
 import spinal.lib.bus.misc.BusSlaveFactory
 
-class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
-                                                           hartIds : Seq[Int],
-                                                           slaves : Seq[MappedAplic[T]],
-                                                           busType: HardType[T],
-                                                           factoryGen: T => BusSlaveFactory) extends Component{
+case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int],  slaves: Seq[APlic]) extends Area {
   require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
   require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")
 
-  val aplicMap = APlicMapping.aplicMap
-
-  val io = new Bundle {
-    val bus = slave(busType())
-    val sources = in Bits (sourceIds.size bits)
-    val targets = out Bits (hartIds.size bits)
-    val slaveSources = out Vec(slaves.map(slave => Bits(slave.interrupts.size bits)))
-  }
-
-  val domaincfg = new domaincfg()
+  val sources = Bits(sourceIds.size bits)
+  val directTargets = Bits(hartIds.size bits)
+  val slaveSources = Vec(slaves.map(slave => Bits(slave.interrupts.size bits)))
 
   val slaveInterruptIds = slaves.flatMap(slave => slave.interrupts.map(_.id)).distinct
   val interruptDelegatable = for (sourceId <- sourceIds) yield slaveInterruptIds.find(_ == sourceId).isDefined
 
-  val interrupts: Seq[APlicInterruptSource] = for (((sourceId, delegatable), i) <- sourceIds.zip(interruptDelegatable).zipWithIndex)
-    yield new APlicInterruptSource(sourceId, delegatable, domaincfg.ie, io.sources(i))
+  val domaincfg = new domaincfg()
 
-  val slaveMappings = for (((slave, slaveSource), slaveIdx) <- slaves.zip(io.slaveSources).zipWithIndex) yield new Area {
+  val interrupts: Seq[APlicInterruptSource] = for (((sourceId, delegatable), i) <- sourceIds.zip(interruptDelegatable).zipWithIndex)
+    yield new APlicInterruptSource(sourceId, delegatable, domaincfg.ie, sources(i))
+
+  val slaveMappings = for (((slave, slaveSource), slaveIdx) <- slaves.zip(slaveSources).zipWithIndex) yield new Area {
     for ((slaveInterrupt, idx) <- slave.interrupts.zipWithIndex) yield new Area {
       interrupts.find(_.id == slaveInterrupt.id).map(interrupt => new Area {
         when(domaincfg.ie && interrupt.delegated && (Bool(slaves.size == 1) || interrupt.childIdx === slaveIdx)) {
@@ -44,14 +35,39 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
   // hartids
   val idcs = for (i <- 0 to hartIds.max) yield new APlicIDC(interrupts, i)
 
-  io.targets := idcs.map(_.output).asBits
+  directTargets := idcs.map(_.output).asBits
+}
+
+class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
+                                                           hartIds : Seq[Int],
+                                                           slaves : Seq[MappedAplic[T]],
+                                                           busType: HardType[T],
+                                                           factoryGen: T => BusSlaveFactory) extends Component{
+  require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
+  require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")
+
+  val aplicMap = APlicMapping.aplicMap
+  val slaveAPlics: Seq[APlic] = slaves.map(_.aplic)
+
+  val io = new Bundle {
+    val bus = slave(busType())
+    val sources = in Bits (sourceIds.size bits)
+    val targets = out Bits (hartIds.size bits)
+    val slaveSources = out Vec(slaveAPlics.map(slave => Bits(slave.interrupts.size bits)))
+  }
+
+  val aplic = APlic(sourceIds, hartIds, slaveAPlics)
+
+  aplic.sources := io.sources
+  io.targets := aplic.directTargets
+  io.slaveSources := aplic.slaveSources
 
   val factory = factoryGen(io.bus)
   val mapping = APlicMapper(factory, aplicMap)(
-    domaincfg = domaincfg,
-    idcs = idcs,
-    interrupts = interrupts,
-    slaveInterruptIds = slaveInterruptIds,
+    domaincfg = aplic.domaincfg,
+    idcs = aplic.idcs,
+    interrupts = aplic.interrupts,
+    slaveInterruptIds = aplic.slaveInterruptIds,
   )
 
   /*TODO:
