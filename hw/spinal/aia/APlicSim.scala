@@ -18,7 +18,7 @@ object APlicSim extends App {
   val aplicmap = APlicMapping.aplicMap
 
   val compile = Config.sim.compile{
-    val aplics = new aplics()
+    val aplics = new aplics(hartIds, sourceIds, slavesourceIds)
     aplics
   }
 
@@ -130,73 +130,6 @@ object APlicSim extends App {
     dut.clockDomain.waitRisingEdge(10)
   }
 
-  class aplics() extends Component {
-    val aplicslave = new TilelinkAplic(slavesourceIds, hartIds, Seq(),
-      tilelink.M2sParameters(
-        sourceCount = 1,
-        support = tilelink.M2sSupport(
-          addressWidth = 16,
-          dataWidth = 32,
-          transfers = tilelink.M2sTransfers(
-            get = tilelink.SizeRange(8),
-            putFull = tilelink.SizeRange(8)
-          )
-        )
-      ).toNodeParameters().toBusParameter()
-    )
-
-    val aplicmaster = new TilelinkAplic(sourceIds, hartIds, Seq(aplicslave),
-      tilelink.M2sParameters(
-        sourceCount = 1,
-        support = tilelink.M2sSupport(
-          addressWidth = 16,
-          dataWidth = 32,
-          transfers = tilelink.M2sTransfers(
-            get = tilelink.SizeRange(8),
-            putFull = tilelink.SizeRange(8)
-          )
-        )
-      ).toNodeParameters().toBusParameter()
-    )
-
-    aplicmaster.interrupts.foreach(_.ip.simPublic())
-    aplicslave.interrupts.foreach(_.ip.simPublic())
-
-    val io = new Bundle {
-      val busmaster = slave(new bus.tilelink.Bus(tilelink.M2sParameters(
-        sourceCount = 1,
-        support = tilelink.M2sSupport(
-          addressWidth = 16,
-          dataWidth = 32,
-          transfers = tilelink.M2sTransfers(
-            get = tilelink.SizeRange(8),
-            putFull = tilelink.SizeRange(8)
-          )
-        )
-      ).toNodeParameters().toBusParameter()))
-      val busslave = slave(new bus.tilelink.Bus(tilelink.M2sParameters(
-        sourceCount = 1,
-        support = tilelink.M2sSupport(
-          addressWidth = 16,
-          dataWidth = 32,
-          transfers = tilelink.M2sTransfers(
-            get = tilelink.SizeRange(8),
-            putFull = tilelink.SizeRange(8)
-          )
-        )
-      ).toNodeParameters().toBusParameter()))
-      val sources = in Bits (7 bits)
-      val targetsmaster = out Bits (2 bits)
-      val targetsslave = out Bits (2 bits)
-    }
-    io.busmaster <> aplicmaster.io.bus
-    io.busslave <> aplicslave.io.bus
-    aplicmaster.io.sources := io.sources
-    io.targetsmaster := aplicmaster.io.targets
-    io.targetsslave := aplicslave.io.targets
-    aplicslave.io.sources := aplicmaster.io.slaveSources(0)
-  }
-
   def assertState(signal : Bool, state : Boolean, name : String) : Unit = {
     assert(signal.toBoolean == state, s"$name: missmatch (${signal} != ${state.toString()})")
   }
@@ -213,4 +146,71 @@ object APlicSim extends App {
     }
     buf.toString()
   }
+}
+
+case class aplics(hartIds : Seq[Int], sourceIds : Seq[Int], slavesourceIds: Seq[Int]) extends Component {
+  val aplicslave = new TilelinkAplic(slavesourceIds, hartIds, Seq(),
+    tilelink.M2sParameters(
+      sourceCount = 1,
+      support = tilelink.M2sSupport(
+        addressWidth = 16,
+        dataWidth = 32,
+        transfers = tilelink.M2sTransfers(
+          get = tilelink.SizeRange(8),
+          putFull = tilelink.SizeRange(8)
+        )
+      )
+    ).toNodeParameters().toBusParameter()
+  )
+
+  val aplicmaster = new TilelinkAplic(sourceIds, hartIds, Seq(aplicslave),
+    tilelink.M2sParameters(
+      sourceCount = 1,
+      support = tilelink.M2sSupport(
+        addressWidth = 16,
+        dataWidth = 32,
+        transfers = tilelink.M2sTransfers(
+          get = tilelink.SizeRange(8),
+          putFull = tilelink.SizeRange(8)
+        )
+      )
+    ).toNodeParameters().toBusParameter()
+  )
+
+  aplicmaster.interrupts.foreach(_.ip.simPublic())
+  aplicslave.interrupts.foreach(_.ip.simPublic())
+
+  val io = new Bundle {
+    val busmaster = slave(new bus.tilelink.Bus(tilelink.M2sParameters(
+      sourceCount = 1,
+      support = tilelink.M2sSupport(
+        addressWidth = 16,
+        dataWidth = 32,
+        transfers = tilelink.M2sTransfers(
+          get = tilelink.SizeRange(8),
+          putFull = tilelink.SizeRange(8)
+        )
+      )
+    ).toNodeParameters().toBusParameter()))
+    val busslave = slave(new bus.tilelink.Bus(tilelink.M2sParameters(
+      sourceCount = 1,
+      support = tilelink.M2sSupport(
+        addressWidth = 16,
+        dataWidth = 32,
+        transfers = tilelink.M2sTransfers(
+          get = tilelink.SizeRange(8),
+          putFull = tilelink.SizeRange(8)
+        )
+      )
+    ).toNodeParameters().toBusParameter()))
+    val sources = in Bits (7 bits)
+    val targetsmaster = out Bits (2 bits)
+    val targetsslave = out Bits (2 bits)
+  }
+  io.busmaster <> aplicmaster.io.bus
+  io.busslave <> aplicslave.io.bus
+  aplicmaster.io.sources := io.sources
+  io.targetsmaster := aplicmaster.io.targets
+  io.targetsslave := aplicslave.io.targets
+  aplicslave.io.sources := aplicmaster.io.slaveSources(0)
 }

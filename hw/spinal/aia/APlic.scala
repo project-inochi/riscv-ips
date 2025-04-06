@@ -23,7 +23,11 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
 
   val domaincfg = new domaincfg()
 
-  val interrupts: Seq[APlicInterruptSource] = for ((sourceId, i) <- sourceIds.zipWithIndex) yield new APlicInterruptSource(sourceId, domaincfg.ie, io.sources(i))
+  val slaveInterruptIds = slaves.flatMap(slave => slave.interrupts.map(_.id)).distinct
+  val interruptDelegatable = for (sourceId <- sourceIds) yield slaveInterruptIds.find(_ == sourceId).isDefined
+
+  val interrupts: Seq[APlicInterruptSource] = for (((sourceId, delegatable), i) <- sourceIds.zip(interruptDelegatable).zipWithIndex)
+    yield new APlicInterruptSource(sourceId, delegatable, domaincfg.ie, io.sources(i))
 
   val slaveMappings = for (((slave, slaveSource), slaveIdx) <- slaves.zip(io.slaveSources).zipWithIndex) yield new Area {
     for ((slaveInterrupt, idx) <- slave.interrupts.zipWithIndex) yield new Area {
@@ -36,8 +40,6 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
       })
     }
   }
-
-  val slaveInterruptIds = slaves.flatMap(slave => slave.interrupts.map(_.id)).distinct
 
   // hartids
   val idcs = for (i <- 0 to hartIds.max) yield new APlicIDC(interrupts, i)
@@ -119,7 +121,7 @@ case class APlicRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(id
   }
 }
 
-case class APlicInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) extends AIAInterruptSource(sourceId) {
+case class APlicInterruptSource(sourceId : Int, delegatable: Boolean, globalIE : Bool, input: Bool) extends AIAInterruptSource(sourceId) {
   val config = RegInit(U(0, 11 bits))
   val delegated = config(10)
   val childIdx = config(9 downto 0)
@@ -194,6 +196,32 @@ case class APlicInterruptSource(sourceId : Int, globalIE : Bool, input: Bool) ex
   override def doSet(): Unit = {
     when(blockip === False){
       ip := True
+    }
+  }
+
+  def setConfig(payload: UInt): Unit = {
+    val _delegated = payload(10)
+
+    when (_delegated) {
+      if (delegatable) {
+        config := payload
+      } else {
+        config := 0
+      }
+    } otherwise {
+      val _mode = payload(2 downto 0)
+
+      switch (_mode) {
+        for (state <- APlicSourceMode.elements) {
+          is(state.asBits.asUInt) {
+            config := payload(2 downto 0).resized
+          }
+        }
+
+        default {
+          config := 0
+        }
+      }
     }
   }
 }
