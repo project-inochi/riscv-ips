@@ -3,7 +3,8 @@ package aia
 import spinal.core._
 import spinal.core.fiber.{Fiber, Lock}
 import spinal.lib._
-import spinal.lib.bus.misc.BusSlaveFactory
+import spinal.lib.bus.misc._
+import spinal.lib.bus.tilelink
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -38,10 +39,22 @@ case class IMSICDispatcherMapping(
 )
 
 case class IMSICDispatcherInfo(
-  sources       : SxAIA,
+  hartId        : Int,
+  guestId       : Int,
+  sourceIds     : Seq[Int],
   groupId       : Int,
   groupHartId   : Int,
 )
+
+case class SxAIADispatcherInfo(sources: SxAIA, groupId: Int, groupHartId: Int) {
+  def asIMSICDispatcherInfo(): IMSICDispatcherInfo = IMSICDispatcherInfo(
+    hartId      = sources.hartId,
+    guestId     = sources.guestId,
+    sourceIds   = sources.interrupts.map(_.id),
+    groupId     = groupId,
+    groupHartId = groupHartId,
+  )
+}
 
 object IMSICDispatcher {
   val interruptFileSize: BigInt = 4096
@@ -53,7 +66,7 @@ object IMSICDispatcher {
     require(interruptFileGroupSize == 0 || isPow2(interruptFileGroupSize), "interruptFileGroupSize should be power of 2")
     require(!(interruptFileHartOffset != 0 && interruptFileGroupSize == 0), "Can not auto calcuate interruptFileGroupSize when interruptFileHartOffset != 0")
 
-    val numberGuest = infos.map(_.sources.guestId).max
+    val numberGuest = infos.map(_.guestId).max
     require(numberGuest < 16, "Per hart can only have max 15 guest interrupt files.")
 
     val intFileNumber = 1 << log2Up(numberGuest + 1)
@@ -72,11 +85,13 @@ object IMSICDispatcher {
     require((interruptFileHartOffset & intFileTestMask) == 0, "interruptFileHartOffset should not cover any interrupt file")
 
     val imsics = for (info <- infos) yield new Area {
-      val imsic = IMSIC(info.sources)
-      val offset = info.groupId * realIntFileGroupSize + info.groupHartId * realIntFileHartSize + interruptFileHartOffset + info.sources.guestId * interruptFileSize
+      val imsic = IMSIC(info.sourceIds)
+      val offset = info.groupId * realIntFileGroupSize + info.groupHartId * realIntFileHartSize + interruptFileHartOffset + info.guestId * interruptFileSize
 
       imsic.driveFrom(bus, offset)
     }
+
+    val triggers = Vec(imsics.map(_.imsic.triggers))
   }
 }
 
@@ -86,11 +101,14 @@ class MappedIMSICDispatcher[T <: spinal.core.Data with IMasterSlave](infos: Seq[
                                                                      factoryGen: T => BusSlaveFactory) extends Component{
   val io = new Bundle{
     val bus = slave(busType())
+    val triggers = out Vec(infos.map(info => Bits(info.sourceIds.size bits)))
   }
 
   val factory = factoryGen(io.bus)
 
   val logic = IMSICDispatcher(factory, mapping)(infos)
+
+  io.triggers := logic.triggers
 }
 
 case class TilelinkIMSICDispatcher(infos: Seq[IMSICDispatcherInfo],
@@ -118,15 +136,15 @@ case class TilelinkIMSICDispatcherFiber() extends Area {
   val node = bus.tilelink.fabric.Node.slave()
   val lock = Lock()
 
-  var infos = ArrayBuffer[IMSICDispatcherInfo]()
-  def addIMSICinfo(info: IMSICDispatcherInfo) = {
-    infos.addRet(info)
+  var infos = ArrayBuffer[SxAIADispatcherInfo]()
+  def addIMSICinfo(block: SxAIA, groupId: Int, groupHartId: Int) = {
+    infos.addRet(SxAIADispatcherInfo(block, groupId, groupHartId))
   }
   def addIMSICinfo(block: SxAIA, hartPerGroup: Int = 0) = {
     if(hartPerGroup == 0) {
-      infos.addRet(IMSICDispatcherInfo(block, 0, block.hartId))
+      infos.addRet(SxAIADispatcherInfo(block, 0, block.hartId))
     } else {
-      infos.addRet(IMSICDispatcherInfo(block, block.hartId / hartPerGroup, block.hartId % hartPerGroup))
+      infos.addRet(SxAIADispatcherInfo(block, block.hartId / hartPerGroup, block.hartId % hartPerGroup))
     }
   }
 
@@ -136,8 +154,10 @@ case class TilelinkIMSICDispatcherFiber() extends Area {
     node.m2s.supported.load(TilelinkIMSICDispatcher.getTilelinkSupport(node.m2s.proposed))
     node.s2m.none()
 
-    val core = TilelinkIMSICDispatcher(infos.toSeq, IMSICDispatcherMapping(), node.bus.p)
+    val core = TilelinkIMSICDispatcher(infos.map(_.asIMSICDispatcherInfo()).toSeq, IMSICDispatcherMapping(), node.bus.p)
 
     core.io.bus <> node.bus
+
+    for ((trigger, block) <- core.io.triggers.zip(infos)) yield new SxAIATrigger(block.sources, trigger)
   }
 }

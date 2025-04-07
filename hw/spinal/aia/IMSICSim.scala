@@ -64,17 +64,15 @@ case class TilelinkIMSIC(sourceIds : Seq[Int], hartIds : Seq[Int], mapping : IMS
     val ip = out Bits (sourcenum*hartnum bits)
   }
 
-	val SxAIAs = for (hartId <- hartIds) yield new SxAIA(sourceIds, hartId, 0)
-	val infos = for (SxAIA <- SxAIAs) yield new IMSICDispatcherInfo(SxAIA, 0, SxAIA.hartId)
+	val blocks = for (hartId <- hartIds) yield new SxAIA(sourceIds, hartId, 0)
+	val infos = for (block <- blocks) yield new SxAIADispatcherInfo(block, 0, block.hartId)
 
   val factoryGen = new bus.tilelink.SlaveFactory(_, true)
   val factory = factoryGen(io.bus)
-  val imsicDispatcher = IMSICDispatcher(factory, mapping)(infos)
+  val imsicDispatcher = IMSICDispatcher(factory, mapping)(infos.map(_.asIMSICDispatcherInfo()))
 
-  val iebundle = io.ie
+  for ((trigger, block) <- imsicDispatcher.triggers.zip(blocks)) yield new SxAIATrigger(block, trigger)
 
-  for ((imsic, i) <- imsicDispatcher.imsics.zipWithIndex){
-    imsic.imsic.registers.interrupts.map(_.ie).asBits() := iebundle((i+1)*sourcenum-1 downto i*sourcenum)
-    io.ip((i+1)*sourcenum-1 downto i*sourcenum) := imsic.imsic.registers.interrupts.map(_.ip).asBits()
-  }
+  blocks.flatMap(block => block.interrupts.map(_.ie)).asBits() := io.ie
+  io.ip := blocks.flatMap(block => block.interrupts.map(_.ip)).asBits()
 }

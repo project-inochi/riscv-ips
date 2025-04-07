@@ -3,10 +3,21 @@ package aia
 import spinal.core._
 import spinal.lib._
 import spinal.lib.bus.misc._
+import spinal.core
 
-case class IMSIC(registers: SxAIA) extends Area {
-  val maxSource = (registers.interrupts.map(_.id) ++ Seq(0)).max + 1
+case class IMSIC(sourceIds: Seq[Int]) extends Area {
+  val maxSource = (sourceIds ++ Seq(0)).max + 1
   val idWidth = log2Up(maxSource)
+
+  case class IMSICSource(sourceId: Int) extends Area {
+    val id = U(sourceId)
+    val trigger = Bool
+
+    trigger := False
+  }
+
+  val sources = for (sourceId <- sourceIds) yield new IMSICSource(sourceId)
+  val triggers = sources.map(_.trigger).asBits()
 
   def driveFrom(bus: BusSlaveFactory, baseAddress: BigInt) = new Area{
     val SETEIPNUM_LE_ADDR = 0x000
@@ -19,7 +30,11 @@ case class IMSIC(registers: SxAIA) extends Area {
     target.valid := False
     target.payload.assignDontCare()
     when(target.valid) {
-      AIAOperator.doSet(registers.interrupts, target.payload)
+      for (source <- sources) {
+        when (source.id === target.payload) {
+          source.trigger := True
+        }
+      }
     }
 
     val targetDriveLE = busWithOffset.createAndDriveFlow(UInt(32 bits), address = SETEIPNUM_LE_ADDR, documentation = "Set External Interrupt-Pending bit by Little-Endian Number")

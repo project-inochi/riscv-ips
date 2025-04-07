@@ -91,3 +91,11 @@ case class SxAIA(sourceIds : Seq[Int], hartId: Int, guestId: Int) extends Area {
     return result
   }
 }
+
+case class SxAIATrigger(block: SxAIA, triggers: Bits) extends Area {
+  for ((interrupt, trigger) <- block.interrupts.zip(triggers.asBools)) {
+    when(trigger) {
+      interrupt.doSet()
+    }
+  }
+}
