@@ -1,9 +1,10 @@
 package aia
 
 import spinal.core._
+import spinal.core.fiber.{Fiber, Lock}
 import spinal.lib._
 import spinal.lib.bus.misc.BusSlaveFactory
-import aia.APlicSim.hartIds
+import scala.collection.mutable.ArrayBuffer
 
 /**
  * IMSICDispatcherMapping: IMSIC interrupt file mapping info
@@ -76,5 +77,67 @@ object IMSICDispatcher {
 
       imsic.driveFrom(bus, offset)
     }
+  }
+}
+
+class MappedIMSICDispatcher[T <: spinal.core.Data with IMasterSlave](infos: Seq[IMSICDispatcherInfo],
+                                                                     mapping: IMSICDispatcherMapping,
+                                                                     busType: HardType[T],
+                                                                     factoryGen: T => BusSlaveFactory) extends Component{
+  val io = new Bundle{
+    val bus = slave(busType())
+  }
+
+  val factory = factoryGen(io.bus)
+
+  val logic = IMSICDispatcher(factory, mapping)(infos)
+}
+
+case class TilelinkIMSICDispatcher(infos: Seq[IMSICDispatcherInfo],
+                                   mapping: IMSICDispatcherMapping,
+                                   p: bus.tilelink.BusParameter) extends MappedIMSICDispatcher[bus.tilelink.Bus](
+  infos,
+  mapping,
+  new bus.tilelink.Bus(p),
+  new bus.tilelink.SlaveFactory(_, true)
+)
+
+
+object TilelinkIMSICDispatcher{
+  def getTilelinkSupport(proposed: bus.tilelink.M2sSupport) = bus.tilelink.SlaveFactory.getSupported(
+    addressWidth = addressWidth,
+    dataWidth = 32,
+    allowBurst = false,
+    proposed
+  )
+
+  def addressWidth = 32
+}
+
+case class TilelinkIMSICDispatcherFiber() extends Area {
+  val node = bus.tilelink.fabric.Node.slave()
+  val lock = Lock()
+
+  var infos = ArrayBuffer[IMSICDispatcherInfo]()
+  def addIMSICinfo(info: IMSICDispatcherInfo) = {
+    infos.addRet(info)
+  }
+  def addIMSICinfo(block: SxAIA, hartPerGroup: Int = 0) = {
+    if(hartPerGroup == 0) {
+      infos.addRet(IMSICDispatcherInfo(block, 0, block.hartId))
+    } else {
+      infos.addRet(IMSICDispatcherInfo(block, block.hartId / hartPerGroup, block.hartId % hartPerGroup))
+    }
+  }
+
+  val thread = Fiber build new Area {
+    lock.await()
+
+    node.m2s.supported.load(TilelinkIMSICDispatcher.getTilelinkSupport(node.m2s.proposed))
+    node.s2m.none()
+
+    val core = TilelinkIMSICDispatcher(infos.toSeq, IMSICDispatcherMapping(), node.bus.p)
+
+    core.io.bus <> node.bus
   }
 }
