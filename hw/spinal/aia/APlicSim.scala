@@ -8,8 +8,8 @@ import config.Config
 import _root_.sim._
 
 object APlicSim extends App {
-  val sourcenum = 8
-  val hartnum = 2
+  val sourcenum = 1023
+  val hartnum = 1023
 
   val sourceIds = for (i <- 1 until sourcenum) yield i
   val slavesourceIds = IndexedSeq(1, 4)
@@ -175,9 +175,9 @@ case class aplics(hartIds : Seq[Int], sourceIds : Seq[Int], slavesourceIds: Seq[
   val io = new Bundle {
     val busmaster = slave(new bus.tilelink.Bus(busParam))
     val busslave = slave(new bus.tilelink.Bus(busParam))
-    val sources = in Bits (7 bits)
-    val targetsmaster = out Bits (2 bits)
-    val targetsslave = out Bits (2 bits)
+    val sources = in Bits (sourceIds.size bits)
+    val targetsmaster = out Bits (hartIds.size bits)
+    val targetsslave = out Bits (hartIds.size bits)
   }
   io.busmaster <> aplicmaster.io.bus
   io.busslave <> aplicslave.io.bus

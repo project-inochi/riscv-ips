@@ -9,9 +9,10 @@ object Config {
     defaultConfigForClockDomains = ClockDomainConfig(
       resetActiveLevel = HIGH
     ),
-    onlyStdLogicVectorAtTopLevelIo = false,
-    removePruned = true,
     genLineComments = true,
+    onlyStdLogicVectorAtTopLevelIo = false,
+    oneFilePerComponent = true,
+    removePruned = true,
     verbose = true,
   )
 
