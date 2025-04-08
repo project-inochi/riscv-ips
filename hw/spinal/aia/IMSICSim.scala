@@ -69,18 +69,6 @@ case class TestIMSICFiber(sourceIds : Seq[Int], hartIds : Seq[Int]) extends Comp
   io.ip := Vec(blocks.map(block => block.interrupts.map(_.ip).asBits()))
 }
 
-object TestIMSICFiberVerilog {
-  def main(args: Array[String]) {
-    val sourcenum = 8
-    val hartnum = 2
-
-    val sourceIds = 1 until sourcenum
-    val hartIds = 0 until hartnum
-
-    SpinalVerilog(Config.spinal)(new TestIMSICFiber(sourceIds, hartIds))
-  }
-}
-
 object IMSICSim extends App {
   val sourcenum = 128
   val hartnum = 16
