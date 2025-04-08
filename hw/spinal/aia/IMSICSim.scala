@@ -27,7 +27,7 @@ object IMSICSim extends App {
       tilelink.M2sParameters(
         sourceCount = 1,
         support = tilelink.M2sSupport(
-          addressWidth = 16,
+          addressWidth = 32,
           dataWidth = 32,
           transfers = tilelink.M2sTransfers(
             get = tilelink.SizeRange(8),
@@ -44,7 +44,7 @@ object IMSICSim extends App {
     implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
     val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
 
-		dut.io.ie #= 0x3fff
+		dut.io.ie(0) #= 0x3fff
 
 		print(agent.putFullData(0, 0x0, SimUInt32(0x1)))
 		print(agent.putFullData(0, 0x0, SimUInt32(0x2)))
@@ -63,7 +63,7 @@ case class TilelinkIMSIC(sourceIds : Seq[Int], hartIds : Seq[Int], mapping : IMS
   val infos = for (block <- blocks) yield new SxAIADispatcherInfo(block, 0, block.hartId)
   val io = new Bundle{
     val bus = slave(tilelinkbus)
-    val ie = in Bits (sourcenum*hartnum bits)
+    val ie = in Vec(infos.map(info => Bits(sourceIds.size bits)))
     val ip = out Vec(infos.map(info => Bits(info.asIMSICDispatcherInfo.sourceIds.size bits)))
   }
 
@@ -71,7 +71,7 @@ case class TilelinkIMSIC(sourceIds : Seq[Int], hartIds : Seq[Int], mapping : IMS
 
   for ((trigger, block) <- imsicDispatcher.io.triggers.zip(blocks)) yield new SxAIATrigger(block, trigger)
 
-  blocks.flatMap(block => block.interrupts.map(_.ie)).asBits() := io.ie
+  Vec(blocks.map(block => block.interrupts.map(_.ie).asBits())) := io.ie
   io.ip := imsicDispatcher.io.triggers
   io.bus <> imsicDispatcher.io.bus
 }
