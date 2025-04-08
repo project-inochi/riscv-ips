@@ -10,8 +10,8 @@ import config.Config
 import _root_.sim._
 
 object IMSICSim extends App {
-  val sourcenum = 8
-  val hartnum = 2
+  val sourcenum = 1024
+  val hartnum = 512
 
   val sourceIds = for (i <- 1 until sourcenum) yield i
   val hartIds = for (i <- 0 until hartnum) yield i
@@ -59,21 +59,19 @@ case class TilelinkIMSIC(sourceIds : Seq[Int], hartIds : Seq[Int], mapping : IMS
   val sourcenum = sourceIds.size
   val hartnum = hartIds.size
 
+  val blocks = for (hartId <- hartIds) yield new SxAIA(sourceIds, hartId, 0)
+  val infos = for (block <- blocks) yield new SxAIADispatcherInfo(block, 0, block.hartId)
   val io = new Bundle{
     val bus = slave(tilelinkbus)
     val ie = in Bits (sourcenum*hartnum bits)
-    val ip = out Bits (sourcenum*hartnum bits)
+    val ip = out Vec(infos.map(info => Bits(info.asIMSICDispatcherInfo.sourceIds.size bits)))
   }
 
-	val blocks = for (hartId <- hartIds) yield new SxAIA(sourceIds, hartId, 0)
-	val infos = for (block <- blocks) yield new SxAIADispatcherInfo(block, 0, block.hartId)
+  val imsicDispatcher = TilelinkIMSICDispatcher(infos.map(_.asIMSICDispatcherInfo()), mapping, p)
 
-  val factoryGen = new bus.tilelink.SlaveFactory(_, true)
-  val factory = factoryGen(io.bus)
-  val imsicDispatcher = IMSICDispatcher(factory, mapping)(infos.map(_.asIMSICDispatcherInfo()))
-
-  for ((trigger, block) <- imsicDispatcher.triggers.zip(blocks)) yield new SxAIATrigger(block, trigger)
+  for ((trigger, block) <- imsicDispatcher.io.triggers.zip(blocks)) yield new SxAIATrigger(block, trigger)
 
   blocks.flatMap(block => block.interrupts.map(_.ie)).asBits() := io.ie
-  io.ip := blocks.flatMap(block => block.interrupts.map(_.ip)).asBits()
+  io.ip := imsicDispatcher.io.triggers
+  io.bus <> imsicDispatcher.io.bus
 }
