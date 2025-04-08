@@ -75,3 +75,77 @@ case class TilelinkIMSIC(sourceIds : Seq[Int], hartIds : Seq[Int], mapping : IMS
   io.ip := imsicDispatcher.io.triggers
   io.bus <> imsicDispatcher.io.bus
 }
+
+
+case class TestIMSICFiber(sourceIds : Seq[Int], hartIds : Seq[Int]) extends Component {
+  val sourcenum = sourceIds.size
+  val hartnum = hartIds.size
+
+  val down = tilelink.fabric.Node.down()
+
+  val fiber = Fiber build new Area {
+    down.m2s forceParameters tilelink.M2sParameters(
+      addressWidth = 32,
+      dataWidth = 64,
+      masters = List(
+        tilelink.M2sAgent(
+          name = TestIMSICFiber.this,
+          mapping = List(
+            tilelink.M2sSource(
+              id = SizeMapping(0, 4),
+              emits = tilelink.M2sTransfers(
+                get = tilelink.SizeRange(1, 64),
+                putFull = tilelink.SizeRange(1, 64)
+              )
+            )
+          )
+        )
+      )
+    )
+
+    down.s2m.supported load tilelink.S2mSupport.none()
+
+    val mappings = spinal.lib.system.tag.MemoryConnection.getMemoryTransfers(down)
+    for(mapping <- mappings){
+      println(s"- ${mapping.where} -> ${mapping.transfers}")
+    }
+
+    down.bus.a.setIdle()
+    down.bus.d.ready := True
+  }
+
+	val blocks = for (hartId <- hartIds) yield new SxAIA(sourceIds, hartId, 0)
+
+  val peripherals = new Area{
+    val access = tilelink.fabric.Node()
+    access at 0x10000000 of down
+
+    val dispatcher = TilelinkIMSICDispatcherFiber()
+    dispatcher.node at 0x00000000 of access
+
+    for (block <- blocks) {
+      dispatcher.addIMSICinfo(block)
+    }
+  }
+
+  val io = new Bundle{
+    // val bus = slave(tilelinkbus)
+    val ie = in Bits(sourcenum * hartnum bits)
+    val ip = out Bits(sourcenum * hartnum bits)
+  }
+
+  blocks.flatMap(block => block.interrupts.map(_.ie)).asBits() := io.ie
+  io.ip := blocks.flatMap(block => block.interrupts.map(_.ip)).asBits()
+}
+
+object TestIMSICFiberVerilog {
+  def main(args: Array[String]) {
+    val sourcenum = 8
+    val hartnum = 2
+
+    val sourceIds = 1 until sourcenum
+    val hartIds = 0 until hartnum
+
+    SpinalVerilog(Config.spinal)(new TestIMSICFiber(sourceIds, hartIds))
+  }
+}
