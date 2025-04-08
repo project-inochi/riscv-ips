@@ -51,7 +51,7 @@ case class TilelinkIMSICFiberTest(sourceIds : Seq[Int], hartIds : Seq[Int]) exte
     val access = tilelink.fabric.Node()
     access at 0x10000000 of down
 
-    val dispatcher = TilelinkIMSICDispatcherFiber()
+    val dispatcher = TilelinkIMSICFiber()
     dispatcher.node at 0x00000000 of access
 
     for (block <- blocks) {
