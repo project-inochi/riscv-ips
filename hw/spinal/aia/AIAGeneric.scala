@@ -57,33 +57,41 @@ abstract class AIAInterruptSource(sourceId: Int) extends Area {
 
 object AIAOperator {
   def doClaim(interrupts : Seq[AIAInterruptSource], id: UInt) = new Area {
-    for (interrupt <- interrupts) {
-      when (interrupt.id === id) {
-        interrupt.doClaim()
+    switch(id) {
+      for (interrupt <- interrupts) {
+        is (interrupt.id) {
+          interrupt.doClaim()
+        }
       }
     }
   }
 
   def doSet(interrupts : Seq[AIAInterruptSource], id : UInt) = new Area {
-    for (interrupt <- interrupts) {
-      when (interrupt.id === id) {
-        interrupt.doSet()
+    switch(id) {
+      for (interrupt <- interrupts) {
+        is (interrupt.id) {
+          interrupt.doSet()
+        }
       }
     }
   }
 
   def enable(interrupts : Seq[AIAInterruptSource], id : UInt) = new Area{
-    for (interrupt <- interrupts) {
-      when (interrupt.id === id) {
-        interrupt.doEnable()
+    switch(id) {
+      for (interrupt <- interrupts) {
+        is (interrupt.id) {
+          interrupt.doEnable()
+        }
       }
     }
   }
 
   def disable(interrupts : Seq[AIAInterruptSource], id : UInt) = new Area{
-    for (interrupt <- interrupts) {
-      when (interrupt.id === id) {
-        interrupt.doDisable()
+    switch(id) {
+      for (interrupt <- interrupts) {
+        is (interrupt.id) {
+          interrupt.doDisable()
+        }
       }
     }
   }

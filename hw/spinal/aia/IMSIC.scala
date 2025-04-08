@@ -30,9 +30,11 @@ case class IMSIC(sourceIds: Seq[Int]) extends Area {
     target.valid := False
     target.payload.assignDontCare()
     when(target.valid) {
-      for (source <- sources) {
-        when (source.id === target.payload) {
-          source.trigger := True
+      switch(target.payload) {
+        for (source <- sources) {
+          is (source.id) {
+            source.trigger := True
+          }
         }
       }
     }
