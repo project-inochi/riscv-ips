@@ -10,7 +10,7 @@ case class IMSIC(sourceIds: Seq[Int]) extends Area {
   val idWidth = log2Up(maxSource)
 
   case class IMSICSource(sourceId: Int) extends Area {
-    val id = U(sourceId)
+    val id = U(sourceId, idWidth bits)
     val trigger = Bool
 
     trigger := False
