@@ -1,11 +1,12 @@
 package aia
 
 import spinal.core._
-import spinal.lib._
+import spinal.core.fiber.{Fiber, Lock}
 import spinal.core.sim._
+import spinal.lib._
 import spinal.lib.bus.tilelink
+import spinal.lib.bus.misc._
 import config.Config
-import spinal.lib.bus.misc.BusSlaveFactory
 import _root_.sim._
 
 object IMSICSim extends App {
