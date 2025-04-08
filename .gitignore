@@ -41,9 +41,7 @@ bin/
 *.vcd
 !tester/src/test/resources/*.vhd
 
-
 simWorkspace/
-tmp/
-null
+hw/gen
 
 .vscode
