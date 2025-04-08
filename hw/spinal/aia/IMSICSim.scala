@@ -9,7 +9,7 @@ import spinal.lib.bus.misc._
 import config.Config
 import _root_.sim._
 
-case class TestIMSICFiber(sourceIds : Seq[Int], hartIds : Seq[Int]) extends Component {
+case class TilelinkIMSICFiberTest(sourceIds : Seq[Int], hartIds : Seq[Int]) extends Component {
   val sourcenum = sourceIds.size
   val hartnum = hartIds.size
 
@@ -19,7 +19,7 @@ case class TestIMSICFiber(sourceIds : Seq[Int], hartIds : Seq[Int]) extends Comp
     dataWidth = 64,
     masters = List(
       tilelink.M2sAgent(
-        name = TestIMSICFiber.this,
+        name = TilelinkIMSICFiberTest.this,
         mapping = List(
           tilelink.M2sSource(
             id = SizeMapping(0, 4),
@@ -77,7 +77,7 @@ object IMSICSim extends App {
   val hartIds = for (i <- 0 until hartnum) yield i
 
   val compile = Config.sim.compile{
-    val imsic = new TestIMSICFiber(sourceIds, hartIds)
+    val imsic = new TilelinkIMSICFiberTest(sourceIds, hartIds)
     imsic
   }
 
