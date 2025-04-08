@@ -82,26 +82,26 @@ case class TestIMSICFiber(sourceIds : Seq[Int], hartIds : Seq[Int]) extends Comp
   val hartnum = hartIds.size
 
   val down = tilelink.fabric.Node.down()
-
-  val fiber = Fiber build new Area {
-    down.m2s forceParameters tilelink.M2sParameters(
-      addressWidth = 32,
-      dataWidth = 64,
-      masters = List(
-        tilelink.M2sAgent(
-          name = TestIMSICFiber.this,
-          mapping = List(
-            tilelink.M2sSource(
-              id = SizeMapping(0, 4),
-              emits = tilelink.M2sTransfers(
-                get = tilelink.SizeRange(1, 64),
-                putFull = tilelink.SizeRange(1, 64)
-              )
+  val m2sParams = tilelink.M2sParameters(
+    addressWidth = 32,
+    dataWidth = 64,
+    masters = List(
+      tilelink.M2sAgent(
+        name = TestIMSICFiber.this,
+        mapping = List(
+          tilelink.M2sSource(
+            id = SizeMapping(0, 4),
+            emits = tilelink.M2sTransfers(
+              get = tilelink.SizeRange(1, 64),
+              putFull = tilelink.SizeRange(1, 64)
             )
           )
         )
       )
     )
+  )
+  val fiber = Fiber build new Area {
+    down.m2s forceParameters m2sParams
 
     down.s2m.supported load tilelink.S2mSupport.none()
 
@@ -110,8 +110,7 @@ case class TestIMSICFiber(sourceIds : Seq[Int], hartIds : Seq[Int]) extends Comp
       println(s"- ${mapping.where} -> ${mapping.transfers}")
     }
 
-    down.bus.a.setIdle()
-    down.bus.d.ready := True
+    down.bus <> io.bus
   }
 
 	val blocks = for (hartId <- hartIds) yield new SxAIA(sourceIds, hartId, 0)
@@ -129,7 +128,7 @@ case class TestIMSICFiber(sourceIds : Seq[Int], hartIds : Seq[Int]) extends Comp
   }
 
   val io = new Bundle{
-    // val bus = slave(tilelinkbus)
+    val bus = slave(tilelink.Bus(m2sParams.toNodeParameters().toBusParameter()))
     val ie = in Bits(sourcenum * hartnum bits)
     val ip = out Bits(sourcenum * hartnum bits)
   }
@@ -148,4 +147,32 @@ object TestIMSICFiberVerilog {
 
     SpinalVerilog(Config.spinal)(new TestIMSICFiber(sourceIds, hartIds))
   }
+}
+
+object IMSICNodeSim extends App {
+  val sourcenum = 8
+  val hartnum = 2
+
+  val sourceIds = for (i <- 1 until sourcenum) yield i
+  val hartIds = for (i <- 0 until hartnum) yield i
+
+  val compile = Config.sim.compile{
+    val imsic = new TestIMSICFiber(sourceIds, hartIds)
+    imsic
+  }
+
+	compile.doSim{ dut =>
+		dut.clockDomain.forkStimulus(10)
+
+    implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
+    val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
+
+		dut.io.ie #= 0x3fff
+
+		print(agent.putFullData(0, 0x10000000, SimUInt32(0x1)))
+		print(agent.putFullData(0, 0x10000000, SimUInt32(0x2)))
+		print(agent.putFullData(0, 0x10000000, SimUInt32(0x3)))
+		print(agent.putFullData(0, 0x10000000, SimUInt32(0x4)))
+		print(agent.putFullData(0, 0x10000000, SimUInt32(0x5)))
+	}
 }
