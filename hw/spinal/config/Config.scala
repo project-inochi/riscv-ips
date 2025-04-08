@@ -9,9 +9,10 @@ object Config {
     defaultConfigForClockDomains = ClockDomainConfig(
       resetActiveLevel = HIGH
     ),
-    onlyStdLogicVectorAtTopLevelIo = true,
+    onlyStdLogicVectorAtTopLevelIo = false,
     removePruned = true,
-    genLineComments = true
+    genLineComments = true,
+    verbose = true,
   )
 
   def sim = SimConfig.withConfig(spinal).withFstWave
