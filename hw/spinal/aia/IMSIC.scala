@@ -5,7 +5,7 @@ import spinal.lib._
 import spinal.lib.bus.misc._
 import spinal.core
 
-case class IMSICInterruptFile(sourceIds: Seq[Int]) extends Area {
+case class IMSICInterruptFile(sourceIds: Seq[Int], hartId: Int, guestId: Int) extends Area {
   val maxSource = (sourceIds ++ Seq(0)).max + 1
   val idWidth = log2Up(maxSource)
 
@@ -39,14 +39,14 @@ case class IMSICInterruptFile(sourceIds: Seq[Int]) extends Area {
       }
     }
 
-    val targetDriveLE = busWithOffset.createAndDriveFlow(UInt(32 bits), address = SETEIPNUM_LE_ADDR, documentation = "Set External Interrupt-Pending bit by Little-Endian Number")
+    val targetDriveLE = busWithOffset.createAndDriveFlow(UInt(32 bits), address = SETEIPNUM_LE_ADDR, documentation = "Set External Interrupt-Pending bit for %s of hart %d by Little-Endian Number".format(if (guestId == 0) "non-guest" else s"guest ${guestId}", hartId))
     when(targetDriveLE.valid) {
       target.valid := True
       /* TODO: LE -> native */
       target.payload := targetDriveLE.payload.resized
     }
 
-    val targetDriveBE = busWithOffset.createAndDriveFlow(UInt(32 bits), address = SETEIPNUM_BE_ADDR, documentation = "Set External Interrupt-Pending bit by Big-Endian Number")
+    val targetDriveBE = busWithOffset.createAndDriveFlow(UInt(32 bits), address = SETEIPNUM_BE_ADDR, documentation = "Set External Interrupt-Pending bit for %s of hart %d by Big-Endian Number".format(if (guestId == 0) "non-guest" else s"guest ${guestId}", hartId))
     when(targetDriveBE.valid) {
       target.valid := True
       /* TODO: BE -> native */
@@ -149,7 +149,7 @@ object IMSIC {
     import realMapping._
 
     val files = for (info <- infos) yield new Area {
-      val file = IMSICInterruptFile(info.sourceIds)
+      val file = IMSICInterruptFile(info.sourceIds, info.hartId, info.guestId)
       val offset = info.groupId * interruptFileGroupSize + info.groupHartId * interruptFileHartSize + interruptFileHartOffset + info.guestId * interruptFileSize
 
       file.driveFrom(bus, offset)
