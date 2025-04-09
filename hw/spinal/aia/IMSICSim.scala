@@ -13,43 +13,13 @@ case class TilelinkIMSICFiberTest(sourceIds : Seq[Int], hartIds : Seq[Int]) exte
   val sourcenum = sourceIds.size
   val hartnum = hartIds.size
 
-  val down = tilelink.fabric.Node.down()
-  val m2sParams = tilelink.M2sParameters(
-    addressWidth = 32,
-    dataWidth = 64,
-    masters = List(
-      tilelink.M2sAgent(
-        name = TilelinkIMSICFiberTest.this,
-        mapping = List(
-          tilelink.M2sSource(
-            id = SizeMapping(0, 4),
-            emits = tilelink.M2sTransfers(
-              get = tilelink.SizeRange(1, 64),
-              putFull = tilelink.SizeRange(1, 64)
-            )
-          )
-        )
-      )
-    )
-  )
-  val fiber = Fiber build new Area {
-    down.m2s forceParameters m2sParams
-
-    down.s2m.supported load tilelink.S2mSupport.none()
-
-    val mappings = spinal.lib.system.tag.MemoryConnection.getMemoryTransfers(down)
-    for(mapping <- mappings){
-      println(s"- ${mapping.where} -> ${mapping.transfers}")
-    }
-
-    down.bus <> io.bus
-  }
+  val masterBus = TilelinkBusFiber()
 
 	val blocks = for (hartId <- hartIds) yield new SxAIA(sourceIds, hartId, 0)
 
   val peripherals = new Area{
     val access = tilelink.fabric.Node()
-    access at 0x10000000 of down
+    access at 0x10000000 of masterBus.node
 
     val dispatcher = TilelinkIMSICFiber()
     dispatcher.node at 0x00000000 of access
@@ -60,10 +30,12 @@ case class TilelinkIMSICFiberTest(sourceIds : Seq[Int], hartIds : Seq[Int]) exte
   }
 
   val io = new Bundle{
-    val bus = slave(tilelink.Bus(m2sParams.toNodeParameters().toBusParameter()))
+    val bus = slave(tilelink.Bus(masterBus.m2sParams.toNodeParameters().toBusParameter()))
     val ie = in Vec(blocks.map(block => Bits(block.interrupts.size bits)))
     val ip = out Vec(blocks.map(block => Bits(block.interrupts.size bits)))
   }
+
+  masterBus.bus = Some(io.bus)
 
   Vec(blocks.map(block => block.interrupts.map(_.ie).asBits())) := io.ie
   io.ip := Vec(blocks.map(block => block.interrupts.map(_.ip).asBits()))
