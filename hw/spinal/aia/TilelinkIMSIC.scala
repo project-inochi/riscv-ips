@@ -32,15 +32,22 @@ case class TilelinkIMSIC(infos: Seq[IMSICInfo],
   new bus.tilelink.SlaveFactory(_, true)
 )
 
-object TilelinkIMSIC{
-  def getTilelinkSupport(proposed: bus.tilelink.M2sSupport) = bus.tilelink.SlaveFactory.getSupported(
+object TilelinkIMSIC {
+  def getTilelinkSupport(proposed: bus.tilelink.M2sSupport, addressWidth: Int = 20) = bus.tilelink.SlaveFactory.getSupported(
     addressWidth = addressWidth,
     dataWidth = 32,
     allowBurst = false,
     proposed
   )
+  def getTilelinkSupport(proposed: bus.tilelink.M2sSupport, mapping: IMSICMapping, infos: Seq[IMSICInfo]): tilelink.M2sSupport = getTilelinkSupport(proposed, addressWidth(mapping, infos))
 
-  def addressWidth = 32
+  def addressWidth(mapping: IMSICMapping, infos: Seq[IMSICInfo]): Int = {
+    val maxGuestId = infos.map(_.guestId).max
+    val maxGroupHartId = infos.map(_.groupHartId).max
+    val maxGroupId = infos.map(_.groupId).max
+
+    IMSIC.addressWidth(mapping, maxGuestId, maxGroupHartId, maxGroupId)
+  }
 }
 
 case class TilelinkIMSICFiber() extends Area {
@@ -64,7 +71,7 @@ case class TilelinkIMSICFiber() extends Area {
   val thread = Fiber build new Area {
     lock.await()
 
-    node.m2s.supported.load(TilelinkIMSIC.getTilelinkSupport(node.m2s.proposed))
+    node.m2s.supported.load(TilelinkIMSIC.getTilelinkSupport(node.m2s.proposed, mapping.getOrElse(IMSICMapping()), infos.map(_.asIMSICInfo()).toSeq))
     node.s2m.none()
 
     val core = TilelinkIMSIC(infos.map(_.asIMSICInfo()).toSeq, mapping.getOrElse(IMSICMapping()), node.bus.p)

@@ -157,4 +157,18 @@ object IMSIC {
 
     val triggers = Vec(files.map(_.file.triggers))
   }
+
+  def addressWidth(mapping: IMSICMapping, maxGuestId: Int, maxGroupHartId: Int, maxGroupId: Int): Int = {
+    val realMapping = mappingCalibrate(mapping, maxGuestId, maxGroupHartId, maxGroupId)
+
+    import realMapping._
+
+    val intFileNumber = 1 << log2Up(maxGuestId + 1)
+    val intFileGroupHarts = 1 << log2Up(maxGroupHartId + 1)
+    val intFileGroupMax = 1 << log2Up(maxGroupId + 1)
+
+    val IMSICSize = maxGroupId * interruptFileGroupSize + maxGroupHartId * interruptFileHartSize + interruptFileHartOffset + (maxGuestId + 1) * interruptFileSize
+
+    return log2Up(IMSICSize)
+  }
 }
