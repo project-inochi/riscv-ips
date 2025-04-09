@@ -108,34 +108,49 @@ case class SxAIAInfo(sources: SxAIA, groupId: Int, groupHartId: Int) {
 object IMSIC {
   val interruptFileSize: BigInt = 4096
 
-  def apply(bus: BusSlaveFactory, mapping : IMSICMapping)(infos : Seq[IMSICInfo]) = new Area {
+  def mappingCalibrate(mapping : IMSICMapping, maxGuestId: Int, maxGroupHartId: Int, maxGroupId: Int): IMSICMapping = {
     import mapping._
 
     require(interruptFileHartSize == 0 || isPow2(interruptFileHartSize), "interruptFileHartSize should be power of 2")
     require(interruptFileGroupSize == 0 || isPow2(interruptFileGroupSize), "interruptFileGroupSize should be power of 2")
     require(!(interruptFileHartOffset != 0 && interruptFileGroupSize == 0), "Can not auto calcuate interruptFileGroupSize when interruptFileHartOffset != 0")
 
-    val numberGuest = infos.map(_.guestId).max
-    require(numberGuest < 16, "Per hart can only have max 15 guest interrupt files.")
+    require(maxGuestId < 16, "Per hart can only have max 15 guest interrupt files.")
 
-    val intFileNumber = 1 << log2Up(numberGuest + 1)
+    val intFileNumber = 1 << log2Up(maxGuestId + 1)
     val minIntFileHartSize = interruptFileSize * intFileNumber
     val realIntFileHartSize = if (interruptFileHartSize != 0) interruptFileHartSize else minIntFileHartSize
     require(realIntFileHartSize >= minIntFileHartSize)
 
-    val intFileGroupHarts = 1 << log2Up(infos.map(_.groupHartId).max + 1)
+    val intFileGroupHarts = 1 << log2Up(maxGroupHartId + 1)
     val minIntFileGroupSize = realIntFileHartSize * intFileGroupHarts
     val realIntFileGroupSize = if (interruptFileGroupSize != 0) interruptFileGroupSize else minIntFileGroupSize
     require(realIntFileGroupSize >= minIntFileGroupSize)
 
     val intFileGroupMask = minIntFileGroupSize - 1
-    val intFileGroupIdMask = 1 << log2Up(infos.map(_.groupId).max + 1) - 1
+    val intFileGroupIdMask = 1 << log2Up(maxGroupId + 1) - 1
     val intFileTestMask = intFileGroupMask + realIntFileGroupSize * intFileGroupIdMask
     require((interruptFileHartOffset & intFileTestMask) == 0, "interruptFileHartOffset should not cover any interrupt file")
 
+    return IMSICMapping(
+      interruptFileHartSize   = realIntFileHartSize,
+      interruptFileHartOffset = interruptFileHartOffset,
+      interruptFileGroupSize  = realIntFileGroupSize,
+    )
+  }
+
+  def apply(bus: BusSlaveFactory, mapping : IMSICMapping)(infos : Seq[IMSICInfo]) = new Area {
+    val maxGuestId = infos.map(_.guestId).max
+    val maxGroupHartId = infos.map(_.groupHartId).max
+    val maxGroupId = infos.map(_.groupId).max
+
+    val realMapping = mappingCalibrate(mapping, maxGuestId, maxGroupHartId, maxGroupId)
+
+    import realMapping._
+
     val files = for (info <- infos) yield new Area {
       val file = IMSICInterruptFile(info.sourceIds)
-      val offset = info.groupId * realIntFileGroupSize + info.groupHartId * realIntFileHartSize + interruptFileHartOffset + info.guestId * interruptFileSize
+      val offset = info.groupId * interruptFileGroupSize + info.groupHartId * interruptFileHartSize + interruptFileHartOffset + info.guestId * interruptFileSize
 
       file.driveFrom(bus, offset)
     }
