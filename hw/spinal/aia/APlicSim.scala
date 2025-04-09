@@ -191,37 +191,7 @@ case class aplics(hartIds : Seq[Int], sourceIds : Seq[Int], slavesourceIds: Seq[
 }
 
 case class TilelinkAPLICFiberTest(hartIds : Seq[Int], sourceIds : Seq[Int], slavesourceIds: Seq[Int]) extends Component {
-  val down = tilelink.fabric.Node.down()
-  val m2sParams = tilelink.M2sParameters(
-    addressWidth = 32,
-    dataWidth = 32,
-    masters = List(
-      tilelink.M2sAgent(
-        name = TilelinkAPLICFiberTest.this,
-        mapping = List(
-          tilelink.M2sSource(
-            id = SizeMapping(0, 4),
-            emits = tilelink.M2sTransfers(
-              get = tilelink.SizeRange(1, 32),
-              putFull = tilelink.SizeRange(1, 32)
-            )
-          )
-        )
-      )
-    )
-  )
-  val fiber = Fiber build new Area {
-    down.m2s forceParameters m2sParams
-
-    down.s2m.supported load tilelink.S2mSupport.none()
-
-    val mappings = spinal.lib.system.tag.MemoryConnection.getMemoryTransfers(down)
-    for(mapping <- mappings){
-      println(s"- ${mapping.where} -> ${mapping.transfers}")
-    }
-
-    down.bus <> io.bus
-  }
+  val masterBus = TilelinkBusFiber()
 
   val sourcesMBundle = for (sourceId <- sourceIds) yield new APlicBundle(sourceId)
   val targetsMBundle = for (hartId <- hartIds) yield new APlicBundle(hartId)
@@ -233,7 +203,7 @@ case class TilelinkAPLICFiberTest(hartIds : Seq[Int], sourceIds : Seq[Int], slav
 
   val peripherals = new Area{
     val access = tilelink.fabric.Node()
-    access at 0x00000000 of down
+    access at 0x00000000 of masterBus.node
 
     val aplicslave = TilelinkAPLICFiber()
     aplicslave.node at 0x00000000 of access
@@ -261,11 +231,13 @@ case class TilelinkAPLICFiberTest(hartIds : Seq[Int], sourceIds : Seq[Int], slav
   }
 
   val io = new Bundle{
-    val bus = slave(tilelink.Bus(m2sParams.toNodeParameters().toBusParameter()))
+    val bus = slave(tilelink.Bus(masterBus.m2sParams.toNodeParameters().toBusParameter()))
     val sources = in Vec(Bits(sourceIds.size bits))
     val targetsmaster = out Vec(Bits(hartIds.size bits))
     val targetsslave = out Vec(Bits(hartIds.size bits))
   }
+
+  masterBus.bus = Some(io.bus)
 
   // Vec(sourcesBundle.map(_.flag).asBits) := io.sources Why?
   (sourcesMBundle.map(_.flag), io.sources(0).asBools).zipped.foreach(_ := _)
