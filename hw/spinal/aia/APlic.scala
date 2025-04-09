@@ -91,7 +91,7 @@ object TilelinkAplic{
     proposed
   )
 
-  def addressWidth = 32
+  def addressWidth = 20
 }
 
 /**
