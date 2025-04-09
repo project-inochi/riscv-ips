@@ -4,15 +4,17 @@ import spinal.core._
 import spinal.lib._
 import spinal.lib.bus.misc.BusSlaveFactory
 
-case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int],  slaves: Seq[APlic]) extends Area {
+case class APlicSlaveInfo(childIdx: Int, sourceIds: Seq[Int])
+
+case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSlaveInfo]) extends Area {
   require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
   require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")
 
   val sources = Bits(sourceIds.size bits)
   val directTargets = Bits(hartIds.size bits)
-  val slaveSources = Vec(slaves.map(slave => Bits(slave.interrupts.size bits)))
+  val slaveSources = Vec(slaveInfos.map(slaveInfo => Bits(slaveInfo.sourceIds.size bits)))
 
-  val slaveInterruptIds = slaves.flatMap(slave => slave.interrupts.map(_.id)).distinct
+  val slaveInterruptIds = slaveInfos.flatMap(slaveInfo => slaveInfo.sourceIds).distinct
   val interruptDelegatable = for (sourceId <- sourceIds) yield slaveInterruptIds.find(_ == sourceId).isDefined
 
   val domainEnable = RegInit(False)
@@ -22,10 +24,10 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int],  slaves: Seq[APlic]) ex
   val interrupts: Seq[APlicInterruptSource] = for (((sourceId, delegatable), i) <- sourceIds.zip(interruptDelegatable).zipWithIndex)
     yield new APlicInterruptSource(sourceId, delegatable, domainEnable, sources(i))
 
-  val slaveMappings = for (((slave, slaveSource), slaveIdx) <- slaves.zip(slaveSources).zipWithIndex) yield new Area {
-    for ((slaveInterrupt, idx) <- slave.interrupts.zipWithIndex) yield new Area {
-      interrupts.find(_.id == slaveInterrupt.id).map(interrupt => new Area {
-        when(domainEnable && interrupt.delegated && (Bool(slaves.size == 1) || interrupt.childIdx === slaveIdx)) {
+  val slaveMappings = for ((slaveInfo, slaveSource) <- slaveInfos.zip(slaveSources)) yield new Area {
+    for ((slaveSourceId, idx) <- slaveInfo.sourceIds.zipWithIndex) yield new Area {
+      interrupts.find(_.id == slaveSourceId).map(interrupt => new Area {
+        when(domainEnable && interrupt.delegated && (Bool(slaveInfos.size == 1) || interrupt.childIdx === slaveInfo.childIdx)) {
           slaveSource(idx) := interrupt.input
         } otherwise {
           slaveSource(idx) := False
@@ -42,23 +44,22 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int],  slaves: Seq[APlic]) ex
 
 class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
                                                            hartIds : Seq[Int],
-                                                           slaves : Seq[MappedAplic[T]],
+                                                           slaveInfos : Seq[APlicSlaveInfo],
                                                            busType: HardType[T],
                                                            factoryGen: T => BusSlaveFactory) extends Component{
   require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
   require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")
 
   val aplicMap = APlicMapping.aplicMap
-  val slaveAPlics: Seq[APlic] = slaves.map(_.aplic)
 
   val io = new Bundle {
     val bus = slave(busType())
     val sources = in Bits (sourceIds.size bits)
     val targets = out Bits (hartIds.size bits)
-    val slaveSources = out Vec(slaveAPlics.map(slave => Bits(slave.interrupts.size bits)))
+    val slaveSources = out Vec(slaveInfos.map(slaveInfo => Bits(slaveInfo.sourceIds.size bits)))
   }
 
-  val aplic = APlic(sourceIds, hartIds, slaveAPlics)
+  val aplic = APlic(sourceIds, hartIds, slaveInfos)
 
   aplic.sources := io.sources
   io.targets := aplic.directTargets
@@ -72,10 +73,10 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
    */
 }
 
-case class TilelinkAplic(sourceIds : Seq[Int], hartIds : Seq[Int], slaves : Seq[TilelinkAplic], p : bus.tilelink.BusParameter) extends MappedAplic[bus.tilelink.Bus](
+case class TilelinkAplic(sourceIds : Seq[Int], hartIds : Seq[Int], slaveInfos : Seq[APlicSlaveInfo], p : bus.tilelink.BusParameter) extends MappedAplic[bus.tilelink.Bus](
   sourceIds,
   hartIds,
-  slaves,
+  slaveInfos,
   new bus.tilelink.Bus(p),
   new bus.tilelink.SlaveFactory(_, true)
 )
