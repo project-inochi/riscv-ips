@@ -253,20 +253,20 @@ case class TilelinkAPLICFiber() extends Area {
   var core: TilelinkAplic = null
 
   val sources = ArrayBuffer[APlicBundle]()
-  def addsource(source : APlicBundle) = {
-    sources.addRet(source)
+  def addsource(id : Int) = {
+    sources.addRet(APlicBundle(id))
   }
   val targets = ArrayBuffer[APlicBundle]()
-  def addtarget(target : APlicBundle) = {
-    targets.addRet(target)
+  def addtarget(id : Int) = {
+    targets.addRet(APlicBundle(id))
   }
   val slaves = ArrayBuffer[APlicSlaveInfo]()
-  def addslave(slave : APlicSlaveInfo) = {
-    slaves.addRet(slave)
-  }
-  val slavesource = ArrayBuffer[APlicBundle]()
-  def addslavesource(slaveBundle : APlicBundle) = {
-    slavesource.addRet(slaveBundle)
+  val slaveSources = ArrayBuffer[APlicSlaveBundle]()
+  def addSlave(slave : APlicSlaveInfo) = {
+    val slaveBundle = APlicSlaveBundle(slave.childIdx, slave.sourceIds.size)
+    slaves += slave
+    slaveSources += slaveBundle
+    slaveBundle
   }
 
   val thread = Fiber build new Area {
@@ -279,13 +279,19 @@ case class TilelinkAPLICFiber() extends Area {
 
     core.io.bus <> node.bus
     core.io.sources := sources.map(_.flag).asBits
-    (targets.map(_.flag), core.io.targets.asBools).zipped.foreach(_ := _)
+    // targets.map(_.flag).asBits := core.io.targets
+    (targets, core.io.targets.asBools).zipped.foreach(_.flag := _)
 
-    (slavesource.map(_.flag), core.io.slaveSources.asBits.asBools).zipped.foreach(_ := _)
+    Vec(slaveSources.toSeq.map(_.flag)) := core.io.slaveSources
   }
 }
 
 case class APlicBundle(idx : Int) extends Area{
   val id = idx
   val flag = Bool()
+}
+
+case class APlicSlaveBundle(idx : Int, sourceNum: Int) extends Area{
+  val id = idx
+  val flag = Bits(sourceNum bits)
 }

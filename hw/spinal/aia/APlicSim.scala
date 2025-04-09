@@ -193,41 +193,28 @@ case class aplics(hartIds : Seq[Int], sourceIds : Seq[Int], slavesourceIds: Seq[
 case class TilelinkAPLICFiberTest(hartIds : Seq[Int], sourceIds : Seq[Int], slavesourceIds: Seq[Int]) extends Component {
   val masterBus = TilelinkBusFiber()
 
-  val sourcesMBundle = for (sourceId <- sourceIds) yield new APlicBundle(sourceId)
-  val targetsMBundle = for (hartId <- hartIds) yield new APlicBundle(hartId)
-  val slaveinfo = new APlicSlaveInfo(1, slavesourceIds)
-  val slavesourceMBundle = for (slavesourceId <- slavesourceIds) yield new APlicBundle(slavesourceId)
-
-  val sourcesSBundle = for (sourceId <- slavesourceIds) yield new APlicBundle(sourceId)
-  val targetsSBundle = for (hartId <- hartIds) yield new APlicBundle(hartId)
+  val slaveInfos = Seq(APlicSlaveInfo(1, slavesourceIds))
 
   val peripherals = new Area{
     val access = tilelink.fabric.Node()
     access at 0x00000000 of masterBus.node
 
     val aplicslave = TilelinkAPLICFiber()
-    aplicslave.node at 0x00000000 of access
+    aplicslave.node at 0x10000000 of access
 
-    for (source <- sourcesSBundle){
-      aplicslave.addsource(source)
-    }
-    for (target <- targetsSBundle){
-      aplicslave.addtarget(target)
-    }
+    val sourcesSBundles = slavesourceIds.map(aplicslave.addsource(_))
+    val targetsSBundles = hartIds.map(aplicslave.addtarget(_))
 
     val aplicmaster = TilelinkAPLICFiber()
-    aplicmaster.node at 0x10000000 of access
+    aplicmaster.node at 0x20000000 of access
 
-    for (source <- sourcesMBundle){
-      aplicmaster.addsource(source)
-    }
-    for (target <- targetsMBundle){
-      aplicmaster.addtarget(target)
-    }
-    aplicmaster.addslave(slaveinfo)
-    for (slaveBundle <- slavesourceMBundle){
-      aplicmaster.addslavesource(slaveBundle)
-    }
+    val sourcesMBundles = sourceIds.map(aplicmaster.addsource(_))
+    val targetsMBundles = hartIds.map(aplicmaster.addtarget(_))
+
+    val slaveSources = slaveInfos.map(aplicmaster.addSlave(_))
+
+    // XXX: there is only one slave
+    (sourcesSBundles, slaveSources(0).flag.asBools).zipped.foreach(_.flag := _)
   }
 
   val io = new Bundle{
@@ -239,12 +226,11 @@ case class TilelinkAPLICFiberTest(hartIds : Seq[Int], sourceIds : Seq[Int], slav
 
   masterBus.bus = Some(io.bus)
 
-  // Vec(sourcesBundle.map(_.flag).asBits) := io.sources Why?
-  (sourcesMBundle.map(_.flag), io.sources(0).asBools).zipped.foreach(_ := _)
-  io.targetsmaster := Vec(targetsMBundle.map(_.flag).asBits)
-  io.targetsslave := Vec(targetsSBundle.map(_.flag).asBits)
+  // XXX: there is only one slave
+  (peripherals.sourcesMBundles.map(_.flag), io.sources(0).asBools).zipped.foreach(_ := _)
 
-  (sourcesSBundle.map(_.flag), slavesourceMBundle.map(_.flag)).zipped.foreach(_ := _)
+  io.targetsmaster := Vec(peripherals.targetsMBundles.map(_.flag).asBits)
+  io.targetsslave := Vec(peripherals.targetsSBundles.map(_.flag).asBits)
 }
 
 object APlicNodeSim extends App {
@@ -271,7 +257,7 @@ object APlicNodeSim extends App {
     val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
 
     val masteroffset = 0x10000000
-    val slaveoffset = 0x00000000
+    val slaveoffset = 0x20000000
 
     print(agent.putFullData(0, masteroffset + aplicmap.sourcecfgOffset + 4, SimUInt32(0x400)))
     print(agent.putFullData(0, masteroffset + aplicmap.sourcecfgOffset + 8, SimUInt32(0x1)))
