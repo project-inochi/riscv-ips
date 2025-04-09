@@ -6,6 +6,8 @@ import spinal.core.sim._
 import spinal.lib.bus.tilelink
 import config.Config
 import _root_.sim._
+import spinal.lib.bus.misc.SizeMapping
+import spinal.core.fiber.Fiber
 
 object APlicSim extends App {
   val sourcenum = 1023
@@ -165,7 +167,7 @@ case class aplics(hartIds : Seq[Int], sourceIds : Seq[Int], slavesourceIds: Seq[
   ).toNodeParameters().toBusParameter()
 
   val aplicslave = new TilelinkAplic(slavesourceIds, hartIds, Seq(), busParam)
-  val aplicmaster = new TilelinkAplic(sourceIds, hartIds, Seq(aplicslave), busParam)
+  val aplicmaster = new TilelinkAplic(sourceIds, hartIds, Seq(), busParam)
 
   aplicmaster.io.simPublic()
   aplicslave.io.simPublic()
@@ -186,4 +188,138 @@ case class aplics(hartIds : Seq[Int], sourceIds : Seq[Int], slavesourceIds: Seq[
   io.targetsmaster := aplicmaster.io.targets
   io.targetsslave := aplicslave.io.targets
   aplicslave.io.sources := aplicmaster.io.slaveSources(0)
+}
+
+case class TilelinkAPLICFiberTest(hartIds : Seq[Int], sourceIds : Seq[Int], slavesourceIds: Seq[Int]) extends Component {
+  val down = tilelink.fabric.Node.down()
+  val m2sParams = tilelink.M2sParameters(
+    addressWidth = 32,
+    dataWidth = 32,
+    masters = List(
+      tilelink.M2sAgent(
+        name = TilelinkAPLICFiberTest.this,
+        mapping = List(
+          tilelink.M2sSource(
+            id = SizeMapping(0, 4),
+            emits = tilelink.M2sTransfers(
+              get = tilelink.SizeRange(1, 32),
+              putFull = tilelink.SizeRange(1, 32)
+            )
+          )
+        )
+      )
+    )
+  )
+  val fiber = Fiber build new Area {
+    down.m2s forceParameters m2sParams
+
+    down.s2m.supported load tilelink.S2mSupport.none()
+
+    val mappings = spinal.lib.system.tag.MemoryConnection.getMemoryTransfers(down)
+    for(mapping <- mappings){
+      println(s"- ${mapping.where} -> ${mapping.transfers}")
+    }
+
+    down.bus <> io.bus
+  }
+
+  val sourcesMBundle = for (sourceId <- sourceIds) yield new APlicBundle(sourceId)
+  val targetsMBundle = for (hartId <- hartIds) yield new APlicBundle(hartId)
+  val slaveinfo = new APlicSlaveInfo(1, slavesourceIds)
+  val slavesourceMBundle = for (slavesourceId <- slavesourceIds) yield new APlicBundle(slavesourceId)
+
+  val sourcesSBundle = for (sourceId <- slavesourceIds) yield new APlicBundle(sourceId)
+  val targetsSBundle = for (hartId <- hartIds) yield new APlicBundle(hartId)
+
+  val peripherals = new Area{
+    val access = tilelink.fabric.Node()
+    access at 0x00000000 of down
+
+    val aplicslave = TilelinkAPLICFiber()
+    aplicslave.node at 0x00000000 of access
+
+    for (source <- sourcesSBundle){
+      aplicslave.addsource(source)
+    }
+    for (target <- targetsSBundle){
+      aplicslave.addtarget(target)
+    }
+
+    val aplicmaster = TilelinkAPLICFiber()
+    aplicmaster.node at 0x10000000 of access
+
+    for (source <- sourcesMBundle){
+      aplicmaster.addsource(source)
+    }
+    for (target <- targetsMBundle){
+      aplicmaster.addtarget(target)
+    }
+    aplicmaster.addslave(slaveinfo)
+    for (slaveBundle <- slavesourceMBundle){
+      aplicmaster.addslavesource(slaveBundle)
+    }
+  }
+
+  val io = new Bundle{
+    val bus = slave(tilelink.Bus(m2sParams.toNodeParameters().toBusParameter()))
+    val sources = in Vec(Bits(sourceIds.size bits))
+    val targetsmaster = out Vec(Bits(hartIds.size bits))
+    val targetsslave = out Vec(Bits(hartIds.size bits))
+  }
+
+  // Vec(sourcesBundle.map(_.flag).asBits) := io.sources Why?
+  (sourcesMBundle.map(_.flag), io.sources(0).asBools).zipped.foreach(_ := _)
+  io.targetsmaster := Vec(targetsMBundle.map(_.flag).asBits)
+  io.targetsslave := Vec(targetsSBundle.map(_.flag).asBits)
+
+  (sourcesSBundle.map(_.flag), slavesourceMBundle.map(_.flag)).zipped.foreach(_ := _)
+}
+
+object APlicNodeSim extends App {
+  val sourcenum = 8
+  val hartnum = 2
+
+  val sourceIds = for (i <- 1 until sourcenum) yield i
+  val slavesourceIds = IndexedSeq(1, 4)
+  val hartIds = for (i <- 0 until hartnum) yield i
+
+  val aplicmap = APlicMapping.aplicMap
+
+  val compile = Config.sim.compile{
+    val aplicsFiber = new TilelinkAPLICFiberTest(hartIds, sourceIds, slavesourceIds)
+    aplicsFiber
+  }
+
+  compile.doSim{ dut =>
+		dut.clockDomain.forkStimulus(10)
+
+    dut.io.sources(0) #= 0b0000000
+
+    implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
+    val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
+
+    val masteroffset = 0x10000000
+    val slaveoffset = 0x00000000
+
+    print(agent.putFullData(0, masteroffset + aplicmap.sourcecfgOffset + 4, SimUInt32(0x400)))
+    print(agent.putFullData(0, masteroffset + aplicmap.sourcecfgOffset + 8, SimUInt32(0x1)))
+    print(agent.putFullData(0, masteroffset + aplicmap.targetOffset + 8, SimUInt32(0x2)))
+    print(agent.putFullData(0, masteroffset + aplicmap.setieOffset, SimUInt32(0xff)))
+    print(agent.putFullData(0, masteroffset + aplicmap.setipOffset, SimUInt32(0x0)))
+
+    print(agent.putFullData(0, slaveoffset + aplicmap.sourcecfgOffset + 4, SimUInt32(0x6)))
+    print(agent.putFullData(0, slaveoffset + aplicmap.targetOffset + 4, SimUInt32(0x2)))
+    print(agent.putFullData(0, slaveoffset + aplicmap.setieOffset, SimUInt32(0xff)))
+    print(agent.putFullData(0, slaveoffset + aplicmap.setipOffset, SimUInt32(0x0)))
+
+    print(agent.putFullData(0, slaveoffset + aplicmap.domaincfgOffset, SimUInt32(0x80000100)))
+    print(agent.putFullData(0, masteroffset + aplicmap.domaincfgOffset, SimUInt32(0x80000100)))
+
+    print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x2)))
+
+    dut.io.sources(0) #= 0b0000001
+
+    dut.clockDomain.waitRisingEdge(10)
+
+	}
 }

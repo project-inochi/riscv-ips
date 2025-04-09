@@ -2,7 +2,9 @@ package aia
 
 import spinal.core._
 import spinal.lib._
+import spinal.core.fiber.{Fiber, Lock}
 import spinal.lib.bus.misc.BusSlaveFactory
+import scala.collection.mutable.ArrayBuffer
 
 case class APlicSlaveInfo(childIdx: Int, sourceIds: Seq[Int])
 
@@ -80,6 +82,17 @@ case class TilelinkAplic(sourceIds : Seq[Int], hartIds : Seq[Int], slaveInfos : 
   new bus.tilelink.Bus(p),
   new bus.tilelink.SlaveFactory(_, true)
 )
+
+object TilelinkAplic{
+  def getTilelinkSupport(proposed: bus.tilelink.M2sSupport) = bus.tilelink.SlaveFactory.getSupported(
+    addressWidth = addressWidth,
+    dataWidth = 32,
+    allowBurst = false,
+    proposed
+  )
+
+  def addressWidth = 32
+}
 
 /**
  * Trigger mode for interrupt source
@@ -232,4 +245,47 @@ case class APlicInterruptSource(sourceId : Int, delegatable: Boolean, globalIE :
       }
     }
   }
+}
+
+case class TilelinkAPLICFiber() extends Area {
+  val node = bus.tilelink.fabric.Node.slave()
+  val lock = Lock()
+  var core: TilelinkAplic = null
+
+  val sources = ArrayBuffer[APlicBundle]()
+  def addsource(source : APlicBundle) = {
+    sources.addRet(source)
+  }
+  val targets = ArrayBuffer[APlicBundle]()
+  def addtarget(target : APlicBundle) = {
+    targets.addRet(target)
+  }
+  val slaves = ArrayBuffer[APlicSlaveInfo]()
+  def addslave(slave : APlicSlaveInfo) = {
+    slaves.addRet(slave)
+  }
+  val slavesource = ArrayBuffer[APlicBundle]()
+  def addslavesource(slaveBundle : APlicBundle) = {
+    slavesource.addRet(slaveBundle)
+  }
+
+  val thread = Fiber build new Area {
+    lock.await()
+
+    node.m2s.supported.load(TilelinkAplic.getTilelinkSupport(node.m2s.proposed))
+    node.s2m.none()
+
+    core = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaves.toSeq, node.bus.p)
+
+    core.io.bus <> node.bus
+    core.io.sources := sources.map(_.flag).asBits
+    (targets.map(_.flag), core.io.targets.asBools).zipped.foreach(_ := _)
+
+    (slavesource.map(_.flag), core.io.slaveSources.asBits.asBools).zipped.foreach(_ := _)
+  }
+}
+
+case class APlicBundle(idx : Int) extends Area{
+  val id = idx
+  val flag = Bool()
 }
