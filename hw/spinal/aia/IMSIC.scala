@@ -3,7 +3,6 @@ package aia
 import spinal.core._
 import spinal.lib._
 import spinal.lib.bus.misc._
-import spinal.core
 
 case class IMSICInterruptFile(sourceIds: Seq[Int], hartId: Int, guestId: Int) extends Area {
   val maxSource = (sourceIds ++ Seq(0)).max + 1

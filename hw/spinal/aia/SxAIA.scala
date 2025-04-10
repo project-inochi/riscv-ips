@@ -2,7 +2,6 @@ package aia
 
 import spinal.core._
 import spinal.lib._
-import spinal.core
 
 case class SxAIARequest(idWidth : Int) extends AIARequest(idWidth) {
   override def prioritize(other: AIARequest): Bool = {

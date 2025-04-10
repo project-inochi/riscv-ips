@@ -1,11 +1,11 @@
 package aia
 
-import spinal.lib._
 import spinal.core._
+import spinal.core.fiber.{Fiber, Lock}
 import spinal.core.sim._
+import spinal.lib._
 import spinal.lib.bus.misc._
 import spinal.lib.bus.tilelink
-import spinal.core.fiber.{Fiber, Lock}
 import scala.collection.mutable.ArrayBuffer
 
 class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],

@@ -1,13 +1,11 @@
 package aia
 
-import spinal.lib._
-import _root_.sim._
 import spinal.core._
-import config.Config
 import spinal.core.sim._
+import spinal.lib._
 import spinal.lib.bus.tilelink
-import spinal.core.fiber.Fiber
-import spinal.lib.bus.misc.SizeMapping
+import config.Config
+import _root_.sim._
 
 case class TilelinkAPLICFiberTest(hartIds : Seq[Int], sourceIds : Seq[Int], slavesourceIds: Seq[Int]) extends Component {
   val masterBus = TilelinkBusFiber()

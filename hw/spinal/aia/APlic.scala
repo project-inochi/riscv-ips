@@ -2,9 +2,6 @@ package aia
 
 import spinal.core._
 import spinal.lib._
-import spinal.core.fiber.{Fiber, Lock}
-import spinal.lib.bus.misc.BusSlaveFactory
-import scala.collection.mutable.ArrayBuffer
 
 case class APlicSlaveInfo(childIdx: Int, sourceIds: Seq[Int])
 
