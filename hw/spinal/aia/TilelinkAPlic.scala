@@ -74,13 +74,13 @@ case class TilelinkAPLICFiber() extends Area {
 
   val mappedInterrupts = mutable.LinkedHashMap[InterruptNode, InterruptNode]()
 
-  def addsource(id : Int, node: InterruptNode) = {
+  def addSource(id : Int, node: InterruptNode) = {
     val spec = sourceSpec(InterruptNode.slave(), id)
     sources += spec
     spec.node << node
     node
   }
-  def addtarget(id : Int, node: InterruptNode) = {
+  def addTarget(id : Int, node: InterruptNode) = {
     val spec = targetSpec(InterruptNode.master(), id)
     targets += spec
     node << spec.node
