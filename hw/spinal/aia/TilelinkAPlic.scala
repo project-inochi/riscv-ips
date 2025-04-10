@@ -6,6 +6,7 @@ import spinal.core.sim._
 import spinal.lib._
 import spinal.lib.bus.misc._
 import spinal.lib.bus.tilelink
+import spinal.lib.misc.InterruptNode
 import scala.collection.mutable.ArrayBuffer
 
 class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
@@ -59,18 +60,33 @@ object TilelinkAplic{
 }
 
 case class TilelinkAPLICFiber() extends Area {
+  import scala.collection.{Seq, mutable}
+
   val node = bus.tilelink.fabric.Node.slave()
   val lock = Lock()
   var core: TilelinkAplic = null
 
-  val sources = ArrayBuffer[APlicBundle]()
-  def addsource(id : Int) = {
-    sources.addRet(APlicBundle(id))
+  case class sourceSpec(node : InterruptNode, id : Int)
+  case class targetSpec(node: InterruptNode, id: Int)
+
+  val sources = ArrayBuffer[sourceSpec]()
+  val targets = ArrayBuffer[targetSpec]()
+
+  val mappedInterrupts = mutable.LinkedHashMap[InterruptNode, InterruptNode]()
+
+  def addsource(id : Int, node: InterruptNode) = {
+    val spec = sourceSpec(InterruptNode.slave(), id)
+    sources += spec
+    spec.node << node
+    node
   }
-  val targets = ArrayBuffer[APlicBundle]()
-  def addtarget(id : Int) = {
-    targets.addRet(APlicBundle(id))
+  def addtarget(id : Int, node: InterruptNode) = {
+    val spec = targetSpec(InterruptNode.master(), id)
+    targets += spec
+    node << spec.node
+    spec.node
   }
+
   val slaves = ArrayBuffer[APlicSlaveInfo]()
   val slaveSources = ArrayBuffer[APlicSlaveBundle]()
   def addSlave(slave : APlicSlaveInfo) = {
@@ -89,21 +105,20 @@ case class TilelinkAPLICFiber() extends Area {
     core = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaves.toSeq, node.bus.p)
 
     core.io.bus <> node.bus
-    core.io.sources := sources.map(_.flag).asBits
+    core.io.sources := sources.map(_.node.flag).asBits
     // targets.map(_.flag).asBits := core.io.targets
-    (targets, core.io.targets.asBools).zipped.foreach(_.flag := _)
+    targets.lazyZip(core.io.targets.asBools).foreach(_.node.flag := _)
+    core.io.slaveSources.lazyZip(slaveSources).foreach { case (ioslaveSource, slaveSource) =>
+      for ((bit, node) <- ioslaveSource.asBools.zip(slaveSource.flags)) {
+        node.flag := bit
+      }
+    }
 
-    Vec(slaveSources.toSeq.map(_.flag)) := core.io.slaveSources
 	  core.aplic.interrupts.foreach(_.ip.simPublic())
   }
 }
 
-case class APlicBundle(idx : Int) extends Area{
-  val id = idx
-  val flag = Bool()
-}
-
 case class APlicSlaveBundle(idx : Int, sourceNum: Int) extends Area{
   val id = idx
-  val flag = Bits(sourceNum bits)
+  val flags = for (i <- 0 until sourceNum) yield InterruptNode.master()
 }

@@ -4,6 +4,7 @@ import spinal.core._
 import spinal.core.sim._
 import spinal.lib._
 import spinal.lib.bus.tilelink
+import spinal.lib.misc.InterruptNode
 import config.Config
 import _root_.sim._
 
@@ -19,19 +20,20 @@ case class TilelinkAPLICFiberTest(hartIds : Seq[Int], sourceIds : Seq[Int], slav
     val aplicslave = TilelinkAPLICFiber()
     aplicslave.node at 0x10000000 of access
 
-    val sourcesSBundles = slavesourceIds.map(aplicslave.addsource(_))
-    val targetsSBundles = hartIds.map(aplicslave.addtarget(_))
+    val targetsSBundles = hartIds.map(aplicslave.addtarget(_, InterruptNode.slave()))
 
     val aplicmaster = TilelinkAPLICFiber()
     aplicmaster.node at 0x20000000 of access
 
-    val sourcesMBundles = sourceIds.map(aplicmaster.addsource(_))
-    val targetsMBundles = hartIds.map(aplicmaster.addtarget(_))
+    val sourcesMBundles = sourceIds.map(aplicmaster.addsource(_, InterruptNode.master()))
+    val targetsMBundles = hartIds.map(aplicmaster.addtarget(_, InterruptNode.slave()))
 
     val slaveSources = slaveInfos.map(aplicmaster.addSlave(_))
 
     // XXX: there is only one slave
-    (sourcesSBundles, slaveSources(0).flag.asBools).zipped.foreach(_.flag := _)
+    val sourcesSBundles = slavesourceIds.zip(slaveSources(0).flags).map {
+      case (id, slaveSource) => aplicslave.addsource(id, slaveSource)
+    }
   }
 
   val io = new Bundle{
