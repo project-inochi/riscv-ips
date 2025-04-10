@@ -5,12 +5,14 @@ import spinal.lib._
 import spinal.lib.bus.misc._
 
 case class IMSICInterruptFile(sourceIds: Seq[Int], hartId: Int, guestId: Int) extends Area {
-  val maxSource = (sourceIds ++ Seq(0)).max + 1
-  val idWidth = log2Up(maxSource)
+  val registerWidth = 32
+
+  val idWidth = log2Up((sourceIds ++ Seq(0)).max + 1)
+  require(idWidth <= registerWidth)
 
   case class IMSICSource(sourceId: Int) extends Area {
-    val id = U(sourceId, idWidth bits)
-    val trigger = Bool
+    val id = U(sourceId, registerWidth bits)
+    val trigger = Bool()
 
     trigger := False
   }
@@ -25,7 +27,8 @@ case class IMSICInterruptFile(sourceIds: Seq[Int], hartId: Int, guestId: Int) ex
     val busWithOffset = new BusSlaveFactoryAddressWrapper(bus, baseAddress)
 
     /* Main work, mapping the irq set */
-    val target = Flow(UInt(idWidth bits))
+    /* TODO: LE check */
+    val target = Flow(UInt(registerWidth bits))
     target.valid := False
     target.payload.assignDontCare()
     when(target.valid) {
@@ -38,18 +41,17 @@ case class IMSICInterruptFile(sourceIds: Seq[Int], hartId: Int, guestId: Int) ex
       }
     }
 
-    val targetDriveLE = busWithOffset.createAndDriveFlow(UInt(32 bits), address = SETEIPNUM_LE_ADDR, documentation = "Set External Interrupt-Pending bit for %s of hart %d by Little-Endian Number".format(if (guestId == 0) "non-guest" else s"guest ${guestId}", hartId))
+    val targetDriveLE = busWithOffset.createAndDriveFlow(UInt(registerWidth bits), address = SETEIPNUM_LE_ADDR, documentation = "Set External Interrupt-Pending bit for %s of hart %d by Little-Endian Number".format(if (guestId == 0) "non-guest" else s"guest ${guestId}", hartId))
     when(targetDriveLE.valid) {
       target.valid := True
-      /* TODO: LE -> native */
       target.payload := targetDriveLE.payload.resized
     }
 
-    val targetDriveBE = busWithOffset.createAndDriveFlow(UInt(32 bits), address = SETEIPNUM_BE_ADDR, documentation = "Set External Interrupt-Pending bit for %s of hart %d by Big-Endian Number".format(if (guestId == 0) "non-guest" else s"guest ${guestId}", hartId))
+    val targetDriveBE = busWithOffset.createAndDriveFlow(UInt(registerWidth bits), address = SETEIPNUM_BE_ADDR, documentation = "Set External Interrupt-Pending bit for %s of hart %d by Big-Endian Number".format(if (guestId == 0) "non-guest" else s"guest ${guestId}", hartId))
     when(targetDriveBE.valid) {
       target.valid := True
-      /* TODO: BE -> native */
-      target.payload := targetDriveBE.payload.resized
+      val tmpLE = EndiannessSwap(targetDriveBE.payload)
+      target.payload := tmpLE.resized
     }
   }
 }

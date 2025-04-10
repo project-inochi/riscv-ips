@@ -69,5 +69,6 @@ object IMSICSim extends App {
     print(agent.putFullData(0, 0x10000000, SimUInt32(0x5)))
     print(agent.putFullData(0, 0x10001000, SimUInt32(0x4)))
     print(agent.putFullData(0, 0x10001000, SimUInt32(0x8)))
+    print(agent.putFullData(0, 0x10001004, SimUInt32(0x7, BIG)))
   }
 }
