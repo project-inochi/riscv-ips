@@ -9,7 +9,7 @@ import spinal.lib.bus.misc._
 import config.Config
 import _root_.sim._
 
-case class TilelinkIMSICFiberTest(sourceIds : Seq[Int], hartIds : Seq[Int]) extends Component {
+case class TilelinkIMSICFiberTest(sourceIds: Seq[Int], hartIds: Seq[Int]) extends Component {
   val sourcenum = sourceIds.size
   val hartnum = hartIds.size
 

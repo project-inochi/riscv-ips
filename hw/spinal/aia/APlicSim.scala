@@ -8,7 +8,7 @@ import spinal.lib.misc.InterruptNode
 import config.Config
 import _root_.sim._
 
-case class TilelinkAPLICFiberTest(hartIds : Seq[Int], sourceIds : Seq[Int], slavesourceIds: Seq[Int]) extends Component {
+case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slavesourceIds: Seq[Int]) extends Component {
   val masterBus = TilelinkBusFiber()
 
   val slaveInfos = Seq(APlicSlaveInfo(1, slavesourceIds))
@@ -180,16 +180,16 @@ object APlicSim extends App {
     dut.clockDomain.waitRisingEdge(10)
   }
 
-  def assertState(signal : Bool, state : Boolean, name : String) : Unit = {
+  def assertState(signal: Bool, state: Boolean, name: String): Unit = {
     assert(signal.toBoolean == state, s"$name: missmatch (${signal} != ${state.toString()})")
   }
 
-  def assertData(data : tilelink.sim.TransactionD, answer : String, name : String) : Unit = {
+  def assertData(data: tilelink.sim.TransactionD, answer: String, name: String): Unit = {
     val claimi = getdata(data.data)
     assert(claimi == answer, s"masterclaimi: missmatch (${claimi} != 0x$answer)")
   }
 
-  def getdata(data : Array[Byte]): String = {
+  def getdata(data: Array[Byte]): String = {
     val buf = new StringBuilder()
     for(i <- 0 until data.size){
       buf ++= f"${data(data.size - 1 - i)}%02x"

@@ -7,9 +7,9 @@ abstract class AIARequest(idWidth: Int) extends Bundle {
   val id = UInt(idWidth bits)
   val valid = Bool()
 
-  def prioritize(other: AIARequest) : Bool
-  def pending(threshold: UInt) : Bool
-  def dummy() : AIARequest
+  def prioritize(other: AIARequest): Bool
+  def pending(threshold: UInt): Bool
+  def dummy(): AIARequest
   def verify(cond: Bool): AIARequest = {
     Mux(cond, this, dummy())
   }
@@ -20,7 +20,7 @@ abstract class AIAInterruptSource(sourceId: Int) extends Area {
   val ie = RegInit(False)
   val ip = RegInit(False)
 
-  def asRequest(idWidth : Int, targetHart: Int) : AIARequest
+  def asRequest(idWidth: Int, targetHart: Int): AIARequest
 
   def doClaim(): Unit = {
     ip := False
@@ -56,7 +56,7 @@ abstract class AIAInterruptSource(sourceId: Int) extends Area {
 }
 
 object AIAOperator {
-  def doClaim(interrupts : Seq[AIAInterruptSource], id: UInt) = new Area {
+  def doClaim(interrupts: Seq[AIAInterruptSource], id: UInt) = new Area {
     switch(id) {
       for (interrupt <- interrupts) {
         is (interrupt.id) {
@@ -66,7 +66,7 @@ object AIAOperator {
     }
   }
 
-  def doSet(interrupts : Seq[AIAInterruptSource], id : UInt) = new Area {
+  def doSet(interrupts: Seq[AIAInterruptSource], id: UInt) = new Area {
     switch(id) {
       for (interrupt <- interrupts) {
         is (interrupt.id) {
@@ -76,7 +76,7 @@ object AIAOperator {
     }
   }
 
-  def enable(interrupts : Seq[AIAInterruptSource], id : UInt) = new Area{
+  def enable(interrupts: Seq[AIAInterruptSource], id: UInt) = new Area{
     switch(id) {
       for (interrupt <- interrupts) {
         is (interrupt.id) {
@@ -86,7 +86,7 @@ object AIAOperator {
     }
   }
 
-  def disable(interrupts : Seq[AIAInterruptSource], id : UInt) = new Area{
+  def disable(interrupts: Seq[AIAInterruptSource], id: UInt) = new Area{
     switch(id) {
       for (interrupt <- interrupts) {
         is (interrupt.id) {

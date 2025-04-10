@@ -54,7 +54,6 @@ case class IMSICInterruptFile(sourceIds: Seq[Int], hartId: Int, guestId: Int) ex
   }
 }
 
-
 /**
  * IMSICMapping: IMSIC interrupt file mapping info
  *
@@ -107,7 +106,7 @@ case class SxAIAInfo(sources: SxAIA, groupId: Int, groupHartId: Int) {
 object IMSIC {
   val interruptFileSize: BigInt = 4096
 
-  def mappingCalibrate(mapping : IMSICMapping, maxGuestId: Int, maxGroupHartId: Int, maxGroupId: Int): IMSICMapping = {
+  def mappingCalibrate(mapping: IMSICMapping, maxGuestId: Int, maxGroupHartId: Int, maxGroupId: Int): IMSICMapping = {
     import mapping._
 
     require(interruptFileHartSize == 0 || isPow2(interruptFileHartSize), "interruptFileHartSize should be power of 2")
@@ -138,7 +137,7 @@ object IMSIC {
     )
   }
 
-  def apply(bus: BusSlaveFactory, mapping : IMSICMapping)(infos : Seq[IMSICInfo]) = new Area {
+  def apply(bus: BusSlaveFactory, mapping: IMSICMapping)(infos: Seq[IMSICInfo]) = new Area {
     val maxGuestId = infos.map(_.guestId).max
     val maxGroupHartId = infos.map(_.groupHartId).max
     val maxGroupId = infos.map(_.groupId).max

@@ -3,7 +3,7 @@ package aia
 import spinal.core._
 import spinal.lib._
 
-case class SxAIARequest(idWidth : Int) extends AIARequest(idWidth) {
+case class SxAIARequest(idWidth: Int) extends AIARequest(idWidth) {
   override def prioritize(other: AIARequest): Bool = {
     val x = other.asInstanceOf[SxAIARequest]
     !x.valid || (valid && id <= x.id)
@@ -21,8 +21,8 @@ case class SxAIARequest(idWidth : Int) extends AIARequest(idWidth) {
   }
 }
 
-case class SxAIAInterruptSource(sourceId : Int) extends AIAInterruptSource(sourceId) {
-  override def asRequest(idWidth : Int, targetHart: Int): AIARequest = {
+case class SxAIAInterruptSource(sourceId: Int) extends AIAInterruptSource(sourceId) {
+  override def asRequest(idWidth: Int, targetHart: Int): AIARequest = {
     val ret = new SxAIARequest(idWidth)
     ret.id := U(id)
     ret.valid := ip && ie
@@ -30,7 +30,7 @@ case class SxAIAInterruptSource(sourceId : Int) extends AIAInterruptSource(sourc
   }
 }
 
-case class SxAIA(sourceIds : Seq[Int], hartId: Int, guestId: Int) extends Area {
+case class SxAIA(sourceIds: Seq[Int], hartId: Int, guestId: Int) extends Area {
   val interrupts = for (sourceId <- sourceIds) yield new SxAIAInterruptSource(sourceId)
 
   val operator = AIAGeneric(interrupts, hartId, guestId)

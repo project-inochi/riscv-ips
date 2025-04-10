@@ -9,9 +9,9 @@ import spinal.lib.bus.tilelink
 import spinal.lib.misc.InterruptNode
 import scala.collection.mutable.ArrayBuffer
 
-class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
-                                                           hartIds : Seq[Int],
-                                                           slaveInfos : Seq[APlicSlaveInfo],
+class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds: Seq[Int],
+                                                           hartIds: Seq[Int],
+                                                           slaveInfos: Seq[APlicSlaveInfo],
                                                            busType: HardType[T],
                                                            factoryGen: T => BusSlaveFactory) extends Component{
   require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
@@ -40,7 +40,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
    */
 }
 
-case class TilelinkAplic(sourceIds : Seq[Int], hartIds : Seq[Int], slaveInfos : Seq[APlicSlaveInfo], p : bus.tilelink.BusParameter) extends MappedAplic[bus.tilelink.Bus](
+case class TilelinkAplic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSlaveInfo], p: bus.tilelink.BusParameter) extends MappedAplic[bus.tilelink.Bus](
   sourceIds,
   hartIds,
   slaveInfos,
@@ -66,7 +66,7 @@ case class TilelinkAPLICFiber() extends Area {
   val lock = Lock()
   var core: TilelinkAplic = null
 
-  case class sourceSpec(node : InterruptNode, id : Int)
+  case class sourceSpec(node: InterruptNode, id: Int)
   case class targetSpec(node: InterruptNode, id: Int)
   case class APlicSlaveBundle(slaveInfo: APlicSlaveInfo) extends Area {
     val flags = slaveInfo.sourceIds.map(_ => InterruptNode.master())
@@ -77,13 +77,13 @@ case class TilelinkAPLICFiber() extends Area {
 
   val mappedInterrupts = mutable.LinkedHashMap[InterruptNode, InterruptNode]()
 
-  def addSource(id : Int, node: InterruptNode) = {
+  def addSource(id: Int, node: InterruptNode) = {
     val spec = sourceSpec(InterruptNode.slave(), id)
     sources += spec
     spec.node << node
     node
   }
-  def addTarget(id : Int, node: InterruptNode) = {
+  def addTarget(id: Int, node: InterruptNode) = {
     val spec = targetSpec(InterruptNode.master(), id)
     targets += spec
     node << spec.node

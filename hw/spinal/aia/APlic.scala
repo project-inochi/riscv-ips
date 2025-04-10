@@ -56,7 +56,7 @@ object APlicSourceMode extends SpinalEnum {
 }
 
 // hartIds
-case class APlicDirectGateway(interrupts : Seq[APlicInterruptSource], id : Int) extends Bundle{
+case class APlicDirectGateway(interrupts: Seq[APlicInterruptSource], id: Int) extends Bundle{
   val idelivery = RegInit(False)
   val iforce = RegInit(False)
   val ithreshold = RegInit(U(0x0, 8 bits))
@@ -68,7 +68,7 @@ case class APlicDirectGateway(interrupts : Seq[APlicInterruptSource], id : Int) 
   val output = generic.claim > 0
 }
 
-case class APlicRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(idWidth) {
+case class APlicRequest(idWidth: Int, priorityWidth: Int) extends AIARequest(idWidth) {
   val prio = UInt(priorityWidth bits)
 
   override def prioritize(other: AIARequest): Bool = {
@@ -89,7 +89,7 @@ case class APlicRequest(idWidth : Int, priorityWidth: Int) extends AIARequest(id
   }
 }
 
-case class APlicInterruptSource(sourceId : Int, delegatable: Boolean, globalIE : Bool, input: Bool) extends AIAInterruptSource(sourceId) {
+case class APlicInterruptSource(sourceId: Int, delegatable: Boolean, globalIE: Bool, input: Bool) extends AIAInterruptSource(sourceId) {
   val config = RegInit(U(0, 11 bits))
   val delegated = config(10)
   val childIdx = config(9 downto 0)
@@ -146,8 +146,7 @@ case class APlicInterruptSource(sourceId : Int, delegatable: Boolean, globalIE :
     }
   }
 
-
-  override def asRequest(idWidth : Int, targetHart : Int): AIARequest = {
+  override def asRequest(idWidth: Int, targetHart: Int): AIARequest = {
     val ret = new APlicRequest(idWidth, prio.getWidth)
     ret.id := U(id)
     ret.valid := ip && ie && (target === targetHart)
