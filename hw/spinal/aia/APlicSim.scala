@@ -52,7 +52,7 @@ case class TilelinkAPLICFiberTest(hartIds : Seq[Int], sourceIds : Seq[Int], slav
   io.targetsslave := Vec(peripherals.targetsSBundles.map(_.flag).asBits)
 }
 
-object APlicNodeSim extends App {
+object APlicSim extends App {
   val sourcenum = 8
   val hartnum = 2
 
