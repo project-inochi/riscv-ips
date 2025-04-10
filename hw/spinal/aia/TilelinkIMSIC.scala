@@ -71,10 +71,13 @@ case class TilelinkIMSICFiber() extends Area {
   val thread = Fiber build new Area {
     lock.await()
 
-    node.m2s.supported.load(TilelinkIMSIC.getTilelinkSupport(node.m2s.proposed, mapping.getOrElse(IMSICMapping()), infos.map(_.asIMSICInfo()).toSeq))
+    val imsicMapping = mapping.getOrElse(IMSICMapping())
+    val imsicInfos = infos.map(_.asIMSICInfo()).toSeq
+
+    node.m2s.supported.load(TilelinkIMSIC.getTilelinkSupport(node.m2s.proposed, imsicMapping, imsicInfos))
     node.s2m.none()
 
-    val core = TilelinkIMSIC(infos.map(_.asIMSICInfo()).toSeq, mapping.getOrElse(IMSICMapping()), node.bus.p)
+    val core = TilelinkIMSIC(imsicInfos, imsicMapping, node.bus.p)
 
     core.io.bus <> node.bus
 
