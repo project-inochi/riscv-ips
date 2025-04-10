@@ -18,7 +18,7 @@ case class IMSICInterruptFile(sourceIds: Seq[Int], hartId: Int, guestId: Int) ex
   val sources = for (sourceId <- sourceIds) yield new IMSICSource(sourceId)
   val triggers = sources.map(_.trigger).asBits()
 
-  def driveFrom(bus: BusSlaveFactory, baseAddress: BigInt) = new Area{
+  def driveFrom(bus: BusSlaveFactory, baseAddress: BigInt) = new Area {
     val SETEIPNUM_LE_ADDR = 0x000
     val SETEIPNUM_BE_ADDR = 0x004
 

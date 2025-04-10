@@ -13,7 +13,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds: Seq[Int],
                                                            hartIds: Seq[Int],
                                                            slaveInfos: Seq[APlicSlaveInfo],
                                                            busType: HardType[T],
-                                                           factoryGen: T => BusSlaveFactory) extends Component{
+                                                           factoryGen: T => BusSlaveFactory) extends Component {
   require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
   require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")
 
@@ -48,7 +48,7 @@ case class TilelinkAplic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq
   new bus.tilelink.SlaveFactory(_, true)
 )
 
-object TilelinkAplic{
+object TilelinkAplic {
   def getTilelinkSupport(proposed: bus.tilelink.M2sSupport) = bus.tilelink.SlaveFactory.getSupported(
     addressWidth = addressWidth,
     dataWidth = 32,

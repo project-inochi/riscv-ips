@@ -13,7 +13,7 @@ case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slaves
 
   val slaveInfos = Seq(APlicSlaveInfo(1, slavesourceIds))
 
-  val peripherals = new Area{
+  val peripherals = new Area {
     val access = tilelink.fabric.Node()
     access at 0x00000000 of masterBus.node
 
@@ -36,7 +36,7 @@ case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slaves
     }
   }
 
-  val io = new Bundle{
+  val io = new Bundle {
     val bus = slave(tilelink.Bus(masterBus.m2sParams.toNodeParameters().toBusParameter()))
     val sources = in Vec(Bits(sourceIds.size bits))
     val targetsmaster = out Vec(Bits(hartIds.size bits))
@@ -62,7 +62,7 @@ object APlicSim extends App {
 
   val aplicmap = APlicMapping.aplicMap
 
-  val compile = Config.sim.compile{
+  val compile = Config.sim.compile {
     val aplicsFiber = new TilelinkAPLICFiberTest(hartIds, sourceIds, slavesourceIds)
     aplicsFiber
   }
@@ -92,7 +92,7 @@ object APlicSim extends App {
                          SimUInt32(0x0),
                          SimUInt32(0x0),
                          SimUInt32(0x0))
-    for (i <- 1 until sourcenum){
+    for (i <- 1 until sourcenum) {
       print(agent.putFullData(0, masteroffset + aplicmap.sourcecfgOffset + (i << aplicmap.idShift), prioArrayM(i-1)))
       print(agent.putFullData(0, slaveoffset + aplicmap.sourcecfgOffset + (i << aplicmap.idShift), prioArrayS(i-1)))
     }
@@ -107,7 +107,7 @@ object APlicSim extends App {
                           SimUInt32(0x5),
                           SimUInt32(0x6),
                           SimUInt32(0x40007))
-    for (i <- 1 until sourcenum){
+    for (i <- 1 until sourcenum) {
       print(agent.putFullData(0, masteroffset + aplicmap.targetOffset + (i << aplicmap.idShift), targetArray(i-1)))
       print(agent.putFullData(0, slaveoffset + aplicmap.targetOffset + (i << aplicmap.idShift), targetArray(i-1)))
     }
@@ -191,7 +191,7 @@ object APlicSim extends App {
 
   def getdata(data: Array[Byte]): String = {
     val buf = new StringBuilder()
-    for(i <- 0 until data.size){
+    for(i <- 0 until data.size) {
       buf ++= f"${data(data.size - 1 - i)}%02x"
     }
     buf.toString()

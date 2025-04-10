@@ -10,8 +10,8 @@ import scala.collection.mutable.ArrayBuffer
 class MappedIMSIC[T <: spinal.core.Data with IMasterSlave](infos: Seq[IMSICInfo],
                                                            mapping: IMSICMapping,
                                                            busType: HardType[T],
-                                                           factoryGen: T => BusSlaveFactory) extends Component{
-  val io = new Bundle{
+                                                           factoryGen: T => BusSlaveFactory) extends Component {
+  val io = new Bundle {
     val bus = slave(busType())
     val triggers = out Vec(infos.map(info => Bits(info.sourceIds.size bits)))
   }

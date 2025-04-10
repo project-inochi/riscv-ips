@@ -56,7 +56,7 @@ object APlicSourceMode extends SpinalEnum {
 }
 
 // hartIds
-case class APlicDirectGateway(interrupts: Seq[APlicInterruptSource], id: Int) extends Bundle{
+case class APlicDirectGateway(interrupts: Seq[APlicInterruptSource], id: Int) extends Bundle {
   val idelivery = RegInit(False)
   val iforce = RegInit(False)
   val ithreshold = RegInit(U(0x0, 8 bits))
@@ -155,13 +155,13 @@ case class APlicInterruptSource(sourceId: Int, delegatable: Boolean, globalIE: B
   }
 
   override def doClaim(): Unit = {
-    when(blockip === False){
+    when(blockip === False) {
       ip := False
     }
   }
 
   override def doSet(): Unit = {
-    when(blockip === False){
+    when(blockip === False) {
       ip := True
     }
   }

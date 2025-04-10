@@ -17,7 +17,7 @@ case class TilelinkIMSICFiberTest(sourceIds: Seq[Int], hartIds: Seq[Int]) extend
 
   val blocks = for (hartId <- hartIds) yield new SxAIA(sourceIds, hartId, 0)
 
-  val peripherals = new Area{
+  val peripherals = new Area {
     val access = tilelink.fabric.Node()
     access at 0x10000000 of masterBus.node
 
@@ -29,7 +29,7 @@ case class TilelinkIMSICFiberTest(sourceIds: Seq[Int], hartIds: Seq[Int]) extend
     }
   }
 
-  val io = new Bundle{
+  val io = new Bundle {
     val bus = slave(tilelink.Bus(masterBus.m2sParams.toNodeParameters().toBusParameter()))
     val ie = in Vec(blocks.map(block => Bits(block.interrupts.size bits)))
     val ip = out Vec(blocks.map(block => Bits(block.interrupts.size bits)))
@@ -48,7 +48,7 @@ object IMSICSim extends App {
   val sourceIds = for (i <- 1 until sourcenum) yield i
   val hartIds = for (i <- 0 until hartnum) yield i
 
-  val compile = Config.sim.compile{
+  val compile = Config.sim.compile {
     val imsic = new TilelinkIMSICFiberTest(sourceIds, hartIds)
     imsic
   }

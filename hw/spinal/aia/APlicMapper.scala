@@ -33,7 +33,7 @@ case class APlicMapping(
   claimiOffset        : Int
 )
 
-object APlicMapping{
+object APlicMapping {
   def aplicMap = APlicMapping(
     domaincfgOffset     = 0x0000,
     sourcecfgOffset     = 0x0004 - 4,
@@ -65,7 +65,7 @@ object APlicMapping{
   )
 }
 
-object APlicMapper{
+object APlicMapper {
   def apply(bus: BusSlaveFactory, mapping: APlicMapping)(aplic: APlic) = new Area{
     import mapping._
 
@@ -106,7 +106,7 @@ object APlicMapper{
       bus.readAndWrite(interrupt.target, address = targetOffset + (interrupt.id << idShift), bitOffset = 18)
     }
 
-    val interuptMapping = for(interrupt <- aplic.interrupts) yield new Area{
+    val interuptMapping = for(interrupt <- aplic.interrupts) yield new Area {
       val interruptOffset = (interrupt.id / bus.busDataWidth) * bus.busDataWidth / 8
       val interruptBitOffset = interrupt.id % bus.busDataWidth
 

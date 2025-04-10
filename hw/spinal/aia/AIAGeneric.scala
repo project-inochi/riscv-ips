@@ -76,7 +76,7 @@ object AIAOperator {
     }
   }
 
-  def enable(interrupts: Seq[AIAInterruptSource], id: UInt) = new Area{
+  def enable(interrupts: Seq[AIAInterruptSource], id: UInt) = new Area {
     switch(id) {
       for (interrupt <- interrupts) {
         is (interrupt.id) {
@@ -86,7 +86,7 @@ object AIAOperator {
     }
   }
 
-  def disable(interrupts: Seq[AIAInterruptSource], id: UInt) = new Area{
+  def disable(interrupts: Seq[AIAInterruptSource], id: UInt) = new Area {
     switch(id) {
       for (interrupt <- interrupts) {
         is (interrupt.id) {
