@@ -68,6 +68,9 @@ case class TilelinkAPLICFiber() extends Area {
 
   case class sourceSpec(node : InterruptNode, id : Int)
   case class targetSpec(node: InterruptNode, id: Int)
+  case class APlicSlaveBundle(slaveInfo: APlicSlaveInfo) extends Area {
+    val flags = slaveInfo.sourceIds.map(_ => InterruptNode.master())
+  }
 
   val sources = ArrayBuffer[sourceSpec]()
   val targets = ArrayBuffer[targetSpec]()
@@ -87,13 +90,9 @@ case class TilelinkAPLICFiber() extends Area {
     spec.node
   }
 
-  val slaves = ArrayBuffer[APlicSlaveInfo]()
   val slaveSources = ArrayBuffer[APlicSlaveBundle]()
-  def addSlave(slave : APlicSlaveInfo) = {
-    val slaveBundle = APlicSlaveBundle(slave.childIdx, slave.sourceIds.size)
-    slaves += slave
-    slaveSources += slaveBundle
-    slaveBundle
+  def addSlave(slaveInfo: APlicSlaveInfo) = {
+    slaveSources.addRet(APlicSlaveBundle(slaveInfo))
   }
 
   val thread = Fiber build new Area {
@@ -102,23 +101,16 @@ case class TilelinkAPLICFiber() extends Area {
     node.m2s.supported.load(TilelinkAplic.getTilelinkSupport(node.m2s.proposed))
     node.s2m.none()
 
-    core = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaves.toSeq, node.bus.p)
+    core = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaveSources.map(_.slaveInfo).toSeq, node.bus.p)
 
     core.io.bus <> node.bus
     core.io.sources := sources.map(_.node.flag).asBits
-    // targets.map(_.flag).asBits := core.io.targets
-    targets.lazyZip(core.io.targets.asBools).foreach(_.node.flag := _)
-    core.io.slaveSources.lazyZip(slaveSources).foreach { case (ioslaveSource, slaveSource) =>
-      for ((bit, node) <- ioslaveSource.asBools.zip(slaveSource.flags)) {
-        node.flag := bit
-      }
-    }
+    Vec(targets.map(_.node.flag)) := core.io.targets.asBools
+
+    slaveSources.lazyZip(core.io.slaveSources).foreach((slaveSource, ioSlaveSource) => {
+      Vec(slaveSource.flags.map(_.flag)) := ioSlaveSource.asBools
+    })
 
 	  core.aplic.interrupts.foreach(_.ip.simPublic())
   }
-}
-
-case class APlicSlaveBundle(idx : Int, sourceNum: Int) extends Area{
-  val id = idx
-  val flags = for (i <- 0 until sourceNum) yield InterruptNode.master()
 }
