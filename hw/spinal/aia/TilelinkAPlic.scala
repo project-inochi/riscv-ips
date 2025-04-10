@@ -1,10 +1,11 @@
 package aia
 
-import spinal.core._
-import spinal.core.fiber.{Fiber, Lock}
 import spinal.lib._
+import spinal.core._
+import spinal.core.sim._
 import spinal.lib.bus.misc._
 import spinal.lib.bus.tilelink
+import spinal.core.fiber.{Fiber, Lock}
 import scala.collection.mutable.ArrayBuffer
 
 class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds : Seq[Int],
@@ -93,6 +94,7 @@ case class TilelinkAPLICFiber() extends Area {
     (targets, core.io.targets.asBools).zipped.foreach(_.flag := _)
 
     Vec(slaveSources.toSeq.map(_.flag)) := core.io.slaveSources
+	  core.aplic.interrupts.foreach(_.ip.simPublic())
   }
 }
 
