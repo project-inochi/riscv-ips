@@ -15,7 +15,7 @@ case class TilelinkIMSICFiberTest(sourceIds: Seq[Int], hartIds: Seq[Int]) extend
 
   val masterBus = TilelinkBusFiber()
 
-	val blocks = for (hartId <- hartIds) yield new SxAIA(sourceIds, hartId, 0)
+  val blocks = for (hartId <- hartIds) yield new SxAIA(sourceIds, hartId, 0)
 
   val peripherals = new Area{
     val access = tilelink.fabric.Node()
@@ -53,21 +53,21 @@ object IMSICSim extends App {
     imsic
   }
 
-	compile.doSim{ dut =>
-		dut.clockDomain.forkStimulus(10)
+  compile.doSim{ dut =>
+    dut.clockDomain.forkStimulus(10)
 
     implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
     val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
 
-		dut.io.ie(0) #= 0x3fff
-		dut.io.ie(1) #= 0x3fff
+    dut.io.ie(0) #= 0x3fff
+    dut.io.ie(1) #= 0x3fff
 
-		print(agent.putFullData(0, 0x10000000, SimUInt32(0x1)))
-		print(agent.putFullData(0, 0x10000000, SimUInt32(0x2)))
-		print(agent.putFullData(0, 0x10000000, SimUInt32(0x3)))
-		print(agent.putFullData(0, 0x10000000, SimUInt32(0x4)))
-		print(agent.putFullData(0, 0x10000000, SimUInt32(0x5)))
-		print(agent.putFullData(0, 0x10001000, SimUInt32(0x4)))
-		print(agent.putFullData(0, 0x10001000, SimUInt32(0x8)))
-	}
+    print(agent.putFullData(0, 0x10000000, SimUInt32(0x1)))
+    print(agent.putFullData(0, 0x10000000, SimUInt32(0x2)))
+    print(agent.putFullData(0, 0x10000000, SimUInt32(0x3)))
+    print(agent.putFullData(0, 0x10000000, SimUInt32(0x4)))
+    print(agent.putFullData(0, 0x10000000, SimUInt32(0x5)))
+    print(agent.putFullData(0, 0x10001000, SimUInt32(0x4)))
+    print(agent.putFullData(0, 0x10001000, SimUInt32(0x8)))
+  }
 }

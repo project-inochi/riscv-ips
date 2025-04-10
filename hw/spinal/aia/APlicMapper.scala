@@ -5,68 +5,68 @@ import spinal.lib._
 import spinal.lib.bus.misc.{BusSlaveFactory, AllMapping, SingleMapping}
 
 case class APlicMapping(
-  domaincfgOffset 	: Int,
-  sourcecfgOffset 	: Int,
-  mmsiaddrcfgOffset 	: Int,
-  mmsiaddrcfghOffset 	: Int,
-  smsiaddrcfgOffset 	: Int,
-  smsiaddrcfghOffset 	: Int,
-  setipOffset 	: Int,
-  setipnumOffset 	: Int,
-  in_clripOffset 	: Int,
-  clripnumOffset 	: Int,
-  setieOffset 	: Int,
-  setienumOffset 	: Int,
-  clrieOffset 	: Int,
-  clrienumOffset 	: Int,
-  setipnum_leOffset 	: Int,
-  setipnum_beOffset 	: Int,
-  genmsiOffset 	: Int,
-  targetOffset 	: Int,
-  idcOffset 		: Int,
-  idShift : Int,
-  idcGroup : Int,
-  ideliveryOffset : Int,
-  iforceOffset : Int,
-  ithresholdOffset : Int,
-  topiOffset : Int,
-  claimiOffset : Int
+  domaincfgOffset     : Int,
+  sourcecfgOffset     : Int,
+  mmsiaddrcfgOffset   : Int,
+  mmsiaddrcfghOffset  : Int,
+  smsiaddrcfgOffset   : Int,
+  smsiaddrcfghOffset  : Int,
+  setipOffset         : Int,
+  setipnumOffset      : Int,
+  in_clripOffset      : Int,
+  clripnumOffset      : Int,
+  setieOffset         : Int,
+  setienumOffset      : Int,
+  clrieOffset         : Int,
+  clrienumOffset      : Int,
+  setipnum_leOffset   : Int,
+  setipnum_beOffset   : Int,
+  genmsiOffset        : Int,
+  targetOffset        : Int,
+  idcOffset           : Int,
+  idShift             : Int,
+  idcGroup            : Int,
+  ideliveryOffset     : Int,
+  iforceOffset        : Int,
+  ithresholdOffset    : Int,
+  topiOffset          : Int,
+  claimiOffset        : Int
 )
 
 object APlicMapping{
   def aplicMap = APlicMapping(
-  domaincfgOffset 	= 0x0000,
-  sourcecfgOffset 	= 0x0004 - 4,
-  mmsiaddrcfgOffset 	= 0x1BC0,
-  mmsiaddrcfghOffset 	= 0x1BC4,
-  smsiaddrcfgOffset 	= 0x1BC8,
-  smsiaddrcfghOffset 	= 0x1BCC,
-  setipOffset 	= 0x1C00,
-  setipnumOffset 	= 0x1CDC,
-  in_clripOffset 	= 0x1D00,
-  clripnumOffset 	= 0x1DDC,
-  setieOffset 	= 0x1E00,
-  setienumOffset 	= 0x1EDC,
-  clrieOffset 	= 0x1F00,
-  clrienumOffset 	= 0x1FDC,
-  setipnum_leOffset 	= 0x2000,
-  setipnum_beOffset 	= 0x2004,
-  genmsiOffset 	= 0x3000,
-  targetOffset 	= 0x3004 - 4,
-  idcOffset 		= 0x4000,
-  idShift = 2,
-  idcGroup = 32,
-  ideliveryOffset = 0x00,
-  iforceOffset = 0x04,
-  ithresholdOffset = 0x08,
-  topiOffset = 0x18,
-  claimiOffset = 0x1c
+    domaincfgOffset     = 0x0000,
+    sourcecfgOffset     = 0x0004 - 4,
+    mmsiaddrcfgOffset   = 0x1BC0,
+    mmsiaddrcfghOffset  = 0x1BC4,
+    smsiaddrcfgOffset   = 0x1BC8,
+    smsiaddrcfghOffset  = 0x1BCC,
+    setipOffset         = 0x1C00,
+    setipnumOffset      = 0x1CDC,
+    in_clripOffset      = 0x1D00,
+    clripnumOffset      = 0x1DDC,
+    setieOffset         = 0x1E00,
+    setienumOffset      = 0x1EDC,
+    clrieOffset         = 0x1F00,
+    clrienumOffset      = 0x1FDC,
+    setipnum_leOffset   = 0x2000,
+    setipnum_beOffset   = 0x2004,
+    genmsiOffset        = 0x3000,
+    targetOffset        = 0x3004 - 4,
 
+    idcOffset           = 0x4000,
+    idShift             = 2,
+    idcGroup            = 32,
+    ideliveryOffset     = 0x00,
+    iforceOffset        = 0x04,
+    ithresholdOffset    = 0x08,
+    topiOffset          = 0x18,
+    claimiOffset        = 0x1c
   )
 }
 
 object APlicMapper{
-	def apply(bus: BusSlaveFactory, mapping: APlicMapping)(aplic: APlic) = new Area{
+  def apply(bus: BusSlaveFactory, mapping: APlicMapping)(aplic: APlic) = new Area{
     import mapping._
 
     bus.read(U(0x80, 8 bits), address = domaincfgOffset, bitOffset = 24)
@@ -147,5 +147,5 @@ object APlicMapper{
         claim.payload := nowRequest.id
       }
     }
-	}
+  }
 }

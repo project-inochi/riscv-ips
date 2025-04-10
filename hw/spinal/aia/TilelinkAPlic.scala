@@ -111,6 +111,6 @@ case class TilelinkAPLICFiber() extends Area {
       Vec(slaveSource.flags.map(_.flag)) := ioSlaveSource.asBools
     })
 
-	  core.aplic.interrupts.foreach(_.ip.simPublic())
+    core.aplic.interrupts.foreach(_.ip.simPublic())
   }
 }

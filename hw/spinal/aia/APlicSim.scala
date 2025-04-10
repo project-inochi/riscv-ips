@@ -68,7 +68,7 @@ object APlicSim extends App {
   }
 
   compile.doSim{ dut =>
-		dut.clockDomain.forkStimulus(10)
+    dut.clockDomain.forkStimulus(10)
 
     dut.io.sources(0) #= 0b1000001
 
@@ -112,11 +112,11 @@ object APlicSim extends App {
       print(agent.putFullData(0, slaveoffset + aplicmap.targetOffset + (i << aplicmap.idShift), targetArray(i-1)))
     }
 
-		print(agent.putFullData(0, masteroffset + aplicmap.setipOffset, SimUInt32(0x0)))
-		print(agent.putFullData(0, slaveoffset + aplicmap.setipOffset, SimUInt32(0x0)))
+    print(agent.putFullData(0, masteroffset + aplicmap.setipOffset, SimUInt32(0x0)))
+    print(agent.putFullData(0, slaveoffset + aplicmap.setipOffset, SimUInt32(0x0)))
 
-		print(agent.putFullData(0, masteroffset + aplicmap.domaincfgOffset, SimUInt32(0x80000100)))
-		print(agent.putFullData(0, slaveoffset + aplicmap.domaincfgOffset, SimUInt32(0x80000100)))
+    print(agent.putFullData(0, masteroffset + aplicmap.domaincfgOffset, SimUInt32(0x80000100)))
+    print(agent.putFullData(0, slaveoffset + aplicmap.domaincfgOffset, SimUInt32(0x80000100)))
 
     // set/clripnum
     print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x2)))
