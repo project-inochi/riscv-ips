@@ -7,6 +7,7 @@ import spinal.lib.bus.tilelink
 import spinal.lib.misc.InterruptNode
 import config.Config
 import _root_.sim._
+import scala.reflect.io.Streamable.Bytes
 
 case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slavesourceIds: Seq[Int]) extends Component {
   val masterBus = TilelinkBusFiber()
@@ -125,54 +126,51 @@ object APlicSim extends App {
     val aplicmaster = dut.peripherals.aplicmaster.core.aplic
     val aplicslave = dut.peripherals.aplicslave.core.aplic
 
-    assertState(aplicmaster.interrupts(1).ip, true, "master")
+    assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000004, "master_ip")
     print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x1)))
-    assertState(aplicmaster.interrupts(0).ip, false, "master")
+    assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000004, "master_ip")
 
-    assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), "00020002", "masterclaimi")
-    assertState(aplicmaster.interrupts(1).ip, false, "master")
+    assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00020002, "master_claimi")
+    assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000000, "master_ip")
     dut.clockDomain.waitRisingEdge(10)
 
     // setip and the block of setip(num) when mode is high or low
     print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x5)))
-    assertState(aplicmaster.interrupts(4).ip, true, "master")
+    assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000020, "master_ip")
     print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x6)))
-    assertState(aplicmaster.interrupts(5).ip, false, "master")
+    assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000020, "master_ip")
     print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x7)))
-    assertState(aplicmaster.interrupts(6).ip, false, "master")
+    assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000020, "master_ip")
     print(agent.putFullData(0, masteroffset + aplicmap.setipOffset, SimUInt32(0b00001100)))
-    assertState(aplicmaster.interrupts(4).ip, false, "master")
-    assertState(aplicmaster.interrupts(1).ip, true, "master")
-    assertState(aplicmaster.interrupts(2).ip, true, "master")
+    assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x0000000c, "master_ip")
 
-    assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), "00020002", "masterclaimi")
-    assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), "00030003", "masterclaimi")
+    assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00020002, "master_claimi")
+    assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00030003, "master_claimi")
+    assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000000, "master_ip")
 
     // input and delagation
     dut.io.sources(0) #= 0b0111110
     dut.clockDomain.waitRisingEdge(2)
-    assertState(aplicslave.interrupts(0).ip, true, "slave")
-    assertState(aplicslave.interrupts(1).ip, false, "slave")
-    assertState(aplicmaster.interrupts(2).ip, true, "master")
-    assertState(aplicmaster.interrupts(5).ip, true, "master")
-    assertState(aplicmaster.interrupts(6).ip, true, "master")
+    assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x000000c8, "master_ip")
+    assertData(agent.get(0, slaveoffset + aplicmap.setipOffset, 4), 0x00000002, "slave_ip")
+
 
     dut.io.sources(0) #= 0b0100110
     dut.clockDomain.waitRisingEdge(2)
-    assertState(aplicslave.interrupts(1).ip, true, "slave")
-    assertState(aplicmaster.interrupts(4).ip, true, "master")
+    assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x000000e8, "master_ip")
+    assertData(agent.get(0, slaveoffset + aplicmap.setipOffset, 4), 0x00000012, "slave_ip")
 
     // master
-    assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), "00030003", "masterclaimi")
-    assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), "00050005", "masterclaimi")
-    assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), "00060006", "masterclaimi")
-    assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), "00060006", "masterclaimi")
+    assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00030003, "master_claimi")
+    assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00050005, "master_claimi")
+    assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00060006, "master_claimi")
+    assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00060006, "master_claimi")
 
     // slave
-    assertData(agent.get(0, slaveoffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), "00010001", "slaveclaimi")
+    assertData(agent.get(0, slaveoffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00010001, "slave_claimi")
     dut.io.sources(0) #= 0b0100111
     dut.clockDomain.waitRisingEdge(2)
-    assertData(agent.get(0, slaveoffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), "00040004", "slaveclaimi")
+    assertData(agent.get(0, slaveoffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00040004, "slave_claimi")
 
     dut.io.sources(0) #= 0b1000001
     //end
@@ -180,20 +178,9 @@ object APlicSim extends App {
     dut.clockDomain.waitRisingEdge(10)
   }
 
-  def assertState(signal: Bool, state: Boolean, name: String): Unit = {
-    assert(signal.toBoolean == state, s"$name: missmatch (${signal} != ${state.toString()})")
-  }
-
-  def assertData(data: tilelink.sim.TransactionD, answer: String, name: String): Unit = {
-    val claimi = getdata(data.data)
-    assert(claimi == answer, s"masterclaimi: missmatch (${claimi} != 0x$answer)")
-  }
-
-  def getdata(data: Array[Byte]): String = {
-    val buf = new StringBuilder()
-    for(i <- 0 until data.size) {
-      buf ++= f"${data(data.size - 1 - i)}%02x"
-    }
-    buf.toString()
+  def assertData(data: tilelink.sim.TransactionD, answer: Int, name: String): Unit = {
+    val value = data.data
+    val result = value.zip(answer.toBytes).forall { case (x, y) => x == y }
+    assert(result, s"$name: missmatch (${value.toList} != 0x${answer.toBytes.slice(0, 4)})")
   }
 }
