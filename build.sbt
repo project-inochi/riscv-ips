@@ -6,7 +6,8 @@ val conf = ConfigFactory.parseFile(new File("version.conf")).resolve()
 ThisBuild / scalaVersion := conf.getString("scalaVersion")
 val spinalVersion = conf.getString("spinalVersion")
 
-// val spinalVersion = "1.12.0"
+ThisBuild / scalacOptions ++= Seq("-deprecation")
+
 val spinalCore = "com.github.spinalhdl" %% "spinalhdl-core" % spinalVersion
 val spinalLib = "com.github.spinalhdl" %% "spinalhdl-lib" % spinalVersion
 val spinalIdslPlugin = compilerPlugin("com.github.spinalhdl" %% "spinalhdl-idsl-plugin" % spinalVersion)
@@ -15,7 +16,7 @@ lazy val aplic = (project in file("."))
   .settings(
     name := "aplic",
     Compile / scalaSource := baseDirectory.value / "hw" / "spinal",
-    libraryDependencies ++= Seq(spinalCore, spinalLib, spinalIdslPlugin)
+    libraryDependencies ++= Seq(spinalCore, spinalLib, spinalIdslPlugin),
   )
 
 fork := true
