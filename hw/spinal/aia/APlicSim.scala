@@ -39,15 +39,15 @@ case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slaves
 
   val io = new Bundle {
     val bus = slave(tilelink.Bus(masterBus.m2sParams.toNodeParameters().toBusParameter()))
-    val sources = in Vec(Bits(sourceIds.size bits))
-    val targetsmaster = out Vec(Bits(hartIds.size bits))
-    val targetsslave = out Vec(Bits(hartIds.size bits))
+    val sources = in Bits(sourceIds.size bits)
+    val targetsmaster = out Bits(hartIds.size bits)
+    val targetsslave = out Bits(hartIds.size bits)
   }
 
   masterBus.bus = Some(io.bus)
 
   // XXX: there is only one slave
-  (peripherals.sourcesMBundles.map(_.flag), io.sources(0).asBools).zipped.foreach(_ := _)
+  (peripherals.sourcesMBundles.map(_.flag), io.sources.asBools).zipped.foreach(_ := _)
 
   io.targetsmaster := Vec(peripherals.targetsMBundles.map(_.flag).asBits)
   io.targetsslave := Vec(peripherals.targetsSBundles.map(_.flag).asBits)
@@ -71,7 +71,7 @@ object APlicSim extends App {
   compile.doSim{ dut =>
     dut.clockDomain.forkStimulus(10)
 
-    dut.io.sources(0) #= 0b1000001
+    dut.io.sources #= 0b1000001
 
     implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
     val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
@@ -149,13 +149,13 @@ object APlicSim extends App {
     assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000000, "master_ip")
 
     // input and delagation
-    dut.io.sources(0) #= 0b0111110
+    dut.io.sources #= 0b0111110
     dut.clockDomain.waitRisingEdge(2)
     assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x000000c8, "master_ip")
     assertData(agent.get(0, slaveoffset + aplicmap.setipOffset, 4), 0x00000002, "slave_ip")
 
 
-    dut.io.sources(0) #= 0b0100110
+    dut.io.sources #= 0b0100110
     dut.clockDomain.waitRisingEdge(2)
     assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x000000e8, "master_ip")
     assertData(agent.get(0, slaveoffset + aplicmap.setipOffset, 4), 0x00000012, "slave_ip")
@@ -168,11 +168,11 @@ object APlicSim extends App {
 
     // slave
     assertData(agent.get(0, slaveoffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00010001, "slave_claimi")
-    dut.io.sources(0) #= 0b0100111
+    dut.io.sources #= 0b0100111
     dut.clockDomain.waitRisingEdge(2)
     assertData(agent.get(0, slaveoffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00040004, "slave_claimi")
 
-    dut.io.sources(0) #= 0b1000001
+    dut.io.sources #= 0b1000001
     //end
     print("All sim points are success!\n")
     dut.clockDomain.waitRisingEdge(10)
