@@ -93,8 +93,8 @@ object APlicSim extends App {
                          SimUInt32(0x0),
                          SimUInt32(0x0))
     for (i <- 1 until sourcenum) {
-      print(agent.putFullData(0, masteroffset + aplicmap.sourcecfgOffset + (i << aplicmap.idShift), prioArrayM(i-1)))
-      print(agent.putFullData(0, slaveoffset + aplicmap.sourcecfgOffset + (i << aplicmap.idShift), prioArrayS(i-1)))
+      print(agent.putFullData(0, masteroffset + aplicmap.sourcecfgOffset + ((i - 1) * 4), prioArrayM(i-1)))
+      print(agent.putFullData(0, slaveoffset + aplicmap.sourcecfgOffset + ((i - 1) * 4), prioArrayS(i-1)))
     }
 
     print(agent.putFullData(0, masteroffset + aplicmap.setieOffset, SimUInt32(0xff)))
@@ -108,8 +108,8 @@ object APlicSim extends App {
                           SimUInt32(0x6),
                           SimUInt32(0x40007))
     for (i <- 1 until sourcenum) {
-      print(agent.putFullData(0, masteroffset + aplicmap.targetOffset + (i << aplicmap.idShift), targetArray(i-1)))
-      print(agent.putFullData(0, slaveoffset + aplicmap.targetOffset + (i << aplicmap.idShift), targetArray(i-1)))
+      print(agent.putFullData(0, masteroffset + aplicmap.targetOffset + ((i - 1) * 4), targetArray(i-1)))
+      print(agent.putFullData(0, slaveoffset + aplicmap.targetOffset + ((i - 1) * 4), targetArray(i-1)))
     }
 
     print(agent.putFullData(0, masteroffset + aplicmap.setipOffset, SimUInt32(0x0)))

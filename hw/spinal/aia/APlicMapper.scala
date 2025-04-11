@@ -24,7 +24,6 @@ case class APlicMapping(
   genmsiOffset        : Int,
   targetOffset        : Int,
   idcOffset           : Int,
-  idShift             : Int,
   idcGroup            : Int,
   ideliveryOffset     : Int,
   iforceOffset        : Int,
@@ -36,7 +35,7 @@ case class APlicMapping(
 object APlicMapping {
   def aplicMap = APlicMapping(
     domaincfgOffset     = 0x0000,
-    sourcecfgOffset     = 0x0004 - 4,
+    sourcecfgOffset     = 0x0004,
     mmsiaddrcfgOffset   = 0x1BC0,
     mmsiaddrcfghOffset  = 0x1BC4,
     smsiaddrcfgOffset   = 0x1BC8,
@@ -52,10 +51,9 @@ object APlicMapping {
     setipnum_leOffset   = 0x2000,
     setipnum_beOffset   = 0x2004,
     genmsiOffset        = 0x3000,
-    targetOffset        = 0x3004 - 4,
+    targetOffset        = 0x3004,
 
     idcOffset           = 0x4000,
-    idShift             = 2,
     idcGroup            = 32,
     ideliveryOffset     = 0x00,
     iforceOffset        = 0x04,
@@ -97,13 +95,13 @@ object APlicMapper {
     bus.read(B(0), address = setipOffset, bitOffset = 0)
     bus.read(B(0), address = setieOffset, bitOffset = 0)
     val interruptMapping = for(interrupt <- aplic.interrupts) yield new Area{
-      val sourceflow = bus.createAndDriveFlow(UInt(11 bits), sourcecfgOffset + (interrupt.id << idShift))
+      val sourceflow = bus.createAndDriveFlow(UInt(11 bits), sourcecfgOffset + ((interrupt.id - 1) * 4))
       when(sourceflow.valid) {
         interrupt.setConfig(sourceflow.payload)
       }
 
-      bus.readAndWrite(interrupt.prio, address = targetOffset + (interrupt.id << idShift), bitOffset = 0)
-      bus.readAndWrite(interrupt.target, address = targetOffset + (interrupt.id << idShift), bitOffset = 18)
+      bus.readAndWrite(interrupt.prio, address = targetOffset + ((interrupt.id - 1) * 4), bitOffset = 0)
+      bus.readAndWrite(interrupt.target, address = targetOffset + ((interrupt.id - 1) * 4), bitOffset = 18)
     }
 
     val interuptMapping = for(interrupt <- aplic.interrupts) yield new Area {
