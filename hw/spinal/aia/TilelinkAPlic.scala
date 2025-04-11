@@ -104,7 +104,7 @@ case class TilelinkAPLICFiber() extends Area {
     core = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaveSources.map(_.slaveInfo).toSeq, node.bus.p)
 
     core.io.bus <> node.bus
-    core.io.sources := sources.map(_.node.flag).asBits
+    core.io.sources := sources.map(_.node.flag).asBits()
     Vec(targets.map(_.node.flag)) := core.io.targets.asBools
 
     slaveSources.lazyZip(core.io.slaveSources).foreach((slaveSource, ioSlaveSource) => {

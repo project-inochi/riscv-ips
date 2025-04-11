@@ -46,11 +46,10 @@ case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slaves
 
   masterBus.bus = Some(io.bus)
 
-  // XXX: there is only one slave
-  (peripherals.sourcesMBundles.map(_.flag), io.sources.asBools).zipped.foreach(_ := _)
+  peripherals.sourcesMBundles.lazyZip(io.sources.asBools).foreach(_.flag := _)
 
-  io.targetsmaster := Vec(peripherals.targetsMBundles.map(_.flag).asBits)
-  io.targetsslave := Vec(peripherals.targetsSBundles.map(_.flag).asBits)
+  io.targetsmaster := peripherals.targetsMBundles.map(_.flag).asBits()
+  io.targetsslave := peripherals.targetsSBundles.map(_.flag).asBits()
 }
 
 object APlicSim extends App {

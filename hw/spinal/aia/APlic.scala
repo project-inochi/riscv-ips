@@ -38,7 +38,7 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
   // hartids
   val directGateways = for (hartId <- hartIds) yield new APlicDirectGateway(interrupts, hartId)
 
-  directTargets := directGateways.map(_.output).asBits
+  directTargets := directGateways.map(_.output).asBits()
 }
 
 /**
