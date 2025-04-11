@@ -18,7 +18,7 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
 
   val domainEnable = RegInit(False)
   val deliveryMode = RegInit(False)
-  val bigEndian = RegInit(False)
+  val bigEndian = False
 
   val interrupts: Seq[APlicInterruptSource] = for (((sourceId, delegatable), i) <- sourceIds.zip(interruptDelegatable).zipWithIndex)
     yield new APlicInterruptSource(sourceId, delegatable, domainEnable, sources(i))
