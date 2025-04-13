@@ -15,14 +15,17 @@ case class TilelinkIMSICFiberTest(sourceIds: Seq[Int], hartIds: Seq[Int]) extend
 
   val masterBus = TilelinkBusFiber()
 
+  val crossBar = tilelink.fabric.Node()
+  crossBar << masterBus.node
+
   val blocks = for (hartId <- hartIds) yield new SxAIA(sourceIds, hartId, 0)
 
   val peripherals = new Area {
     val access = tilelink.fabric.Node()
-    access at 0x10000000 of masterBus.node
+    access << crossBar
 
     val dispatcher = TilelinkIMSICFiber()
-    dispatcher.node at 0x00000000 of access
+    dispatcher.node at 0x10000000 of access
 
     for (block <- blocks) {
       dispatcher.addIMSICinfo(block)
