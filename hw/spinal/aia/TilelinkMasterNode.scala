@@ -6,14 +6,17 @@ import spinal.lib.bus.misc._
 import spinal.lib.bus.tilelink._
 import spinal.core.fiber.Fiber
 
-class TilelinkMaster(m2sParams: M2sParameters, p : BusParameter) extends Component {
+class TilelinkMaster(m2sParams: M2sParameters, p: BusParameter) extends Component {
   val io = new Bundle {
     val busMaster = master(Bus(m2sParams))
     val busSlave = slave(Bus(p))
   }
 
-  val busA = io.busMaster.a
+  val busA = cloneOf(io.busMaster.a)
   val busD = io.busMaster.d
+
+  io.busMaster.a <-< busA
+
   busD.ready := True
   busA.valid := False
   busA.payload.assignDontCare()
@@ -24,7 +27,7 @@ class TilelinkMaster(m2sParams: M2sParameters, p : BusParameter) extends Compone
   val factory = factoryGen(io.busSlave)
 
   val data = factory.createAndDriveFlow(UInt(32 bits), address = 0x0)
-  when(data.valid){
+  when(data.valid) {
     busA.valid    := True
     busA.opcode   := Opcode.A.PUT_FULL_DATA
     busA.size     := 4
@@ -37,8 +40,8 @@ class TilelinkMaster(m2sParams: M2sParameters, p : BusParameter) extends Compone
 }
 
 case class TilelinkMasterFiber() extends Area {
-  val nodeM = fabric.Node.master()
-  val nodeS = fabric.Node.slave()
+  val nodeM = fabric.Node.down()
+  val nodeS = fabric.Node.up()
 
   val m2sParams = M2sParameters(
     addressWidth = 32,
@@ -67,12 +70,12 @@ case class TilelinkMasterFiber() extends Area {
     nodeS.m2s.supported.load(TilelinkAplic.getTilelinkSupport(nodeS.m2s.proposed))
     nodeS.s2m.none()
 
-    val masterNode = new TilelinkMaster(m2sParams, nodeS.bus.p)
+    val core = new TilelinkMaster(m2sParams, nodeS.bus.p)
 
     // nodeM.bus.a.setIdle()
     // nodeM.bus.d.ready := True
 
-    masterNode.io.busMaster <> nodeM.bus
-    masterNode.io.busSlave <> nodeS.bus
+    core.io.busMaster <> nodeM.bus
+    core.io.busSlave <> nodeS.bus
   }
 }
