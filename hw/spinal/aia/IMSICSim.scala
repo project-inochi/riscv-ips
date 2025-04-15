@@ -75,3 +75,64 @@ object IMSICSim extends App {
     print(agent.putFullData(0, 0x10001004, SimUInt32(0x7, BIG)))
   }
 }
+
+case class TilelinkIMSICMasterFiberTest(sourceIds: Seq[Int], hartIds: Seq[Int]) extends Component {
+  val sourcenum = sourceIds.size
+  val hartnum = hartIds.size
+
+  val masterBus = TilelinkBusFiber()
+
+  val crossBar = tilelink.fabric.Node()
+  crossBar << masterBus.node
+
+  val blocks = for (hartId <- hartIds) yield new SxAIA(sourceIds, hartId, 0)
+
+  val peripherals = new Area {
+    val access = tilelink.fabric.Node()
+    access << crossBar
+
+    val test = TilelinkMasterFiber()
+    test.nodeS at 0x0 of access
+    crossBar << test.nodeM
+
+    val dispatcher = TilelinkIMSICFiber()
+    dispatcher.node at 0x10000000 of access
+
+    for (block <- blocks) {
+      dispatcher.addIMSICinfo(block)
+    }
+  }
+
+  val io = new Bundle {
+    val ie = in Vec(blocks.map(block => Bits(block.interrupts.size bits)))
+    val ip = out Vec(blocks.map(block => Bits(block.interrupts.size bits)))
+    val bus = slave(tilelink.Bus(masterBus.m2sParams.toNodeParameters().toBusParameter()))
+  }
+
+  masterBus.bus = Some(io.bus)
+
+  Vec(blocks.map(block => block.interrupts.map(_.ie).asBits())) := io.ie
+  io.ip := Vec(blocks.map(block => block.interrupts.map(_.ip).asBits()))
+}
+
+object IMSICMasterSim extends App {
+  val sourcenum = 8
+  val hartnum = 2
+
+  val sourceIds = for (i <- 1 until sourcenum) yield i
+  val hartIds = for (i <- 0 until hartnum) yield i
+
+  val compile = Config.sim.compile {
+    val imsic = new TilelinkIMSICMasterFiberTest(sourceIds, hartIds)
+    imsic
+  }
+
+  compile.doSim{ dut =>
+    dut.clockDomain.forkStimulus(10)
+
+    dut.io.ie(0) #= 0x7f
+    dut.io.ie(1) #= 0x7f
+
+
+  }
+}
