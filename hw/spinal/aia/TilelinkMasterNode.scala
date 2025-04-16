@@ -21,10 +21,12 @@ class TilelinkMaster(m2sParams: M2sParameters, p: BusParameter) extends Componen
   busA.valid := False
   busA.payload.assignDontCare()
 
-  val address = RegInit(Bits(32 bits))
+  val address = RegInit(U(0x0, 64 bits))
 
   val factoryGen = new bus.tilelink.SlaveFactory(_, true)
   val factory = factoryGen(io.busSlave)
+
+  factory.readAndWriteMultiWord(address, address = 0x4)
 
   val data = factory.createAndDriveFlow(UInt(32 bits), address = 0x0)
   when(data.valid) {
@@ -32,7 +34,7 @@ class TilelinkMaster(m2sParams: M2sParameters, p: BusParameter) extends Componen
     busA.opcode   := Opcode.A.PUT_FULL_DATA
     busA.size     := 4
     busA.source   := 0
-    busA.address  := 0x10000000
+    busA.address  := address.resized
     busA.data     := data.payload.asBits
     busA.debugId  := 0
     busA.mask     := 0xf
@@ -44,7 +46,7 @@ case class TilelinkMasterFiber() extends Area {
   val nodeS = fabric.Node.up()
 
   val m2sParams = M2sParameters(
-    addressWidth = 32,
+    addressWidth = 64,
     dataWidth = 32,
     masters = List(
       M2sAgent(

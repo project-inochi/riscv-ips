@@ -127,12 +127,27 @@ object IMSICMasterSim extends App {
     imsic
   }
 
+  compile.report.printPruned().printPrunedIo()
+
   compile.doSim{ dut =>
+    val masterNodeOffset = 0x0
+    val dispatcherOffset = 0x10000000
+
+    implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
+    val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
+
     dut.clockDomain.forkStimulus(10)
 
     dut.io.ie(0) #= 0x7f
     dut.io.ie(1) #= 0x7f
 
-
+    print(agent.putFullData(0, masterNodeOffset + 0x4, SimUInt32(0x10000000)))
+    print(agent.putFullData(0, masterNodeOffset, SimUInt32(0x3)))
+    dut.clockDomain.waitRisingEdge(10)
+    print(agent.putFullData(0, masterNodeOffset + 0x4, SimUInt32(0x10001000)))
+    print(agent.putFullData(0, masterNodeOffset, SimUInt32(0x6)))
+    dut.clockDomain.waitRisingEdge(10)
+    print(agent.putFullData(0, dispatcherOffset + 0x1000, SimUInt32(0x5)))
+    dut.clockDomain.waitRisingEdge(10)
   }
 }
