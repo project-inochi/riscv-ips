@@ -41,7 +41,7 @@ case class TilelinkBusCycleProxy(slaveParams: tilelink.BusParameter, mastersPara
   when (data.valid) {
     busA.valid    := True
     busA.opcode   := tilelink.Opcode.A.PUT_FULL_DATA
-    busA.size     := 4
+    busA.size     := 2
     busA.source   := 0
     busA.address  := address.resized
     busA.data     := data.payload.asBits.resized
@@ -65,7 +65,7 @@ object TilelinkBusCycleProxy {
 
   def getTilelinkMasterSupport(name: Nameable) = bus.tilelink.M2sParameters(
     addressWidth = 64,
-    dataWidth = 64,
+    dataWidth = 32,
     masters = List(
       tilelink.M2sAgent(
         name = name,
@@ -73,8 +73,7 @@ object TilelinkBusCycleProxy {
           tilelink.M2sSource(
             id = SizeMapping(0, 4),
             emits = tilelink.M2sTransfers(
-              get = tilelink.SizeRange(1, 64),
-              putFull = tilelink.SizeRange(1, 64)
+              putFull = tilelink.SizeRange(4)
             )
           )
         )
