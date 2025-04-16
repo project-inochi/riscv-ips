@@ -48,15 +48,33 @@ case class TilelinkAplic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq
   new bus.tilelink.SlaveFactory(_, true)
 )
 
+case class TilelinkAPlicMasterParam(addressWidth: Int, pendingSize: Int)
+
 object TilelinkAplic {
-  def getTilelinkSupport(proposed: bus.tilelink.M2sSupport) = bus.tilelink.SlaveFactory.getSupported(
-    addressWidth = addressWidth,
+  def getTilelinkSlaveSupport(proposed: bus.tilelink.M2sSupport) = bus.tilelink.SlaveFactory.getSupported(
+    addressWidth = 20,
     dataWidth = 32,
     allowBurst = false,
     proposed
   )
 
-  def addressWidth = 20
+  def getTilelinkMasterSupport(param: TilelinkAPlicMasterParam, name: Nameable) = bus.tilelink.M2sParameters(
+    addressWidth = param.addressWidth,
+    dataWidth = 32,
+    masters = List(
+      tilelink.M2sAgent(
+        name = name,
+        mapping = List(
+          tilelink.M2sSource(
+            id = SizeMapping(0, param.pendingSize),
+            emits = tilelink.M2sTransfers(
+              putFull = tilelink.SizeRange(4)
+            )
+          )
+        )
+      )
+    )
+  )
 }
 
 case class TilelinkAPLICFiber() extends Area {
@@ -98,7 +116,7 @@ case class TilelinkAPLICFiber() extends Area {
   val thread = Fiber build new Area {
     lock.await()
 
-    node.m2s.supported.load(TilelinkAplic.getTilelinkSupport(node.m2s.proposed))
+    node.m2s.supported.load(TilelinkAplic.getTilelinkSlaveSupport(node.m2s.proposed))
     node.s2m.none()
 
     core = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaveSources.map(_.slaveInfo).toSeq, node.bus.p)
