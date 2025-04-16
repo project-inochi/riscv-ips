@@ -8,6 +8,7 @@ import spinal.lib.bus.tilelink
 import spinal.lib.bus.misc._
 import config.Config
 import _root_.sim._
+import _root_.sim.bus._
 
 case class TilelinkIMSICFiberTest(sourceIds: Seq[Int], hartIds: Seq[Int]) extends Component {
   val sourcenum = sourceIds.size
@@ -23,6 +24,10 @@ case class TilelinkIMSICFiberTest(sourceIds: Seq[Int], hartIds: Seq[Int]) extend
   val peripherals = new Area {
     val access = tilelink.fabric.Node()
     access << crossBar
+
+    val cycleProxy = TilelinkBusCycleProxyFiber()
+    cycleProxy.up at 0x00000000 of access
+    crossBar << cycleProxy.down
 
     val dispatcher = TilelinkIMSICFiber()
     dispatcher.node at 0x10000000 of access
