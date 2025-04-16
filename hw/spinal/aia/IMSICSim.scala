@@ -50,8 +50,8 @@ case class TilelinkIMSICFiberTest(sourceIds: Seq[Int], hartIds: Seq[Int]) extend
 }
 
 object IMSICSim extends App {
-  val sourcenum = 128
-  val hartnum = 16
+  val sourcenum = 8
+  val hartnum = 2
 
   val sourceIds = for (i <- 1 until sourcenum) yield i
   val hartIds = for (i <- 0 until hartnum) yield i
@@ -63,20 +63,25 @@ object IMSICSim extends App {
 
   compile.doSim{ dut =>
     dut.clockDomain.forkStimulus(10)
+    val masterNodeOffset = 0x0
+    val dispatcherOffset = 0x10000000
 
     implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
     val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
 
-    dut.io.ie(0) #= 0x3fff
-    dut.io.ie(1) #= 0x3fff
+    dut.io.ie(0) #= 0x7f
 
-    print(agent.putFullData(0, 0x10000000, SimUInt32(0x1)))
-    print(agent.putFullData(0, 0x10000000, SimUInt32(0x2)))
-    print(agent.putFullData(0, 0x10000000, SimUInt32(0x3)))
-    print(agent.putFullData(0, 0x10000000, SimUInt32(0x4)))
-    print(agent.putFullData(0, 0x10000000, SimUInt32(0x5)))
-    print(agent.putFullData(0, 0x10001000, SimUInt32(0x4)))
-    print(agent.putFullData(0, 0x10001000, SimUInt32(0x8)))
-    print(agent.putFullData(0, 0x10001004, SimUInt32(0x7, BIG)))
+    print(agent.putFullData(0, dispatcherOffset, SimUInt32(0x1)))
+    print(agent.putFullData(0, dispatcherOffset, SimUInt32(0x2)))
+    print(agent.putFullData(0, dispatcherOffset, SimUInt32(0x4)))
+    print(agent.putFullData(0, dispatcherOffset, SimUInt32(0x5)))
+    print(agent.putFullData(0, dispatcherOffset + 0x1000, SimUInt32(0x4)))
+    print(agent.putFullData(0, dispatcherOffset + 0x1004, SimUInt32(0x7, BIG)))
+
+    print(agent.putFullData(0, masterNodeOffset, SimUInt32(0x10000000)))
+    print(agent.putFullData(0, masterNodeOffset + 0x8, SimUInt32(0x3)))
+    print(agent.putFullData(0, masterNodeOffset, SimUInt32(0x10001000)))
+    print(agent.putFullData(0, masterNodeOffset + 0x8, SimUInt32(0x6)))
+    dut.clockDomain.waitRisingEdge(10)
   }
 }
