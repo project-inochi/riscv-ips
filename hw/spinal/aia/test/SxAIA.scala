@@ -33,38 +33,6 @@ case class SxAIAInterruptSource(sourceId: Int) extends Area {
   val ie = RegInit(False)
   val ip = RegInit(False)
 
-  def doClaim(): Unit = {
-    ip := False
-  }
-
-  def doSet(): Unit = {
-    ip := True
-  }
-
-  def doPendingUpdate(pending: Bool): Unit = {
-    when(pending) {
-      doSet()
-    } otherwise {
-      doClaim()
-    }
-  }
-
-  def doEnable(): Unit = {
-    ie := True
-  }
-
-  def doDisable(): Unit = {
-    ie := False
-  }
-
-  def doEnableUpdate(enabled: Bool): Unit = {
-    when(enabled) {
-      doEnable()
-    } otherwise {
-      doDisable()
-    }
-  }
-
   def asRequest(idWidth: Int, targetHart: Int): SxAIARequest = {
     val ret = new SxAIARequest(idWidth)
     ret.id := U(id)
@@ -91,29 +59,29 @@ case class SxAIA(sourceIds: Seq[Int], hartId: Int, guestId: Int) extends Area {
   val bestRequest = resultRequest.verify(iep)
   val claim = bestRequest.id
 
-  def claimBest() = new Area {
-    doClaim(interrupts, bestRequest.id)
+  def doWhenMatch(interrupts: Seq[SxAIAInterruptSource], id: UInt, func: SxAIAInterruptSource => Unit) = new Area {
+    switch(id) {
+      for (interrupt <- interrupts) {
+        is (interrupt.id) {
+          func(interrupt)
+        }
+      }
+    }
   }
 
-  def claim(sourceId: Int) = new Area {
-    doClaim(interrupts, sourceId)
-  }
+  def claimBest() = claim(bestRequest.id)
 
-  def set(sourceId: Int) = new Area {
-    doSet(interrupts, sourceId)
-  }
+  def claim(sourceId: Int) = doWhenMatch(interrupts, sourceId, _.ip := False)
 
-  def enable(sourceId: Int) = new Area {
-    doEnable(interrupts, sourceId)
-  }
+  def set(sourceId: Int) = doWhenMatch(interrupts, sourceId, _.ip := True)
 
-  def disable(sourceId: Int) = new Area {
-    doDisable(interrupts, sourceId)
-  }
+  def enable(sourceId: Int) = doWhenMatch(interrupts, sourceId, _.ie := True)
+
+  def disable(sourceId: Int) = doWhenMatch(interrupts, sourceId, _.ie := False)
 
   def ipWrite(mask: Bits, postion: Int) = new Area {
     for ((ip, offset) <- mask.asBools.zipWithIndex) {
-      interrupts.find(_.id == (postion + offset)).map(_.doPendingUpdate(ip))
+      interrupts.find(_.id == (postion + offset)).map(_.ip := ip)
     }
   }
 
@@ -128,8 +96,8 @@ case class SxAIA(sourceIds: Seq[Int], hartId: Int, guestId: Int) extends Area {
   }
 
   def ieWrite(mask: Bits, postion: Int) = new Area {
-    for ((ip, offset) <- mask.asBools.zipWithIndex) {
-      interrupts.find(_.id == (postion + offset)).map(_.doEnableUpdate(ip))
+    for ((ie, offset) <- mask.asBools.zipWithIndex) {
+      interrupts.find(_.id == (postion + offset)).map(_.ie := ie)
     }
   }
 
@@ -144,30 +112,12 @@ case class SxAIA(sourceIds: Seq[Int], hartId: Int, guestId: Int) extends Area {
   }
 
   def asTilelinkIMSICIInfo() = TilelinkIMSICIInfo(hartId, guestId, interrupts.map(_.id))
-
-  def doWhenMatch(interrupts: Seq[SxAIAInterruptSource], id: UInt, func: SxAIAInterruptSource => Unit) = new Area {
-    switch(id) {
-      for (interrupt <- interrupts) {
-        is (interrupt.id) {
-          func(interrupt)
-        }
-      }
-    }
-  }
-
-  def doClaim(interrupts: Seq[SxAIAInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doClaim())
-
-  def doSet(interrupts: Seq[SxAIAInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doSet())
-
-  def doEnable(interrupts: Seq[SxAIAInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doEnable())
-
-  def doDisable(interrupts: Seq[SxAIAInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doDisable())
 }
 
 case class SxAIATrigger(block: SxAIA, triggers: Bits) extends Area {
   for ((interrupt, trigger) <- block.interrupts.zip(triggers.asBools)) {
     when(trigger) {
-      interrupt.doSet()
+      interrupt.ip := True
     }
   }
 }
