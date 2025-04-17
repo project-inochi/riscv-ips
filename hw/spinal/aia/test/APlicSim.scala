@@ -1,13 +1,13 @@
-package aia
+package aia.test
 
 import spinal.core._
 import spinal.core.sim._
 import spinal.lib._
 import spinal.lib.bus.tilelink
 import spinal.lib.misc.InterruptNode
+import aia._
 import config.Config
 import _root_.sim._
-import scala.reflect.io.Streamable.Bytes
 
 case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slavesourceIds: Seq[Int]) extends Component {
   val masterBus = TilelinkBusFiber()
