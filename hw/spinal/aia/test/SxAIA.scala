@@ -1,6 +1,7 @@
 package aia.test
 
 import spinal.core._
+import spinal.core.sim._
 import spinal.lib._
 import aia._
 
@@ -33,6 +34,9 @@ case class SxAIAInterruptSource(sourceId: Int) extends Area {
   val ie = RegInit(False)
   val ip = RegInit(False)
 
+  ie.simPublic()
+  ip.simPublic()
+
   def asRequest(idWidth: Int, targetHart: Int): SxAIARequest = {
     val ret = new SxAIARequest(idWidth)
     ret.id := U(id)
@@ -58,6 +62,11 @@ case class SxAIA(sourceIds: Seq[Int], hartId: Int, guestId: Int) extends Area {
   val iep = resultRequest.pending(threshold)
   val bestRequest = resultRequest.verify(iep)
   val claim = bestRequest.id
+
+  threshold.simPublic()
+  iep.simPublic()
+  bestRequest.simPublic()
+  claim.simPublic()
 
   def doWhenMatch(interrupts: Seq[SxAIAInterruptSource], id: UInt, func: SxAIAInterruptSource => Unit) = new Area {
     switch(id) {
