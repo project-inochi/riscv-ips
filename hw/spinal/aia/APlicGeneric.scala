@@ -56,45 +56,23 @@ abstract class APlicGenericInterruptSource(sourceId: Int) extends Area {
 }
 
 object APlicOperator {
-  def doClaim(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = new Area {
+  def doWhenMatch(interrupts: Seq[APlicGenericInterruptSource], id: UInt, func: APlicGenericInterruptSource => Unit) = new Area {
     switch(id) {
       for (interrupt <- interrupts) {
         is (interrupt.id) {
-          interrupt.doClaim()
+          func(interrupt)
         }
       }
     }
   }
 
-  def doSet(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = new Area {
-    switch(id) {
-      for (interrupt <- interrupts) {
-        is (interrupt.id) {
-          interrupt.doSet()
-        }
-      }
-    }
-  }
+  def doClaim(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doClaim())
 
-  def enable(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = new Area {
-    switch(id) {
-      for (interrupt <- interrupts) {
-        is (interrupt.id) {
-          interrupt.doEnable()
-        }
-      }
-    }
-  }
+  def doSet(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doSet())
 
-  def disable(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = new Area {
-    switch(id) {
-      for (interrupt <- interrupts) {
-        is (interrupt.id) {
-          interrupt.doDisable()
-        }
-      }
-    }
-  }
+  def doEnable(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doEnable())
+
+  def doDisable(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doDisable())
 }
 
 case class APlicGenericGateways(interrupts: Seq[APlicGenericInterruptSource], targetHart: Int, guestId: Int = 0) extends Area {

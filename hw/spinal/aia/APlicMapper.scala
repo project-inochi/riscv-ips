@@ -84,12 +84,12 @@ object APlicMapper {
 
     val setienum = bus.createAndDriveFlow(UInt(32 bits), setienumOffset)
     when(setienum.valid){
-      APlicOperator.enable(aplic.interrupts, setienum.payload)
+      APlicOperator.doEnable(aplic.interrupts, setienum.payload)
     }
 
     val clrienum = bus.createAndDriveFlow(UInt(32 bits), clrienumOffset)
     when(clrienum.valid){
-      APlicOperator.disable(aplic.interrupts, clrienum.payload)
+      APlicOperator.doDisable(aplic.interrupts, clrienum.payload)
     }
 
     bus.read(B(0), address = setipOffset, bitOffset = 0)
