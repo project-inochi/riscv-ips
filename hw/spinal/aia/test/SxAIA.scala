@@ -4,26 +4,68 @@ import spinal.core._
 import spinal.lib._
 import aia._
 
-case class SxAIARequest(idWidth: Int) extends AIARequest(idWidth) {
-  override def prioritize(other: AIARequest): Bool = {
-    val x = other.asInstanceOf[SxAIARequest]
-    !x.valid || (valid && id <= x.id)
+case class SxAIARequest(idWidth: Int) extends Bundle {
+  val id = UInt(idWidth bits)
+  val valid = Bool()
+
+  def prioritize(other: SxAIARequest): Bool = {
+    !other.valid || (valid && id <= other.id)
   }
 
-  override def pending(threshold: UInt): Bool = {
+  def pending(threshold: UInt): Bool = {
     valid && ((threshold === 0) || (id < threshold))
   }
 
-  override def dummy(): AIARequest = {
-    val tmp = SxAIARequest(idWidth)
+  def dummy(): SxAIARequest = {
+    val tmp = new SxAIARequest(idWidth)
     tmp.id := 0
     tmp.valid := False
     tmp
   }
+
+  def verify(cond: Bool): SxAIARequest = {
+    Mux(cond, this, dummy())
+  }
 }
 
-case class SxAIAInterruptSource(sourceId: Int) extends AIAInterruptSource(sourceId) {
-  override def asRequest(idWidth: Int, targetHart: Int): AIARequest = {
+case class SxAIAInterruptSource(sourceId: Int) extends Area {
+  val id = sourceId
+  val ie = RegInit(False)
+  val ip = RegInit(False)
+
+  def doClaim(): Unit = {
+    ip := False
+  }
+
+  def doSet(): Unit = {
+    ip := True
+  }
+
+  def doPendingUpdate(pending: Bool): Unit = {
+    when(pending) {
+      doSet()
+    } otherwise {
+      doClaim()
+    }
+  }
+
+  def doEnable(): Unit = {
+    ie := True
+  }
+
+  def doDisable(): Unit = {
+    ie := False
+  }
+
+  def doEnableUpdate(enabled: Bool): Unit = {
+    when(enabled) {
+      doEnable()
+    } otherwise {
+      doDisable()
+    }
+  }
+
+  def asRequest(idWidth: Int, targetHart: Int): SxAIARequest = {
     val ret = new SxAIARequest(idWidth)
     ret.id := U(id)
     ret.valid := ip && ie
@@ -34,29 +76,39 @@ case class SxAIAInterruptSource(sourceId: Int) extends AIAInterruptSource(source
 case class SxAIA(sourceIds: Seq[Int], hartId: Int, guestId: Int) extends Area {
   val interrupts = for (sourceId <- sourceIds) yield new SxAIAInterruptSource(sourceId)
 
-  val operator = AIAGeneric(interrupts, hartId, guestId)
+  val maxSource = (interrupts.map(_.id) ++ Seq(0)).max + 1
+  val idWidth = log2Up(maxSource)
+  val threshold = UInt(idWidth bits)
 
-  val claim = operator.claim
-  val iep = operator.iep
+  val requests = interrupts.sortBy(_.id).map(g => g.asRequest(idWidth, hartId))
+
+  val resultRequest = RegNext(requests.reduceBalancedTree((a, b) => {
+    val takeA = a.prioritize(b)
+    takeA ? a | b
+  }))
+
+  val iep = resultRequest.pending(threshold)
+  val bestRequest = resultRequest.verify(iep)
+  val claim = bestRequest.id
 
   def claimBest() = new Area {
-    operator.doBestClaim()
+    doClaim(interrupts, bestRequest.id)
   }
 
   def claim(sourceId: Int) = new Area {
-    AIAOperator.doClaim(interrupts, sourceId)
+    doClaim(interrupts, sourceId)
   }
 
   def set(sourceId: Int) = new Area {
-    AIAOperator.doSet(interrupts, sourceId)
+    doSet(interrupts, sourceId)
   }
 
   def enable(sourceId: Int) = new Area {
-    AIAOperator.enable(interrupts, sourceId)
+    doEnable(interrupts, sourceId)
   }
 
   def disable(sourceId: Int) = new Area {
-    AIAOperator.disable(interrupts, sourceId)
+    doDisable(interrupts, sourceId)
   }
 
   def ipWrite(mask: Bits, postion: Int) = new Area {
@@ -92,6 +144,24 @@ case class SxAIA(sourceIds: Seq[Int], hartId: Int, guestId: Int) extends Area {
   }
 
   def asTilelinkIMSICIInfo() = TilelinkIMSICIInfo(hartId, guestId, interrupts.map(_.id))
+
+  def doWhenMatch(interrupts: Seq[SxAIAInterruptSource], id: UInt, func: SxAIAInterruptSource => Unit) = new Area {
+    switch(id) {
+      for (interrupt <- interrupts) {
+        is (interrupt.id) {
+          func(interrupt)
+        }
+      }
+    }
+  }
+
+  def doClaim(interrupts: Seq[SxAIAInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doClaim())
+
+  def doSet(interrupts: Seq[SxAIAInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doSet())
+
+  def doEnable(interrupts: Seq[SxAIAInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doEnable())
+
+  def doDisable(interrupts: Seq[SxAIAInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doDisable())
 }
 
 case class SxAIATrigger(block: SxAIA, triggers: Bits) extends Area {
