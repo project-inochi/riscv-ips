@@ -62,16 +62,16 @@ case class APlicDirectGateway(interrupts: Seq[APlicInterruptSource], id: Int) ex
   val ithreshold = RegInit(U(0x0, 8 bits))
 
   // topi can be found in generic.bestRequest
-  val generic = AIAGeneric(interrupts, id)
+  val generic = APlicGenericGateways(interrupts, id)
   generic.threshold := ithreshold.resized
 
   val output = generic.claim > 0
 }
 
-case class APlicRequest(idWidth: Int, priorityWidth: Int) extends AIARequest(idWidth) {
+case class APlicRequest(idWidth: Int, priorityWidth: Int) extends APlicGenericRequest(idWidth) {
   val prio = UInt(priorityWidth bits)
 
-  override def prioritize(other: AIARequest): Bool = {
+  override def prioritize(other: APlicGenericRequest): Bool = {
     val x = other.asInstanceOf[APlicRequest]
     !x.valid || (valid && ((prio < x.prio) || ((prio === x.prio) && (id <= x.id))))
   }
@@ -80,7 +80,7 @@ case class APlicRequest(idWidth: Int, priorityWidth: Int) extends AIARequest(idW
     valid && ((threshold === 0) || (prio < threshold))
   }
 
-  override def dummy(): AIARequest = {
+  override def dummy(): APlicGenericRequest = {
     val tmp = APlicRequest(idWidth, priorityWidth)
     tmp.id := 0
     tmp.valid := False
@@ -89,7 +89,7 @@ case class APlicRequest(idWidth: Int, priorityWidth: Int) extends AIARequest(idW
   }
 }
 
-case class APlicInterruptSource(sourceId: Int, delegatable: Boolean, globalIE: Bool, input: Bool) extends AIAInterruptSource(sourceId) {
+case class APlicInterruptSource(sourceId: Int, delegatable: Boolean, globalIE: Bool, input: Bool) extends APlicGenericInterruptSource(sourceId) {
   val config = RegInit(U(0, 11 bits))
   val delegated = config(10)
   val childIdx = config(9 downto 0)
@@ -146,7 +146,7 @@ case class APlicInterruptSource(sourceId: Int, delegatable: Boolean, globalIE: B
     }
   }
 
-  override def asRequest(idWidth: Int, targetHart: Int): AIARequest = {
+  override def asRequest(idWidth: Int, targetHart: Int): APlicGenericRequest = {
     val ret = new APlicRequest(idWidth, prio.getWidth)
     ret.id := U(id)
     ret.valid := ip && ie && (target === targetHart)

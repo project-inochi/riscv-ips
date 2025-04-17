@@ -74,22 +74,22 @@ object APlicMapper {
 
     val setipnum = bus.createAndDriveFlow(UInt(32 bits), setipnumOffset)
     when(setipnum.valid){
-      AIAOperator.doSet(aplic.interrupts, setipnum.payload)
+      APlicOperator.doSet(aplic.interrupts, setipnum.payload)
     }
 
     val clripnum = bus.createAndDriveFlow(UInt(32 bits), clripnumOffset)
     when(clripnum.valid){
-      AIAOperator.doClaim(aplic.interrupts, clripnum.payload)
+      APlicOperator.doClaim(aplic.interrupts, clripnum.payload)
     }
 
     val setienum = bus.createAndDriveFlow(UInt(32 bits), setienumOffset)
     when(setienum.valid){
-      AIAOperator.enable(aplic.interrupts, setienum.payload)
+      APlicOperator.enable(aplic.interrupts, setienum.payload)
     }
 
     val clrienum = bus.createAndDriveFlow(UInt(32 bits), clrienumOffset)
     when(clrienum.valid){
-      AIAOperator.disable(aplic.interrupts, clrienum.payload)
+      APlicOperator.disable(aplic.interrupts, clrienum.payload)
     }
 
     bus.read(B(0), address = setipOffset, bitOffset = 0)
@@ -124,7 +124,7 @@ object APlicMapper {
     claim.valid := False
     claim.payload.assignDontCare()
     when(claim.valid) {
-      AIAOperator.doClaim(aplic.interrupts, claim.payload)
+      APlicOperator.doClaim(aplic.interrupts, claim.payload)
     }
 
     val targetMapping = for(idc <- aplic.directGateways) yield new Area {

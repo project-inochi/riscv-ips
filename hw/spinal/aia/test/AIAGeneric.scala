@@ -3,24 +3,24 @@ package aia
 import spinal.core._
 import spinal.lib._
 
-abstract class APlicGenericRequest(idWidth: Int) extends Bundle {
+abstract class AIARequest(idWidth: Int) extends Bundle {
   val id = UInt(idWidth bits)
   val valid = Bool()
 
-  def prioritize(other: APlicGenericRequest): Bool
+  def prioritize(other: AIARequest): Bool
   def pending(threshold: UInt): Bool
-  def dummy(): APlicGenericRequest
-  def verify(cond: Bool): APlicGenericRequest = {
+  def dummy(): AIARequest
+  def verify(cond: Bool): AIARequest = {
     Mux(cond, this, dummy())
   }
 }
 
-abstract class APlicGenericInterruptSource(sourceId: Int) extends Area {
+abstract class AIAInterruptSource(sourceId: Int) extends Area {
   val id = sourceId
   val ie = RegInit(False)
   val ip = RegInit(False)
 
-  def asRequest(idWidth: Int, targetHart: Int): APlicGenericRequest
+  def asRequest(idWidth: Int, targetHart: Int): AIARequest
 
   def doClaim(): Unit = {
     ip := False
@@ -55,8 +55,8 @@ abstract class APlicGenericInterruptSource(sourceId: Int) extends Area {
   }
 }
 
-object APlicOperator {
-  def doClaim(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = new Area {
+object AIAOperator {
+  def doClaim(interrupts: Seq[AIAInterruptSource], id: UInt) = new Area {
     switch(id) {
       for (interrupt <- interrupts) {
         is (interrupt.id) {
@@ -66,7 +66,7 @@ object APlicOperator {
     }
   }
 
-  def doSet(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = new Area {
+  def doSet(interrupts: Seq[AIAInterruptSource], id: UInt) = new Area {
     switch(id) {
       for (interrupt <- interrupts) {
         is (interrupt.id) {
@@ -76,7 +76,7 @@ object APlicOperator {
     }
   }
 
-  def enable(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = new Area {
+  def enable(interrupts: Seq[AIAInterruptSource], id: UInt) = new Area {
     switch(id) {
       for (interrupt <- interrupts) {
         is (interrupt.id) {
@@ -86,7 +86,7 @@ object APlicOperator {
     }
   }
 
-  def disable(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = new Area {
+  def disable(interrupts: Seq[AIAInterruptSource], id: UInt) = new Area {
     switch(id) {
       for (interrupt <- interrupts) {
         is (interrupt.id) {
@@ -97,7 +97,7 @@ object APlicOperator {
   }
 }
 
-case class APlicGenericGateways(interrupts: Seq[APlicGenericInterruptSource], targetHart: Int, guestId: Int = 0) extends Area {
+case class AIAGeneric(interrupts: Seq[AIAInterruptSource], targetHart: Int, guestId: Int = 0) extends Area {
   val maxSource = (interrupts.map(_.id) ++ Seq(0)).max + 1
   val idWidth = log2Up(maxSource)
   val threshold = UInt(idWidth bits)
@@ -114,6 +114,6 @@ case class APlicGenericGateways(interrupts: Seq[APlicGenericInterruptSource], ta
   val claim = bestRequest.id
 
   def doBestClaim() = new Area {
-    APlicOperator.doClaim(interrupts, bestRequest.id)
+    AIAOperator.doClaim(interrupts, bestRequest.id)
   }
 }
