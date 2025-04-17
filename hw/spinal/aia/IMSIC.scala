@@ -95,16 +95,6 @@ case class IMSICInfo(
   groupHartId   : Int,
 )
 
-case class SxAIAInfo(sources: SxAIA, groupId: Int, groupHartId: Int) {
-  def asIMSICInfo(): IMSICInfo = IMSICInfo(
-    hartId      = sources.hartId,
-    guestId     = sources.guestId,
-    sourceIds   = sources.interrupts.map(_.id),
-    groupId     = groupId,
-    groupHartId = groupHartId,
-  )
-}
-
 object IMSIC {
   val interruptFileSize: BigInt = 4096
 

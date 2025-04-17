@@ -34,7 +34,8 @@ case class TilelinkIMSICFiberTest(sourceIds: Seq[Int], hartIds: Seq[Int]) extend
     dispatcher.node at 0x10000000 of access
 
     for (block <- blocks) {
-      dispatcher.addIMSICinfo(block)
+      val trigger = dispatcher.addIMSICinfo(block.asTilelinkIMSICIInfo())
+      val connector = SxAIATrigger(block, trigger)
     }
   }
 

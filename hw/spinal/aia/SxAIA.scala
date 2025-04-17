@@ -89,6 +89,8 @@ case class SxAIA(sourceIds: Seq[Int], hartId: Int, guestId: Int) extends Area {
 
     return result
   }
+
+  def asTilelinkIMSICIInfo() = TilelinkIMSICIInfo(hartId, guestId, interrupts.map(_.id))
 }
 
 case class SxAIATrigger(block: SxAIA, triggers: Bits) extends Area {

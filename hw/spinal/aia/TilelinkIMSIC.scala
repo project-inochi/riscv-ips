@@ -50,22 +50,39 @@ object TilelinkIMSIC {
   }
 }
 
+case class TilelinkIMSICIInfo(hartId: Int, guestId: Int, sourceIds: Seq[Int])
+
 case class TilelinkIMSICFiber() extends Area {
   val node = bus.tilelink.fabric.Node.slave()
   val lock = Lock()
 
   var mapping: Option[IMSICMapping] = None
 
-  var infos = ArrayBuffer[SxAIAInfo]()
-  def addIMSICinfo(block: SxAIA, groupId: Int, groupHartId: Int) = {
-    infos.addRet(SxAIAInfo(block, groupId, groupHartId))
+  case class SourceTrigger(info: TilelinkIMSICIInfo, groupId: Int, groupHartId: Int) {
+    val trigger = Bits(info.sourceIds.size bits)
+
+    def asIMSICInfo(): IMSICInfo = IMSICInfo(
+      hartId      = info.hartId,
+      guestId     = info.guestId,
+      sourceIds   = info.sourceIds,
+      groupId     = groupId,
+      groupHartId = groupHartId,
+    )
   }
-  def addIMSICinfo(block: SxAIA, hartPerGroup: Int = 0) = {
-    if(hartPerGroup == 0) {
-      infos.addRet(SxAIAInfo(block, 0, block.hartId))
+
+  var infos = ArrayBuffer[SourceTrigger]()
+  def addIMSICinfo(info: TilelinkIMSICIInfo, groupId: Int, groupHartId: Int) = {
+    val source =infos.addRet(SourceTrigger(info, groupId, groupHartId))
+    source.trigger
+  }
+  def addIMSICinfo(info: TilelinkIMSICIInfo, hartPerGroup: Int = 0) = {
+    val source = if(hartPerGroup == 0) {
+      infos.addRet(SourceTrigger(info, 0, info.hartId))
     } else {
-      infos.addRet(SxAIAInfo(block, block.hartId / hartPerGroup, block.hartId % hartPerGroup))
+      infos.addRet(SourceTrigger(info, info.hartId / hartPerGroup, info.hartId % hartPerGroup))
     }
+
+    source.trigger
   }
 
   val thread = Fiber build new Area {
@@ -81,6 +98,6 @@ case class TilelinkIMSICFiber() extends Area {
 
     core.io.bus <> node.bus
 
-    for ((trigger, block) <- core.io.triggers.zip(infos)) yield new SxAIATrigger(block.sources, trigger)
+    infos.lazyZip(core.io.triggers).foreach(_.trigger := _)
   }
 }
