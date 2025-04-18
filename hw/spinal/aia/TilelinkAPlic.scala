@@ -2,7 +2,6 @@ package aia
 
 import spinal.core._
 import spinal.core.fiber.{Fiber, Lock}
-import spinal.core.sim._
 import spinal.lib._
 import spinal.lib.bus.misc._
 import spinal.lib.bus.tilelink
@@ -93,8 +92,6 @@ case class TilelinkAPLICFiber() extends Area {
   val sources = ArrayBuffer[sourceSpec]()
   val targets = ArrayBuffer[targetSpec]()
 
-  val mappedInterrupts = mutable.LinkedHashMap[InterruptNode, InterruptNode]()
-
   def addSource(id: Int, node: InterruptNode) = {
     val spec = sourceSpec(InterruptNode.slave(), id)
     sources += spec
@@ -128,7 +125,5 @@ case class TilelinkAPLICFiber() extends Area {
     slaveSources.lazyZip(core.io.slaveSources).foreach((slaveSource, ioSlaveSource) => {
       Vec(slaveSource.flags.map(_.flag)) := ioSlaveSource.asBools
     })
-
-    core.aplic.interrupts.foreach(_.ip.simPublic())
   }
 }
