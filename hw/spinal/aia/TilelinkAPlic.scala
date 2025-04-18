@@ -6,6 +6,7 @@ import spinal.lib._
 import spinal.lib.bus.misc._
 import spinal.lib.bus.tilelink
 import spinal.lib.misc.InterruptNode
+import spinal.lib.misc.plic.InterruptCtrlFiber
 import scala.collection.mutable.ArrayBuffer
 
 class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds: Seq[Int],
@@ -76,37 +77,33 @@ object TilelinkAplic {
   )
 }
 
-case class TilelinkAPLICFiber() extends Area {
-  import scala.collection.{Seq, mutable}
-
+case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
   val node = bus.tilelink.fabric.Node.slave()
-  val lock = Lock()
   var core: TilelinkAplic = null
 
-  case class sourceSpec(node: InterruptNode, id: Int)
-  case class targetSpec(node: InterruptNode, id: Int)
+  case class SourceSpec(node: InterruptNode, id: Int)
+  case class TargetSpec(node: InterruptNode, id: Int)
   case class APlicSlaveBundle(slaveInfo: APlicSlaveInfo) extends Area {
     val flags = slaveInfo.sourceIds.map(_ => InterruptNode.master())
   }
 
-  val sources = ArrayBuffer[sourceSpec]()
-  val targets = ArrayBuffer[targetSpec]()
+  val sources = ArrayBuffer[SourceSpec]()
+  val targets = ArrayBuffer[TargetSpec]()
 
-  def addSource(id: Int, node: InterruptNode) = {
-    val spec = sourceSpec(InterruptNode.slave(), id)
-    sources += spec
-    spec.node << node
-    node
-  }
-  def addTarget(id: Int, node: InterruptNode) = {
-    val spec = targetSpec(InterruptNode.master(), id)
+  override def createInterruptMaster(id : Int) : InterruptNode = {
+    val spec = node.clockDomain on TargetSpec(InterruptNode.master(), id)
     targets += spec
-    node << spec.node
+    spec.node
+  }
+
+  override def createInterruptSlave(id: Int) : InterruptNode = {
+    val spec = node.clockDomain on SourceSpec(InterruptNode.slave(), id)
+    sources += spec
     spec.node
   }
 
   val slaveSources = ArrayBuffer[APlicSlaveBundle]()
-  def addSlave(slaveInfo: APlicSlaveInfo) = {
+  def createInterruptDelegation(slaveInfo: APlicSlaveInfo) = {
     slaveSources.addRet(APlicSlaveBundle(slaveInfo))
   }
 

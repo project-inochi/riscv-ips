@@ -21,19 +21,32 @@ case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slaves
     val aplicslave = TilelinkAPLICFiber()
     aplicslave.node at 0x10000000 of access
 
-    val targetsSBundles = hartIds.map(aplicslave.addTarget(_, InterruptNode.slave()))
-
     val aplicmaster = TilelinkAPLICFiber()
     aplicmaster.node at 0x20000000 of access
 
-    val sourcesMBundles = sourceIds.map(aplicmaster.addSource(_, InterruptNode.master()))
-    val targetsMBundles = hartIds.map(aplicmaster.addTarget(_, InterruptNode.slave()))
+    val targetsSBundles = hartIds.map(hartId => {
+      val node = InterruptNode.slave()
+      aplicslave.mapDownInterrupt(hartId, node)
+      node
+    })
 
-    val slaveSources = slaveInfos.map(aplicmaster.addSlave(_))
+    val targetsMBundles = hartIds.map(hartId => {
+      val node = InterruptNode.slave()
+      aplicmaster.mapDownInterrupt(hartId, node)
+      node
+    })
+
+    val sourcesMBundles = sourceIds.map(sourceId => {
+      val node = InterruptNode.master()
+      aplicmaster.mapUpInterrupt(sourceId, node)
+      node
+    })
+
+    val slaveSources = slaveInfos.map(aplicmaster.createInterruptDelegation(_))
 
     // XXX: there is only one slave
     val sourcesSBundles = slavesourceIds.zip(slaveSources(0).flags).map {
-      case (id, slaveSource) => aplicslave.addSource(id, slaveSource)
+      case (id, slaveSource) => aplicslave.mapUpInterrupt(id, slaveSource)
     }
   }
 
