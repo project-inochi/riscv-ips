@@ -7,10 +7,16 @@ import spinal.lib.bus.tilelink
 import spinal.lib.bus.misc._
 import spinal.lib.misc.slot.{Slot, SlotPool}
 
-class BusCycleProxy[T1 <: spinal.core.Data with IMasterSlave,
-										T2 <: spinal.core.Data with IMasterSlave](slaveType: HardType[T1],
-										 																					masterType: HardType[T2],
-                                                           		factoryGen: T1 => BusSlaveFactory) extends Component {
+trait BusMasterSend {
+  def send(address: UInt, data: UInt): Unit
+}
+
+class BusCycleProxy[TS <: spinal.core.Data with IMasterSlave,
+										TM <: spinal.core.Data with IMasterSlave,
+                    TH <: BusMasterSend](slaveType: HardType[TS],
+                                         masterType: HardType[TM],
+                                         factoryGen: TS => BusSlaveFactory,
+                                         helperGen: TM => TH) extends Component {
   val io = new Bundle {
     val slaveBus = slave(slaveType())
     val masterBus = master(masterType())
@@ -22,29 +28,38 @@ class BusCycleProxy[T1 <: spinal.core.Data with IMasterSlave,
 	factory.readAndWriteMultiWord(address, address = 0x0)
 
 	val data = factory.createAndDriveFlow(UInt(32 bits), address = 0x8)
+
+  val helper = helperGen(io.masterBus)
+
+  when (data.valid) {
+    helper.send(address, data.payload)
+  }
 }
 
 case class TilelinkBusCycleProxy(slaveParams: tilelink.BusParameter, mastersParams: tilelink.BusParameter) extends BusCycleProxy(
   new bus.tilelink.Bus(slaveParams),
   new bus.tilelink.Bus(mastersParams),
-  new bus.tilelink.SlaveFactory(_, true)
-) {
-  val busA = cloneOf(io.masterBus.a)
-  val busD = io.masterBus.d
+  new bus.tilelink.SlaveFactory(_, true),
+  new TilelinkMasterHelper(_)
+)
 
-  io.masterBus.a <-< busA
+case class TilelinkMasterHelper(bus: tilelink.Bus) extends Area with BusMasterSend {
+  val busA = cloneOf(bus.a)
+  val busD = bus.d
+
+  bus.a <-< busA
 
   busD.ready := True
   busA.valid := False
   busA.payload.assignDontCare()
 
-  when (data.valid) {
+  def send(address: UInt, data: UInt) = {
     busA.valid    := True
     busA.opcode   := tilelink.Opcode.A.PUT_FULL_DATA
     busA.size     := 2
     busA.source   := 0
     busA.address  := address.resized
-    busA.data     := data.payload.asBits.resized
+    busA.data     := data.asBits.resized
     busA.debugId  := 0
     busA.mask     := 0xf
   }
