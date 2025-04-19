@@ -63,11 +63,6 @@ case class TilelinkMasterHelper(bus: tilelink.Bus) extends Area with BusMasterSe
     busA.debugId  := 0
     busA.mask     := 0xf
   }
-  /*
-   * TODO:
-   * 8 / 16 bits : counter + flag
-   * busA.size busA.mask (source?)
-   */
 }
 
 object TilelinkBusCycleProxy {
