@@ -20,6 +20,38 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
   val deliveryMode = RegInit(False)
   val bigEndian = False
 
+  val msiaddrcfg = new Area {
+    val lock = RegInit(False)
+    val ppn = RegInit(U(0x0, 44 bits))
+    val hhxs = RegInit(U(0x0, 5 bits))
+    val lhxs = RegInit(U(0x0, 3 bits))
+    val hhxw = RegInit(U(0x0, 3 bits))
+    val lhxw = RegInit(U(0x0, 4 bits))
+
+    val maskH = U(1) << hhxw - 1
+    val maskL = U(1) << lhxw - 1
+    
+    val readable = !lock && deliveryMode
+
+    val msiaddrh = U(0x0, 32 bits)
+    msiaddrh(31) := lock
+    msiaddrh(28 downto 24) := hhxs
+    msiaddrh(22 downto 20) := lhxs
+    msiaddrh(18 downto 16) := hhxw
+    msiaddrh(15 downto 12) := lhxw
+    msiaddrh(11 downto 0) := ppn(43 downto 32)
+
+    def msiAddress(hartIndex: UInt, guestIndex: UInt = 0): UInt = {
+      val groupId = (hartIndex >> lhxw) & maskH.resized
+      val hartId = hartIndex & maskL.resized
+      val groupOffset = groupId << (hhxs + 12)
+      val hartOffset = hartId << lhxs
+
+      val msiaddr = (ppn | groupOffset.resized | hartOffset.resized | guestIndex) << 12
+      msiaddr
+    }
+  }
+  
   val interrupts: Seq[APlicInterruptSource] = for (((sourceId, delegatable), i) <- sourceIds.zip(interruptDelegatable).zipWithIndex)
     yield new APlicInterruptSource(sourceId, delegatable, domainEnable, sources(i))
 
@@ -38,7 +70,7 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
   // hartids
   val directGateways = for (hartId <- hartIds) yield new APlicDirectGateway(interrupts, hartId)
 
-  directTargets := directGateways.map(_.output).asBits()
+  directTargets := Mux(deliveryMode, B(0), directGateways.map(_.output).asBits())
 }
 
 /**

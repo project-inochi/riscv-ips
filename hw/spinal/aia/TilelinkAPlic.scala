@@ -9,18 +9,27 @@ import spinal.lib.misc.InterruptNode
 import spinal.lib.misc.plic.InterruptCtrlFiber
 import scala.collection.mutable.ArrayBuffer
 
-class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds: Seq[Int],
-                                                           hartIds: Seq[Int],
-                                                           slaveInfos: Seq[APlicSlaveInfo],
-                                                           busType: HardType[T],
-                                                           factoryGen: T => BusSlaveFactory) extends Component {
+trait APlicBusMasterSend {
+  def send(address: UInt, data: UInt): Unit
+}
+
+class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
+                  TM <: spinal.core.Data with IMasterSlave,
+                  TH <: APlicBusMasterSend](sourceIds: Seq[Int],
+                                            hartIds: Seq[Int],
+                                            slaveInfos: Seq[APlicSlaveInfo],
+                                            slaveType: HardType[TS],
+                                            masterType: HardType[TM],
+                                            factoryGen: TS => BusSlaveFactory,
+                                            helperGen: TM => TH) extends Component {
   require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
   require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")
 
   val aplicMap = APlicMapping.aplicMap
 
   val io = new Bundle {
-    val bus = slave(busType())
+    val slaveBus = slave(slaveType())
+    val masterBus = master(masterType())
     val sources = in Bits (sourceIds.size bits)
     val targets = out Bits (hartIds.size bits)
     val slaveSources = out Vec(slaveInfos.map(slaveInfo => Bits(slaveInfo.sourceIds.size bits)))
@@ -32,21 +41,44 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](sourceIds: Seq[Int],
   io.targets := aplic.directTargets
   io.slaveSources := aplic.slaveSources
 
-  val factory = factoryGen(io.bus)
-  val mapping = APlicMapper(factory, aplicMap)(aplic)
-
-  /*TODO:
-   * MSI
-   */
+  val factory = factoryGen(io.slaveBus)
+  val helper = helperGen(io.masterBus)
+  val mapping = APlicMapper(factory, helper, aplicMap)(aplic)
 }
 
-case class TilelinkAplic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSlaveInfo], p: bus.tilelink.BusParameter) extends MappedAplic[bus.tilelink.Bus](
+case class TilelinkAplic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSlaveInfo],
+                         slaveParams: tilelink.BusParameter, mastersParams: tilelink.BusParameter) 
+                         extends MappedAplic(
   sourceIds,
   hartIds,
   slaveInfos,
-  new bus.tilelink.Bus(p),
-  new bus.tilelink.SlaveFactory(_, true)
+  new bus.tilelink.Bus(slaveParams),
+  new bus.tilelink.Bus(mastersParams),
+  new bus.tilelink.SlaveFactory(_, true),
+  new APlicTilelinkMasterHelper(_)
 )
+
+case class APlicTilelinkMasterHelper(bus: tilelink.Bus) extends Area with APlicBusMasterSend {
+  val busA = cloneOf(bus.a)
+  val busD = bus.d
+
+  bus.a <-< busA
+
+  busD.ready := True
+  busA.valid := False
+  busA.payload.assignDontCare()
+
+  def send(address: UInt, data: UInt) = {
+    busA.valid    := True
+    busA.opcode   := tilelink.Opcode.A.PUT_FULL_DATA
+    busA.size     := 2
+    busA.source   := 0
+    busA.address  := address.resized
+    busA.data     := data.asBits.resized
+    busA.debugId  := 0
+    busA.mask     := 0xf
+  }
+}
 
 case class TilelinkAPlicMasterParam(addressWidth: Int, pendingSize: Int)
 
@@ -78,8 +110,11 @@ object TilelinkAplic {
 }
 
 case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
-  val node = bus.tilelink.fabric.Node.slave()
+  val up = tilelink.fabric.Node.up()
+  val down = tilelink.fabric.Node.down()
   var core: TilelinkAplic = null
+
+  val m2sParams = TilelinkAplic.getTilelinkMasterSupport(TilelinkAPlicMasterParam(64, 4), TilelinkAPLICFiber.this)
 
   case class SourceSpec(node: InterruptNode, id: Int)
   case class TargetSpec(node: InterruptNode, id: Int)
@@ -91,13 +126,13 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
   val targets = ArrayBuffer[TargetSpec]()
 
   override def createInterruptMaster(id : Int) : InterruptNode = {
-    val spec = node.clockDomain on TargetSpec(InterruptNode.master(), id)
+    val spec = up.clockDomain on TargetSpec(InterruptNode.master(), id)
     targets += spec
     spec.node
   }
 
   override def createInterruptSlave(id: Int) : InterruptNode = {
-    val spec = node.clockDomain on SourceSpec(InterruptNode.slave(), id)
+    val spec = up.clockDomain on SourceSpec(InterruptNode.slave(), id)
     sources += spec
     spec.node
   }
@@ -110,12 +145,16 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
   val thread = Fiber build new Area {
     lock.await()
 
-    node.m2s.supported.load(TilelinkAplic.getTilelinkSlaveSupport(node.m2s.proposed))
-    node.s2m.none()
+    down.m2s forceParameters m2sParams
+    down.s2m.supported load tilelink.S2mSupport.none()
 
-    core = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaveSources.map(_.slaveInfo).toSeq, node.bus.p)
+    up.m2s.supported.load(TilelinkAplic.getTilelinkSlaveSupport(up.m2s.proposed))
+    up.s2m.none()
 
-    core.io.bus <> node.bus
+    core = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaveSources.map(_.slaveInfo).toSeq, up.bus.p, down.bus.p)
+
+    core.io.masterBus <> down.bus
+    core.io.slaveBus <> up.bus
     core.io.sources := sources.map(_.node.flag).asBits()
     Vec(targets.map(_.node.flag)) := core.io.targets.asBools
 

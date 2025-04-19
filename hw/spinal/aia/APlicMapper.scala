@@ -64,55 +64,87 @@ object APlicMapping {
 }
 
 object APlicMapper {
-  def apply(bus: BusSlaveFactory, mapping: APlicMapping)(aplic: APlic) = new Area{
+  def apply(slaveBus: BusSlaveFactory, masterBus: APlicBusMasterSend, mapping: APlicMapping)(aplic: APlic) = new Area{
     import mapping._
 
-    bus.read(U(0x80, 8 bits), address = domaincfgOffset, bitOffset = 24)
-    bus.readAndWrite(aplic.domainEnable, address = domaincfgOffset, bitOffset = 8)
-    bus.readAndWrite(aplic.deliveryMode, address = domaincfgOffset, bitOffset = 2)
-    bus.readAndWrite(aplic.bigEndian, address = domaincfgOffset, bitOffset = 0)
+    slaveBus.read(U(0x80, 8 bits), address = domaincfgOffset, bitOffset = 24)
+    slaveBus.readAndWrite(aplic.domainEnable, address = domaincfgOffset, bitOffset = 8)
+    slaveBus.readAndWrite(aplic.deliveryMode, address = domaincfgOffset, bitOffset = 2)
+    slaveBus.readAndWrite(aplic.bigEndian, address = domaincfgOffset, bitOffset = 0)
 
-    val setipnum = bus.createAndDriveFlow(UInt(32 bits), setipnumOffset)
-    when(setipnum.valid){
+    val msiaddrReg = aplic.msiaddrcfg
+
+    slaveBus.read(Mux(msiaddrReg.readable, msiaddrReg.ppn(31 downto 0), U(0)), address = mmsiaddrcfgOffset)
+    slaveBus.read(Mux(msiaddrReg.readable, msiaddrReg.msiaddrh, U(0)), address = mmsiaddrcfghOffset)
+
+    val msiaddrcfg = slaveBus.createAndDriveFlow(UInt(32 bits), mmsiaddrcfgOffset)
+    when(msiaddrcfg.valid && !msiaddrReg.lock && aplic.deliveryMode) {
+      msiaddrReg.ppn(31 downto 0) := msiaddrcfg.payload
+    }
+
+    /* when receiving message that make lock 1 to 0, should the other 
+     * bits be immediately written into Reg?
+     */
+    val msiaddrhcfg = slaveBus.createAndDriveFlow(UInt(32 bits), mmsiaddrcfghOffset)
+    when(msiaddrhcfg.valid && aplic.deliveryMode) {
+      msiaddrReg.lock := msiaddrhcfg.payload(31)
+      when(!msiaddrReg.lock) {
+        msiaddrReg.hhxs := msiaddrhcfg.payload(28 downto 24)
+        msiaddrReg.lhxs := msiaddrhcfg.payload(22 downto 20)
+        msiaddrReg.hhxw := msiaddrhcfg.payload(18 downto 16)
+        msiaddrReg.lhxw := msiaddrhcfg.payload(15 downto 12)
+        msiaddrReg.ppn(43 downto 32) := msiaddrhcfg.payload(11 downto 0)
+      }
+    }
+
+    val genmsi = slaveBus.createAndDriveFlow(UInt(32 bits), genmsiOffset)
+    when (genmsi.valid && aplic.deliveryMode) {
+      val hartIndex = genmsi.payload(31 downto 18)
+      val EIID = genmsi.payload(10 downto 0)
+      masterBus.send(msiaddrReg.msiAddress(hartIndex), EIID)
+    }
+
+    val setipnum = slaveBus.createAndDriveFlow(UInt(32 bits), setipnumOffset)
+    when(setipnum.valid) {
       APlicOperator.doSet(aplic.interrupts, setipnum.payload)
     }
 
-    val clripnum = bus.createAndDriveFlow(UInt(32 bits), clripnumOffset)
-    when(clripnum.valid){
+    val clripnum = slaveBus.createAndDriveFlow(UInt(32 bits), clripnumOffset)
+    when(clripnum.valid) {
       APlicOperator.doClaim(aplic.interrupts, clripnum.payload)
     }
 
-    val setienum = bus.createAndDriveFlow(UInt(32 bits), setienumOffset)
-    when(setienum.valid){
+    val setienum = slaveBus.createAndDriveFlow(UInt(32 bits), setienumOffset)
+    when(setienum.valid) {
       APlicOperator.doEnable(aplic.interrupts, setienum.payload)
     }
 
-    val clrienum = bus.createAndDriveFlow(UInt(32 bits), clrienumOffset)
-    when(clrienum.valid){
+    val clrienum = slaveBus.createAndDriveFlow(UInt(32 bits), clrienumOffset)
+    when(clrienum.valid) {
       APlicOperator.doDisable(aplic.interrupts, clrienum.payload)
     }
 
-    bus.read(B(0), address = setipOffset, bitOffset = 0)
-    bus.read(B(0), address = setieOffset, bitOffset = 0)
+    slaveBus.read(B(0), address = setipOffset, bitOffset = 0)
+    slaveBus.read(B(0), address = setieOffset, bitOffset = 0)
     val interruptMapping = for(interrupt <- aplic.interrupts) yield new Area{
-      val sourceflow = bus.createAndDriveFlow(UInt(11 bits), sourcecfgOffset + ((interrupt.id - 1) * 4))
+      val sourceflow = slaveBus.createAndDriveFlow(UInt(11 bits), sourcecfgOffset + ((interrupt.id - 1) * 4))
       when(sourceflow.valid) {
         interrupt.setConfig(sourceflow.payload)
       }
 
-      bus.readAndWrite(interrupt.prio, address = targetOffset + ((interrupt.id - 1) * 4), bitOffset = 0)
-      bus.readAndWrite(interrupt.target, address = targetOffset + ((interrupt.id - 1) * 4), bitOffset = 18)
+      slaveBus.readAndWrite(interrupt.prio, address = targetOffset + ((interrupt.id - 1) * 4), bitOffset = 0)
+      slaveBus.readAndWrite(interrupt.target, address = targetOffset + ((interrupt.id - 1) * 4), bitOffset = 18)
     }
 
     val interuptMapping = for(interrupt <- aplic.interrupts) yield new Area {
-      val interruptOffset = (interrupt.id / bus.busDataWidth) * bus.busDataWidth / 8
-      val interruptBitOffset = interrupt.id % bus.busDataWidth
+      val interruptOffset = (interrupt.id / slaveBus.busDataWidth) * slaveBus.busDataWidth / 8
+      val interruptBitOffset = interrupt.id % slaveBus.busDataWidth
 
-      bus.readAndWrite(interrupt.ie, address = setieOffset + interruptOffset,
+      slaveBus.readAndWrite(interrupt.ie, address = setieOffset + interruptOffset,
                        bitOffset = interruptBitOffset)
 
-      bus.read(interrupt.ip, address = setipOffset + interruptOffset, bitOffset = interruptBitOffset)
-      val ipDrive = bus.createAndDriveFlow(Bool(), address = setipOffset + interruptOffset, bitOffset = interruptBitOffset)
+      slaveBus.read(interrupt.ip, address = setipOffset + interruptOffset, bitOffset = interruptBitOffset)
+      val ipDrive = slaveBus.createAndDriveFlow(Bool(), address = setipOffset + interruptOffset, bitOffset = interruptBitOffset)
 
       when(ipDrive.valid) {
         interrupt.doPendingUpdate(ipDrive.payload)
@@ -131,16 +163,16 @@ object APlicMapper {
       val idcThisOffset = idcOffset + (idc.id * idcGroup)
       val nowRequest = idc.generic.bestRequest.asInstanceOf[APlicRequest]
 
-      bus.readAndWrite(idc.idelivery, address = idcThisOffset + ideliveryOffset)
-      bus.readAndWrite(idc.iforce, address = idcThisOffset + iforceOffset)
-      bus.readAndWrite(idc.ithreshold, address = idcThisOffset + ithresholdOffset)
+      slaveBus.readAndWrite(idc.idelivery, address = idcThisOffset + ideliveryOffset)
+      slaveBus.readAndWrite(idc.iforce, address = idcThisOffset + iforceOffset)
+      slaveBus.readAndWrite(idc.ithreshold, address = idcThisOffset + ithresholdOffset)
       // topi readonly
-      bus.read(nowRequest.prio, address = idcThisOffset + topiOffset, bitOffset = 0)
-      bus.read(nowRequest.id, address = idcThisOffset + topiOffset, bitOffset = 16)
+      slaveBus.read(nowRequest.prio, address = idcThisOffset + topiOffset, bitOffset = 0)
+      slaveBus.read(nowRequest.id, address = idcThisOffset + topiOffset, bitOffset = 16)
       // reading claimi trigger clean the top interrupt
-      bus.read(nowRequest.prio, address = idcThisOffset + claimiOffset, bitOffset = 0)
-      bus.read(nowRequest.id, address = idcThisOffset + claimiOffset, bitOffset = 16)
-      bus.onRead(address = idcThisOffset + claimiOffset) {
+      slaveBus.read(nowRequest.prio, address = idcThisOffset + claimiOffset, bitOffset = 0)
+      slaveBus.read(nowRequest.id, address = idcThisOffset + claimiOffset, bitOffset = 16)
+      slaveBus.onRead(address = idcThisOffset + claimiOffset) {
         claim.valid := True
         claim.payload := nowRequest.id
       }

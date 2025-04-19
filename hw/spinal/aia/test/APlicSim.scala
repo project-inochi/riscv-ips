@@ -19,10 +19,10 @@ case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slaves
     access at 0x00000000 of masterBus.node
 
     val aplicslave = TilelinkAPLICFiber()
-    aplicslave.node at 0x10000000 of access
+    aplicslave.up at 0x10000000 of access
 
     val aplicmaster = TilelinkAPLICFiber()
-    aplicmaster.node at 0x20000000 of access
+    aplicmaster.up at 0x20000000 of access
 
     val targetsSBundles = hartIds.map(hartId => {
       val node = InterruptNode.slave()
@@ -187,6 +187,131 @@ object APlicSim extends App {
     dut.io.sources #= 0b1000001
     //end
     print("All sim points are success!\n")
+    dut.clockDomain.waitRisingEdge(10)
+  }
+
+  def assertData(data: tilelink.sim.TransactionD, answer: Int, name: String): Unit = {
+    val value = data.data
+    val result = value.zip(answer.toBytes).forall { case (x, y) => x == y }
+    assert(result, s"$name: missmatch (${value.toList} != 0x${answer.toBytes.slice(0, 4)})")
+  }
+}
+
+case class TilelinkAPLICMSIFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slavesourceIds: Seq[Int]) extends Component {
+  val masterBus = TilelinkBusFiber()
+
+  val crossBar = tilelink.fabric.Node()
+  crossBar << masterBus.node
+
+  val blocks = for (hartId <- hartIds) yield new SxAIA(sourceIds, hartId, 0)
+
+  val slaveInfos = Seq(APlicSlaveInfo(1, slavesourceIds))
+
+  val peripherals = new Area {
+    val access = tilelink.fabric.Node()
+    access << crossBar
+
+    val aplicslave = TilelinkAPLICFiber()
+    aplicslave.up at 0x10000000 of access
+    crossBar << aplicslave.down
+
+    val aplicmaster = TilelinkAPLICFiber()
+    aplicmaster.up at 0x20000000 of access
+    crossBar << aplicmaster.down
+
+    val dispatcher = TilelinkIMSICFiber()
+    dispatcher.node at 0x30000000 of access
+
+    for (block <- blocks) {
+      val trigger = dispatcher.addIMSICinfo(block.asTilelinkIMSICIInfo())
+      val connector = SxAIATrigger(block, trigger)
+    }
+
+    val targetsSBundles = hartIds.map(hartId => {
+      val node = InterruptNode.slave()
+      aplicslave.mapDownInterrupt(hartId, node)
+      node
+    })
+
+    val targetsMBundles = hartIds.map(hartId => {
+      val node = InterruptNode.slave()
+      aplicmaster.mapDownInterrupt(hartId, node)
+      node
+    })
+
+    val sourcesMBundles = sourceIds.map(sourceId => {
+      val node = InterruptNode.master()
+      aplicmaster.mapUpInterrupt(sourceId, node)
+      node
+    })
+
+    val slaveSources = slaveInfos.map(aplicmaster.createInterruptDelegation(_))
+
+    // XXX: there is only one slave
+    val sourcesSBundles = slavesourceIds.zip(slaveSources(0).flags).map {
+      case (id, slaveSource) => aplicslave.mapUpInterrupt(id, slaveSource)
+    }
+  }
+
+  val io = new Bundle {
+    val bus = slave(tilelink.Bus(masterBus.m2sParams.toNodeParameters().toBusParameter()))
+    val sources = in Bits(sourceIds.size bits)
+    val ie = in Vec(blocks.map(block => Bits(block.interrupts.size bits)))
+    val ip = out Vec(blocks.map(block => Bits(block.interrupts.size bits)))
+    val targetsmaster = out Bits(hartIds.size bits)
+    val targetsslave = out Bits(hartIds.size bits)
+  }
+
+  masterBus.bus = Some(io.bus)
+
+  peripherals.sourcesMBundles.lazyZip(io.sources.asBools).foreach(_.flag := _)
+
+  io.targetsmaster := peripherals.targetsMBundles.map(_.flag).asBits()
+  io.targetsslave := peripherals.targetsSBundles.map(_.flag).asBits()
+
+  Vec(blocks.map(block => block.interrupts.map(_.ie).asBits())) := io.ie
+  io.ip := Vec(blocks.map(block => block.interrupts.map(_.ip).asBits()))
+}
+
+
+object APlicMSISim extends App {
+  val sourcenum = 8
+  val hartnum = 2
+
+  val sourceIds = for (i <- 1 until sourcenum) yield i
+  val slavesourceIds = IndexedSeq(1, 4)
+  val hartIds = for (i <- 0 until hartnum) yield i
+
+  val aplicmap = APlicMapping.aplicMap
+
+  val compile = Config.sim.compile {
+    val aplicsFiber = new TilelinkAPLICMSIFiberTest(hartIds, sourceIds, slavesourceIds)
+    aplicsFiber
+  }
+
+  compile.doSim{ dut =>
+    dut.clockDomain.forkStimulus(10)
+
+    dut.io.sources #= 0b1000001
+    dut.io.ie(0) #= 0x7f
+
+
+    implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
+    val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
+
+    val slaveoffset = 0x10000000
+    val masteroffset = 0x20000000
+    val imsicoffset = 0x30000000
+    
+    // addsim
+    // msicfg
+    print(agent.putFullData(0, masteroffset + aplicmap.domaincfgOffset, SimUInt32(0x80000104)))
+    print(agent.putFullData(0, slaveoffset + aplicmap.domaincfgOffset, SimUInt32(0x80000104)))
+    print(agent.putFullData(0, masteroffset + aplicmap.mmsiaddrcfgOffset, SimUInt32(imsicoffset>>12)))
+    print(agent.putFullData(0, masteroffset + aplicmap.mmsiaddrcfghOffset, SimUInt32(0x1000)))
+    print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x2)))
+    print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x40004)))
+
     dut.clockDomain.waitRisingEdge(10)
   }
 

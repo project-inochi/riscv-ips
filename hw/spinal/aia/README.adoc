@@ -32,3 +32,17 @@
 TODOs:
 
 1. Split the direct delivery mode process in `APlicInterruptSource`
+
+2. mapper:
+
+   - genmsi slaveBusRead in mapper
+
+   - block write when busy = 1
+   
+   - lock idc Reg
+
+3. APlic:
+
+   - lock target output(better method)
+
+   - Separate DM
