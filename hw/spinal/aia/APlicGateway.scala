@@ -3,7 +3,7 @@ package aia
 import spinal.core._
 import spinal.lib._
 
-case class APlicGenericGateway(interrupts: Seq[APlicInterruptSource], targetHart: Int, requestGen: (APlicInterruptSource, Int, Int) => APlicGenericRequest) extends Area {
+case class APlicGenericGateway(interrupts: Seq[APlicSource], targetHart: Int, requestGen: (APlicSource, Int, Int) => APlicGenericRequest) extends Area {
   val maxSource = (interrupts.map(_.id) ++ Seq(0)).max + 1
   val idWidth = log2Up(maxSource)
   val threshold = UInt(idWidth bits)
@@ -25,7 +25,7 @@ case class APlicGenericGateway(interrupts: Seq[APlicInterruptSource], targetHart
 }
 
 // hartIds
-case class APlicDirectGateway(interrupts: Seq[APlicInterruptSource], hartId: Int) extends Bundle {
+case class APlicDirectGateway(interrupts: Seq[APlicSource], hartId: Int) extends Bundle {
   val idelivery = RegInit(False)
   val iforce = RegInit(False)
   val ithreshold = RegInit(U(0x0, 8 bits))

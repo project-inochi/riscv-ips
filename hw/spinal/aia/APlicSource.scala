@@ -15,46 +15,6 @@ abstract class APlicGenericRequest(idWidth: Int) extends Bundle {
   }
 }
 
-abstract class APlicGenericInterruptSource(sourceId: Int) extends Area {
-  val id = sourceId
-  val ie = RegInit(False)
-  val ip = RegInit(False)
-
-  def asRequest(idWidth: Int, targetHart: Int): APlicGenericRequest
-
-  def doClaim(): Unit = {
-    ip := False
-  }
-
-  def doSet(): Unit = {
-    ip := True
-  }
-
-  def doPendingUpdate(pending: Bool): Unit = {
-    when(pending) {
-      doSet()
-    } otherwise {
-      doClaim()
-    }
-  }
-
-  def doEnable(): Unit = {
-    ie := True
-  }
-
-  def doDisable(): Unit = {
-    ie := False
-  }
-
-  def doEnableUpdate(enabled: Bool): Unit = {
-    when(enabled) {
-      doEnable()
-    } otherwise {
-      doDisable()
-    }
-  }
-}
-
 /**
  * Trigger mode for interrupt source
  */
@@ -92,9 +52,12 @@ case class APlicRequest(idWidth: Int, priorityWidth: Int) extends APlicGenericRe
   }
 }
 
-case class APlicInterruptSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDomainState, input: Bool) extends APlicGenericInterruptSource(sourceId) {
+case class APlicSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDomainState, input: Bool) {
   import APlicSourceMode._
 
+  val id = sourceId
+  val ie = RegInit(False)
+  val ip = RegInit(False)
   val config = RegInit(U(0, 11 bits))
   val delegated = config(10)
   val childIdx = config(9 downto 0)
@@ -166,7 +129,7 @@ case class APlicInterruptSource(sourceId: Int, delegatable: Boolean, domaieState
     }
   }
 
-  override def asRequest(idWidth: Int, targetHart: Int): APlicGenericRequest = {
+  def asRequest(idWidth: Int, targetHart: Int): APlicGenericRequest = {
     val ret = new APlicRequest(idWidth, prio.getWidth)
     ret.id := U(id)
     ret.valid := ip && ie && (target === targetHart)
@@ -174,15 +137,39 @@ case class APlicInterruptSource(sourceId: Int, delegatable: Boolean, domaieState
     ret
   }
 
-  override def doClaim(): Unit = {
+  def doClaim(): Unit = {
     when(ipState.allowModify) {
       ip := False
     }
   }
 
-  override def doSet(): Unit = {
+  def doSet(): Unit = {
     when(ipState.allowModify) {
       ip := True
+    }
+  }
+
+  def doPendingUpdate(pending: Bool): Unit = {
+    when(pending) {
+      doSet()
+    } otherwise {
+      doClaim()
+    }
+  }
+
+  def doEnable(): Unit = {
+    ie := True
+  }
+
+  def doDisable(): Unit = {
+    ie := False
+  }
+
+  def doEnableUpdate(enabled: Bool): Unit = {
+    when(enabled) {
+      doEnable()
+    } otherwise {
+      doDisable()
     }
   }
 

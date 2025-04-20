@@ -52,8 +52,8 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
     }
   }
 
-  val interrupts: Seq[APlicInterruptSource] = for (((sourceId, delegatable), i) <- sourceIds.zip(interruptDelegatable).zipWithIndex)
-    yield new APlicInterruptSource(sourceId, delegatable, APlicDomainState(domainEnable, deliveryMode), sources(i))
+  val interrupts: Seq[APlicSource] = for (((sourceId, delegatable), i) <- sourceIds.zip(interruptDelegatable).zipWithIndex)
+    yield new APlicSource(sourceId, delegatable, APlicDomainState(domainEnable, deliveryMode), sources(i))
 
   val slaveMappings = for ((slaveInfo, slaveSource) <- slaveInfos.zip(slaveSources)) yield new Area {
     for ((slaveSourceId, idx) <- slaveInfo.sourceIds.zipWithIndex) yield new Area {
@@ -74,7 +74,7 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
 }
 
 object APlic {
-  def doWhenMatch(interrupts: Seq[APlicGenericInterruptSource], id: UInt, func: APlicGenericInterruptSource => Unit) = new Area {
+  def doWhenMatch(interrupts: Seq[APlicSource], id: UInt, func: APlicSource => Unit) = new Area {
     switch(id) {
       for (interrupt <- interrupts) {
         is (interrupt.id) {
@@ -84,11 +84,11 @@ object APlic {
     }
   }
 
-  def doClaim(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doClaim())
+  def doClaim(interrupts: Seq[APlicSource], id: UInt) = doWhenMatch(interrupts, id, _.doClaim())
 
-  def doSet(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doSet())
+  def doSet(interrupts: Seq[APlicSource], id: UInt) = doWhenMatch(interrupts, id, _.doSet())
 
-  def doEnable(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doEnable())
+  def doEnable(interrupts: Seq[APlicSource], id: UInt) = doWhenMatch(interrupts, id, _.doEnable())
 
-  def doDisable(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doDisable())
+  def doDisable(interrupts: Seq[APlicSource], id: UInt) = doWhenMatch(interrupts, id, _.doDisable())
 }
