@@ -92,16 +92,3 @@ object APlic {
 
   def doDisable(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doDisable())
 }
-
-// hartIds
-case class APlicDirectGateway(interrupts: Seq[APlicInterruptSource], id: Int) extends Bundle {
-  val idelivery = RegInit(False)
-  val iforce = RegInit(False)
-  val ithreshold = RegInit(U(0x0, 8 bits))
-
-  // topi can be found in generic.bestRequest
-  val generic = APlicGenericGateways(interrupts, id)
-  generic.threshold := ithreshold.resized
-
-  val output = generic.claim > 0
-}

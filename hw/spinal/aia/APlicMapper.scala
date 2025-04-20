@@ -171,7 +171,7 @@ object APlicMapper {
 
     // mapping interrupt delivery control for each gateway
     val idcs = for(idc <- aplic.directGateways) yield new Area {
-      val idcThisOffset = idcOffset + (idc.id * idcGroup)
+      val idcThisOffset = idcOffset + (idc.hartId * idcGroup)
       val nowRequest = idc.generic.bestRequest.asInstanceOf[APlicRequest]
 
       slaveBus.readAndWrite(idc.idelivery, address = idcThisOffset + ideliveryOffset)
