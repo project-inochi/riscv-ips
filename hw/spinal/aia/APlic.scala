@@ -73,6 +73,26 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
   directTargets := Mux(deliveryMode, B(0), directGateways.map(_.output).asBits())
 }
 
+object APlic {
+  def doWhenMatch(interrupts: Seq[APlicGenericInterruptSource], id: UInt, func: APlicGenericInterruptSource => Unit) = new Area {
+    switch(id) {
+      for (interrupt <- interrupts) {
+        is (interrupt.id) {
+          func(interrupt)
+        }
+      }
+    }
+  }
+
+  def doClaim(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doClaim())
+
+  def doSet(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doSet())
+
+  def doEnable(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doEnable())
+
+  def doDisable(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doDisable())
+}
+
 /**
  * Trigger mode for interrupt source
  */

@@ -137,10 +137,10 @@ object APlicMapper {
         }
       }
 
-      val setipnum = mapNumArea(setipnumOffset, APlicOperator.doSet(aplic.interrupts, _))
-      val clripnum = mapNumArea(clripnumOffset, APlicOperator.doClaim(aplic.interrupts, _))
-      val setienum = mapNumArea(setienumOffset, APlicOperator.doEnable(aplic.interrupts, _))
-      val clrienum = mapNumArea(clrienumOffset, APlicOperator.doDisable(aplic.interrupts, _))
+      val setipnum = mapNumArea(setipnumOffset, APlic.doSet(aplic.interrupts, _))
+      val clripnum = mapNumArea(clripnumOffset, APlic.doClaim(aplic.interrupts, _))
+      val setienum = mapNumArea(setienumOffset, APlic.doEnable(aplic.interrupts, _))
+      val clrienum = mapNumArea(clrienumOffset, APlic.doDisable(aplic.interrupts, _))
     }
 
     slaveBus.read(B(0), address = setipOffset, bitOffset = 0)
@@ -184,7 +184,7 @@ object APlicMapper {
       slaveBus.read(nowRequest.prio, address = idcThisOffset + claimiOffset, bitOffset = 0)
       slaveBus.read(nowRequest.id, address = idcThisOffset + claimiOffset, bitOffset = 16)
       slaveBus.onRead(address = idcThisOffset + claimiOffset) {
-        APlicOperator.doClaim(aplic.interrupts, nowRequest.id)
+        idc.generic.doBestClaim()
       }
     }
   }

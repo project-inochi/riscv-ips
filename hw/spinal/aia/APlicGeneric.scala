@@ -55,26 +55,6 @@ abstract class APlicGenericInterruptSource(sourceId: Int) extends Area {
   }
 }
 
-object APlicOperator {
-  def doWhenMatch(interrupts: Seq[APlicGenericInterruptSource], id: UInt, func: APlicGenericInterruptSource => Unit) = new Area {
-    switch(id) {
-      for (interrupt <- interrupts) {
-        is (interrupt.id) {
-          func(interrupt)
-        }
-      }
-    }
-  }
-
-  def doClaim(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doClaim())
-
-  def doSet(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doSet())
-
-  def doEnable(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doEnable())
-
-  def doDisable(interrupts: Seq[APlicGenericInterruptSource], id: UInt) = doWhenMatch(interrupts, id, _.doDisable())
-}
-
 case class APlicGenericGateways(interrupts: Seq[APlicGenericInterruptSource], targetHart: Int, guestId: Int = 0) extends Area {
   val maxSource = (interrupts.map(_.id) ++ Seq(0)).max + 1
   val idWidth = log2Up(maxSource)
@@ -92,6 +72,6 @@ case class APlicGenericGateways(interrupts: Seq[APlicGenericInterruptSource], ta
   val claim = bestRequest.id
 
   def doBestClaim() = new Area {
-    APlicOperator.doClaim(interrupts, bestRequest.id)
+    APlic.doClaim(interrupts, bestRequest.id)
   }
 }
