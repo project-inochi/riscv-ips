@@ -7,8 +7,13 @@ import spinal.lib.bus.tilelink
 import spinal.lib.bus.misc._
 import spinal.lib.misc.slot.{Slot, SlotPool}
 
+case class BusMasterWritePayload() extends Bundle {
+  val address = UInt(64 bits)
+  val data = UInt(32 bits)
+}
+
 trait BusMasterSend {
-  def send(address: UInt, data: UInt): Unit
+  def send(stream: Stream[BusMasterWritePayload]): Area
 }
 
 class BusCycleProxy[TS <: spinal.core.Data with IMasterSlave,
@@ -27,12 +32,18 @@ class BusCycleProxy[TS <: spinal.core.Data with IMasterSlave,
   val factory = factoryGen(io.slaveBus)
 	factory.readAndWriteMultiWord(address, address = 0x0)
 
-	val data = factory.createAndDriveFlow(UInt(32 bits), address = 0x8)
+	val dataFlow = factory.createAndDriveFlow(UInt(32 bits), address = 0x8)
+  val (dataStream, fifoOccupancy) = dataFlow.queueWithOccupancy(2)
+  val payloadStream = dataStream.map(buildWritePayload(address, _))
 
   val helper = helperGen(io.masterBus)
+  helper.send(payloadStream)
 
-  when (data.valid) {
-    helper.send(address, data.payload)
+  def buildWritePayload(address: UInt, data: UInt) = {
+    val payload = BusMasterWritePayload()
+    payload.address := address
+    payload.data := data
+    payload
   }
 }
 
@@ -44,24 +55,21 @@ case class TilelinkBusCycleProxy(slaveParams: tilelink.BusParameter, mastersPara
 )
 
 case class TilelinkMasterHelper(bus: tilelink.Bus) extends Area with BusMasterSend {
-  val busA = cloneOf(bus.a)
-  val busD = bus.d
+  override def send(stream: Stream[BusMasterWritePayload]) = new Area {
+    val out = stream.map(payload => {
+      val channelA = tilelink.ChannelA(bus.a.p)
+      channelA.opcode   := tilelink.Opcode.A.PUT_FULL_DATA
+      channelA.size     := 2
+      channelA.source   := 0
+      channelA.address  := payload.address.resized
+      channelA.data     := payload.data.asBits.resized
+      channelA.debugId  := 0
+      channelA.mask     := 0xf
+      channelA
+    })
 
-  bus.a <-< busA
-
-  busD.ready := True
-  busA.valid := False
-  busA.payload.assignDontCare()
-
-  def send(address: UInt, data: UInt) = {
-    busA.valid    := True
-    busA.opcode   := tilelink.Opcode.A.PUT_FULL_DATA
-    busA.size     := 2
-    busA.source   := 0
-    busA.address  := address.resized
-    busA.data     := data.asBits.resized
-    busA.debugId  := 0
-    busA.mask     := 0xf
+    bus.a <-< out
+    bus.d.ready := True
   }
 }
 
