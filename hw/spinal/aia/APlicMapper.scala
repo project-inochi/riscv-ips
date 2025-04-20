@@ -63,6 +63,15 @@ object APlicMapping {
   )
 }
 
+case class APlicMSIPayload() extends Bundle {
+  val address = UInt(64 bits)
+  val data = UInt(32 bits)
+}
+
+trait APlicBusMasterSend {
+  def send(stream: Stream[APlicMSIPayload]): Area
+}
+
 object APlicMapper {
   def apply(slaveBus: BusSlaveFactory, masterBus: APlicBusMasterSend, mapping: APlicMapping)(aplic: APlic) = new Area{
     import mapping._
@@ -101,12 +110,22 @@ object APlicMapper {
         }
       }
 
-      val genmsi = slaveBus.createAndDriveFlow(UInt(32 bits), genmsiOffset)
-      when (genmsi.valid && aplic.deliveryMode) {
-        val hartIndex = genmsi.payload(31 downto 18)
-        val EIID = genmsi.payload(10 downto 0)
-        masterBus.send(msiaddrReg.msiAddress(hartIndex), EIID)
-      }
+      val genmsiFlow = slaveBus.createAndDriveFlow(UInt(32 bits), genmsiOffset)
+      val (genmsiFlowStream, _) = genmsiFlow.queueWithOccupancy(2)
+      val genmsiStream = genmsiFlowStream.map(params => {
+        val payload = APlicMSIPayload()
+        payload.address := msiaddrReg.msiAddress(params(31 downto 18)).resized
+        payload.data := params(10 downto 0).resized
+        payload
+      })
+
+      // when (genmsi.valid && aplic.deliveryMode) {
+      //   val hartIndex = genmsi.payload(31 downto 18)
+      //   val EIID = genmsi.payload(10 downto 0)
+      //   masterBus.send(msiaddrReg.msiAddress(hartIndex), EIID)
+      // }
+
+      masterBus.send(genmsiStream)
     }
 
     // mapping SETIPNUM, CLRIPNUM, SETIENUM, CLRIPNUM

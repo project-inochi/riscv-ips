@@ -9,10 +9,6 @@ import spinal.lib.misc.InterruptNode
 import spinal.lib.misc.plic.InterruptCtrlFiber
 import scala.collection.mutable.ArrayBuffer
 
-trait APlicBusMasterSend {
-  def send(address: UInt, data: UInt): Unit
-}
-
 class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
                   TM <: spinal.core.Data with IMasterSlave,
                   TH <: APlicBusMasterSend](sourceIds: Seq[Int],
@@ -47,7 +43,7 @@ class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
 }
 
 case class TilelinkAplic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSlaveInfo],
-                         slaveParams: tilelink.BusParameter, mastersParams: tilelink.BusParameter) 
+                         slaveParams: tilelink.BusParameter, mastersParams: tilelink.BusParameter)
                          extends MappedAplic(
   sourceIds,
   hartIds,
@@ -59,24 +55,21 @@ case class TilelinkAplic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq
 )
 
 case class APlicTilelinkMasterHelper(bus: tilelink.Bus) extends Area with APlicBusMasterSend {
-  val busA = cloneOf(bus.a)
-  val busD = bus.d
+  override def send(stream: Stream[APlicMSIPayload]) = new Area {
+    val out = stream.map(payload => {
+      val channelA = tilelink.ChannelA(bus.a.p)
+      channelA.opcode   := tilelink.Opcode.A.PUT_FULL_DATA
+      channelA.size     := 2
+      channelA.source   := 0
+      channelA.address  := payload.address.resized
+      channelA.data     := payload.data.asBits.resized
+      channelA.debugId  := 0
+      channelA.mask     := 0xf
+      channelA
+    })
 
-  bus.a <-< busA
-
-  busD.ready := True
-  busA.valid := False
-  busA.payload.assignDontCare()
-
-  def send(address: UInt, data: UInt) = {
-    busA.valid    := True
-    busA.opcode   := tilelink.Opcode.A.PUT_FULL_DATA
-    busA.size     := 2
-    busA.source   := 0
-    busA.address  := address.resized
-    busA.data     := data.asBits.resized
-    busA.debugId  := 0
-    busA.mask     := 0xf
+    bus.a <-< out
+    bus.d.ready := True
   }
 }
 
