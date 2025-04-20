@@ -30,7 +30,7 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
 
     val maskH = U(1) << hhxw - 1
     val maskL = U(1) << lhxw - 1
-    
+
     val readable = !lock && deliveryMode
 
     val msiaddrh = U(0x0, 32 bits)
@@ -51,9 +51,9 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
       msiaddr
     }
   }
-  
+
   val interrupts: Seq[APlicInterruptSource] = for (((sourceId, delegatable), i) <- sourceIds.zip(interruptDelegatable).zipWithIndex)
-    yield new APlicInterruptSource(sourceId, delegatable, domainEnable, sources(i))
+    yield new APlicInterruptSource(sourceId, delegatable, APlicDomainState(domainEnable, deliveryMode), sources(i))
 
   val slaveMappings = for ((slaveInfo, slaveSource) <- slaveInfos.zip(slaveSources)) yield new Area {
     for ((slaveSourceId, idx) <- slaveInfo.sourceIds.zipWithIndex) yield new Area {
@@ -86,6 +86,8 @@ object APlicSourceMode extends SpinalEnum {
     LEVEL1 -> 6,
     LEVEL0 -> 7)
 }
+
+case class APlicDomainState(enable: Bool, isMSI: Bool) extends Bundle
 
 // hartIds
 case class APlicDirectGateway(interrupts: Seq[APlicInterruptSource], id: Int) extends Bundle {
@@ -121,7 +123,7 @@ case class APlicRequest(idWidth: Int, priorityWidth: Int) extends APlicGenericRe
   }
 }
 
-case class APlicInterruptSource(sourceId: Int, delegatable: Boolean, globalIE: Bool, input: Bool) extends APlicGenericInterruptSource(sourceId) {
+case class APlicInterruptSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDomainState, input: Bool) extends APlicGenericInterruptSource(sourceId) {
   val config = RegInit(U(0, 11 bits))
   val delegated = config(10)
   val childIdx = config(9 downto 0)
@@ -132,47 +134,66 @@ case class APlicInterruptSource(sourceId: Int, delegatable: Boolean, globalIE: B
 
   val target = RegInit(U(0x0, 14 bits))
   val prio = RegInit(U(0x0, 8 bits))
-  val blockip = Bool()
 
   // for msi delivery mode
   val guestindex = RegInit(U(0x0, 6 bits))
   val eiid = RegInit(U(0x0, 11 bits))
 
-  switch(mode) {
-    is (APlicSourceMode.LEVEL1, APlicSourceMode.LEVEL0, APlicSourceMode.INACTIVE) {
-      blockip := True
+  val ipState = new Area {
+    import APlicSourceMode._
+
+    val allowModify = Bool()
+    val ctx = WhenBuilder()
+
+    ctx.when(List(LEVEL1, LEVEL0).map(mode === _).orR && !domaieState.isMSI) {
+      allowModify := False
     }
-    default {
-      blockip := delegated
+
+    ctx.when(mode === INACTIVE) {
+      allowModify := False
+    }
+
+    ctx.otherwise {
+      allowModify := !delegated
     }
   }
 
-  when(globalIE) {
+  when(domaieState.enable) {
     when(delegated) {
       ie := False
     } otherwise {
-      switch(mode) {
-        is(APlicSourceMode.INACTIVE) {
-          ip := False
-          ie := False
+      import APlicSourceMode._
+
+      val gateway = WhenBuilder()
+
+      gateway.when(mode === INACTIVE) {
+        ip := False
+        ie := False
+      }
+      gateway.when(mode === EDGE1) {
+        when(input.rise()) {
+          ip := True
         }
-        is(APlicSourceMode.DETACHED) {
+      }
+      gateway.when(mode === EDGE0) {
+        when(input.fall()) {
+          ip := True
         }
-        is(APlicSourceMode.EDGE1) {
-          when(input.rise()) {
-            ip := True
-          }
+      }
+      gateway.when(mode === LEVEL1 && !domaieState.isMSI) {
+        ip := input
+      }
+      gateway.when(mode === LEVEL1 && domaieState.isMSI) {
+        when(input.rise()) {
+          ip := True
         }
-        is(APlicSourceMode.EDGE0) {
-          when(input.fall()) {
-            ip := True
-          }
-        }
-        is(APlicSourceMode.LEVEL1) {
-            ip := input
-        }
-        is(APlicSourceMode.LEVEL0) {
-            ip := ~input
+      }
+      gateway.when(mode === LEVEL0 && !domaieState.isMSI) {
+        ip := ~input
+      }
+      gateway.when(mode === LEVEL0 && domaieState.isMSI) {
+        when(input.fall()) {
+          ip := True
         }
       }
     }
@@ -187,13 +208,13 @@ case class APlicInterruptSource(sourceId: Int, delegatable: Boolean, globalIE: B
   }
 
   override def doClaim(): Unit = {
-    when(blockip === False) {
+    when(ipState.allowModify) {
       ip := False
     }
   }
 
   override def doSet(): Unit = {
-    when(blockip === False) {
+    when(ipState.allowModify) {
       ip := True
     }
   }
