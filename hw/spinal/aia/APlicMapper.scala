@@ -150,14 +150,6 @@ object APlicMapper {
       slaveBus.readAndWrite(interrupt.target, address = targetOffset + configOffset, bitOffset = 18)
     }
 
-    val idWidth = log2Up((aplic.interrupts.map(_.id) ++ Seq(0)).max + 1)
-    val claim = Flow(UInt(idWidth bits))
-    claim.valid := False
-    claim.payload.assignDontCare()
-    when(claim.valid) {
-      APlicOperator.doClaim(aplic.interrupts, claim.payload)
-    }
-
     // mapping interrupt delivery control for each gateway
     val idcs = for(idc <- aplic.directGateways) yield new Area {
       val idcThisOffset = idcOffset + (idc.id * idcGroup)
@@ -173,8 +165,7 @@ object APlicMapper {
       slaveBus.read(nowRequest.prio, address = idcThisOffset + claimiOffset, bitOffset = 0)
       slaveBus.read(nowRequest.id, address = idcThisOffset + claimiOffset, bitOffset = 16)
       slaveBus.onRead(address = idcThisOffset + claimiOffset) {
-        claim.valid := True
-        claim.payload := nowRequest.id
+        APlicOperator.doClaim(aplic.interrupts, nowRequest.id)
       }
     }
   }
