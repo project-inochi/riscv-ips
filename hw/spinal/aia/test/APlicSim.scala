@@ -12,17 +12,22 @@ import _root_.sim._
 case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slavesourceIds: Seq[Int]) extends Component {
   val masterBus = TilelinkBusFiber()
 
+  val crossBar = tilelink.fabric.Node()
+  crossBar << masterBus.node
+
   val slaveInfos = Seq(APlicSlaveInfo(1, slavesourceIds))
 
   val peripherals = new Area {
     val access = tilelink.fabric.Node()
-    access at 0x00000000 of masterBus.node
+    access << crossBar
 
     val aplicslave = TilelinkAPLICFiber()
     aplicslave.up at 0x10000000 of access
+    crossBar << aplicslave.down
 
     val aplicmaster = TilelinkAPLICFiber()
     aplicmaster.up at 0x20000000 of access
+    crossBar << aplicmaster.down
 
     val targetsSBundles = hartIds.map(hartId => {
       val node = InterruptNode.slave()
@@ -302,7 +307,7 @@ object APlicMSISim extends App {
     val slaveoffset = 0x10000000
     val masteroffset = 0x20000000
     val imsicoffset = 0x30000000
-    
+
     // addsim
     // msicfg
     print(agent.putFullData(0, masteroffset + aplicmap.domaincfgOffset, SimUInt32(0x80000104)))
