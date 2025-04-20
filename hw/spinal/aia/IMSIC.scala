@@ -27,12 +27,8 @@ case class IMSICInterruptFile(sourceIds: Seq[Int], hartId: Int, guestId: Int) ex
     val busWithOffset = new BusSlaveFactoryAddressWrapper(bus, baseAddress)
 
     /* Main work, mapping the irq set */
-    /* TODO: LE check */
-    val target = Flow(UInt(registerWidth bits))
-    target.valid := False
-    target.payload.assignDontCare()
-    when(target.valid) {
-      switch(target.payload) {
+    def trigger(target: UInt) = new Area {
+      switch(target) {
         for (source <- sources) {
           is (source.id) {
             source.trigger := True
@@ -43,15 +39,12 @@ case class IMSICInterruptFile(sourceIds: Seq[Int], hartId: Int, guestId: Int) ex
 
     val targetDriveLE = busWithOffset.createAndDriveFlow(UInt(registerWidth bits), address = SETEIPNUM_LE_ADDR, documentation = "Set External Interrupt-Pending bit for %s of hart %d by Little-Endian Number".format(if (guestId == 0) "non-guest" else s"guest ${guestId}", hartId))
     when(targetDriveLE.valid) {
-      target.valid := True
-      target.payload := targetDriveLE.payload.resized
+      trigger(targetDriveLE.payload)
     }
 
     val targetDriveBE = busWithOffset.createAndDriveFlow(UInt(registerWidth bits), address = SETEIPNUM_BE_ADDR, documentation = "Set External Interrupt-Pending bit for %s of hart %d by Big-Endian Number".format(if (guestId == 0) "non-guest" else s"guest ${guestId}", hartId))
     when(targetDriveBE.valid) {
-      target.valid := True
-      val tmpLE = EndiannessSwap(targetDriveBE.payload)
-      target.payload := tmpLE.resized
+      trigger(EndiannessSwap(targetDriveBE.payload))
     }
   }
 }
