@@ -58,7 +58,8 @@ case class APlicMSITarget() extends Bundle {
   val eiid = UInt(11 bits)
 }
 
-case class APlicMSIRequest(idWidth: Int, target: APlicMSITarget) extends APlicGenericRequest(idWidth) {
+case class APlicMSIRequest(idWidth: Int) extends APlicGenericRequest(idWidth) {
+  val target = APlicMSITarget()
   override def prioritize(other: APlicGenericRequest): Bool = {
     val x = other.asInstanceOf[APlicMSIRequest]
     !x.valid || (valid && id <= x.id)
@@ -69,10 +70,8 @@ case class APlicMSIRequest(idWidth: Int, target: APlicMSITarget) extends APlicGe
   }
 
   override def dummy(): APlicGenericRequest = {
-    val dummyTarget = APlicMSITarget()
-    dummyTarget.assignDontCare()
-
-    val tmp = APlicMSIRequest(idWidth, dummyTarget)
+    val tmp = APlicMSIRequest(idWidth)
+    tmp.target.assignDontCare()
     tmp.id := 0
     tmp.valid := False
     tmp
@@ -165,12 +164,10 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDo
   }
 
   def asMSIRequest(idWidth: Int): APlicGenericRequest = {
-    val MSITarget = APlicMSITarget()
-    MSITarget.hartIdx := target
-    MSITarget.guestIdx := guestindex
-    MSITarget.eiid := eiid
-
-    val ret = new APlicMSIRequest(idWidth, MSITarget)
+    val ret = new APlicMSIRequest(idWidth)
+    ret.target.hartIdx := target
+    ret.target.guestIdx := guestindex
+    ret.target.eiid := eiid
     ret.id := U(id)
     ret.valid := ip && ie
     ret

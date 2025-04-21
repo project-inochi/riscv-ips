@@ -15,12 +15,12 @@ class APlicGenericGateway(interrupts: Seq[APlicSource], requestGen: (APlicSource
   }))
 }
 
-case class APlicDirectGateway(interrupts: Seq[APlicSource], hartId: Int) extends APlicGenericGateway(interrupts, _.asDirectRequest(_, hartId)) {
+case class APlicDirectGateway(interrupts: Seq[APlicSource], hartId: Int, enable: Bool) extends APlicGenericGateway(interrupts, _.asDirectRequest(_, hartId)) {
   val idelivery = RegInit(False)
   val iforce = RegInit(False)
   val ithreshold = RegInit(U(0x0, 8 bits))
 
-  val iep = resultRequest.pending(ithreshold)
+  val iep = resultRequest.pending(ithreshold) && enable
   val bestRequest = resultRequest.verify(iep)
 
   def doBestClaim() = new Area {
@@ -28,7 +28,15 @@ case class APlicDirectGateway(interrupts: Seq[APlicSource], hartId: Int) extends
   }
 }
 
-case class APlicMSIGateway(interrupts: Seq[APlicSource]) extends APlicGenericGateway(interrupts, _.asMSIRequest(_)) {
-  val bestRequest = Flow(resultRequest.asInstanceOf[APlicMSIRequest])
-  bestRequest.valid := resultRequest.pending(0)
+case class APlicMSIGateway(interrupts: Seq[APlicSource], enable: Bool) extends APlicGenericGateway(interrupts, _.asMSIRequest(_)) {
+  val bestRequest = Flow(APlicMSIRequest(resultRequest.id.getWidth))
+  val realRequest = resultRequest.asInstanceOf[APlicMSIRequest]
+  bestRequest.valid := resultRequest.pending(0) && enable
+  bestRequest.payload := resultRequest.asInstanceOf[APlicMSIRequest]
+
+  val (requestStream, _) = bestRequest.queueWithAvailability(8)
+
+  when (requestStream.ready) {
+    APlic.doClaim(interrupts, bestRequest.id)
+  }
 }

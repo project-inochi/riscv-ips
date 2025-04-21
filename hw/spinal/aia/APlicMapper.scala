@@ -79,7 +79,7 @@ object APlicMapper {
     val domaincfg = new Area {
       slaveBus.read(U(0x80, 8 bits), address = domaincfgOffset, bitOffset = 24)
       slaveBus.readAndWrite(aplic.domainEnable, address = domaincfgOffset, bitOffset = 8)
-      slaveBus.readAndWrite(aplic.deliveryMode, address = domaincfgOffset, bitOffset = 2)
+      slaveBus.readAndWrite(aplic.isMSI, address = domaincfgOffset, bitOffset = 2)
       slaveBus.readAndWrite(aplic.bigEndian, address = domaincfgOffset, bitOffset = 0)
     }
 
@@ -91,7 +91,7 @@ object APlicMapper {
       slaveBus.read(Mux(msiaddrReg.readable, msiaddrReg.msiaddrh, U(0)), address = mmsiaddrcfghOffset)
 
       val msiaddrcfg = slaveBus.createAndDriveFlow(UInt(32 bits), mmsiaddrcfgOffset)
-      when(msiaddrcfg.valid && !msiaddrReg.lock && aplic.deliveryMode) {
+      when(msiaddrcfg.valid && !msiaddrReg.lock && aplic.isMSI) {
         msiaddrReg.ppn(31 downto 0) := msiaddrcfg.payload
       }
 
@@ -99,7 +99,7 @@ object APlicMapper {
       * bits be immediately written into Reg?
       */
       val msiaddrhcfg = slaveBus.createAndDriveFlow(UInt(32 bits), mmsiaddrcfghOffset)
-      when(msiaddrhcfg.valid && aplic.deliveryMode) {
+      when(msiaddrhcfg.valid && aplic.isMSI) {
         msiaddrReg.lock := msiaddrhcfg.payload(31)
         when(!msiaddrReg.lock) {
           msiaddrReg.hhxs := msiaddrhcfg.payload(28 downto 24)
@@ -119,13 +119,9 @@ object APlicMapper {
         payload
       })
 
-      // when (genmsi.valid && aplic.deliveryMode) {
-      //   val hartIndex = genmsi.payload(31 downto 18)
-      //   val EIID = genmsi.payload(10 downto 0)
-      //   masterBus.send(msiaddrReg.msiAddress(hartIndex), EIID)
-      // }
+      val msiStream = StreamArbiterFactory.lowerFirst.noLock.onArgs(aplic.msiStream, genmsiStream)
 
-      masterBus.send(genmsiStream)
+      masterBus.send(msiStream)
     }
 
     // mapping SETIPNUM, CLRIPNUM, SETIENUM, CLRIPNUM

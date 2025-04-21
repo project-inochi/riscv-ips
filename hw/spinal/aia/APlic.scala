@@ -17,7 +17,7 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
   val interruptDelegatable = for (sourceId <- sourceIds) yield slaveInterruptIds.find(_ == sourceId).isDefined
 
   val domainEnable = RegInit(False)
-  val deliveryMode = RegInit(False)
+  val isMSI = RegInit(False)
   val bigEndian = False
 
   val msiaddrcfg = new Area {
@@ -31,7 +31,7 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
     val maskH = U(1) << hhxw - 1
     val maskL = U(1) << lhxw - 1
 
-    val readable = !lock && deliveryMode
+    val readable = !lock && isMSI
 
     val msiaddrh = U(0x0, 32 bits)
     msiaddrh(31) := lock
@@ -47,13 +47,13 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
       val groupOffset = groupId << (hhxs + 12)
       val hartOffset = hartId << lhxs
 
-      val msiaddr = (ppn | groupOffset.resized | hartOffset.resized | guestIndex) << 12
+      val msiaddr = (ppn | groupOffset.resized | hartOffset.resized | guestIndex.resized) << 12
       msiaddr
     }
   }
 
   val interrupts: Seq[APlicSource] = for (((sourceId, delegatable), i) <- sourceIds.zip(interruptDelegatable).zipWithIndex)
-    yield new APlicSource(sourceId, delegatable, APlicDomainState(domainEnable, deliveryMode), sources(i))
+    yield new APlicSource(sourceId, delegatable, APlicDomainState(domainEnable, isMSI), sources(i))
 
   val slaveMappings = for ((slaveInfo, slaveSource) <- slaveInfos.zip(slaveSources)) yield new Area {
     for ((slaveSourceId, idx) <- slaveInfo.sourceIds.zipWithIndex) yield new Area {
@@ -68,9 +68,18 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
   }
 
   // hartids
-  val directGateways = for (hartId <- hartIds) yield new APlicDirectGateway(interrupts, hartId)
+  val directGateways = for (hartId <- hartIds) yield new APlicDirectGateway(interrupts, hartId, !isMSI)
 
-  directTargets := Mux(deliveryMode, B(0), directGateways.map(_.iep).asBits())
+  val msiGateway = new APlicMSIGateway(interrupts, isMSI)
+
+  val msiStream = msiGateway.requestStream.map(req => {
+    val payload = APlicMSIPayload()
+    payload.address := msiaddrcfg.msiAddress(req.target.hartIdx, req.target.guestIdx).resized
+    payload.data := req.target.eiid.resized
+    payload
+  })
+
+  directTargets := Mux(isMSI, B(0), directGateways.map(_.iep).asBits())
 }
 
 object APlic {
