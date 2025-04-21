@@ -31,7 +31,7 @@ case class APlicDirectGateway(interrupts: Seq[APlicSource], hartId: Int) extends
   val ithreshold = RegInit(U(0x0, 8 bits))
 
   // topi can be found in generic.bestRequest
-  val generic = APlicGenericGateway(interrupts, _.asRequest(_, hartId))
+  val generic = APlicGenericGateway(interrupts, _.asDirectRequest(_, hartId))
   generic.threshold := ithreshold.resized
 
   val output = generic.claim > 0

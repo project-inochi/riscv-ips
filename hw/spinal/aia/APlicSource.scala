@@ -31,11 +31,11 @@ object APlicSourceMode extends SpinalEnum {
 
 case class APlicDomainState(enable: Bool, isMSI: Bool) extends Bundle
 
-case class APlicRequest(idWidth: Int, priorityWidth: Int) extends APlicGenericRequest(idWidth) {
+case class APlicDirectRequest(idWidth: Int, priorityWidth: Int) extends APlicGenericRequest(idWidth) {
   val prio = UInt(priorityWidth bits)
 
   override def prioritize(other: APlicGenericRequest): Bool = {
-    val x = other.asInstanceOf[APlicRequest]
+    val x = other.asInstanceOf[APlicDirectRequest]
     !x.valid || (valid && ((prio < x.prio) || ((prio === x.prio) && (id <= x.id))))
   }
 
@@ -44,10 +44,37 @@ case class APlicRequest(idWidth: Int, priorityWidth: Int) extends APlicGenericRe
   }
 
   override def dummy(): APlicGenericRequest = {
-    val tmp = APlicRequest(idWidth, priorityWidth)
+    val tmp = APlicDirectRequest(idWidth, priorityWidth)
     tmp.id := 0
     tmp.valid := False
     tmp.prio := 0
+    tmp
+  }
+}
+
+case class APlicMSITarget() extends Bundle {
+  val hartIdx = UInt(14 bits)
+  val guestIdx = UInt(6 bits)
+  val eiid = UInt(11 bits)
+}
+
+case class APlicMSIRequest(idWidth: Int, target: APlicMSITarget) extends APlicGenericRequest(idWidth) {
+  override def prioritize(other: APlicGenericRequest): Bool = {
+    val x = other.asInstanceOf[APlicDirectRequest]
+    !x.valid || (valid && id <= x.id)
+  }
+
+  override def pending(threshold: UInt): Bool = {
+    valid
+  }
+
+  override def dummy(): APlicGenericRequest = {
+    val dummyTarget = APlicMSITarget()
+    dummyTarget.assignDontCare()
+
+    val tmp = APlicMSIRequest(idWidth, dummyTarget)
+    tmp.id := 0
+    tmp.valid := False
     tmp
   }
 }
@@ -129,11 +156,23 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDo
     }
   }
 
-  def asRequest(idWidth: Int, targetHart: Int): APlicGenericRequest = {
-    val ret = new APlicRequest(idWidth, prio.getWidth)
+  def asDirectRequest(idWidth: Int, targetHart: Int): APlicGenericRequest = {
+    val ret = new APlicDirectRequest(idWidth, prio.getWidth)
     ret.id := U(id)
     ret.valid := ip && ie && (target === targetHart)
     ret.prio := prio
+    ret
+  }
+
+  def asMSIRequest(idWidth: Int): APlicGenericRequest = {
+    val MSITarget = APlicMSITarget()
+    MSITarget.hartIdx := target
+    MSITarget.guestIdx := guestindex
+    MSITarget.eiid := eiid
+
+    val ret = new APlicMSIRequest(idWidth, MSITarget)
+    ret.id := U(id)
+    ret.valid := ip && ie
     ret
   }
 
