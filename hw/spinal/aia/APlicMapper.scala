@@ -208,5 +208,17 @@ object APlicMapper {
         idc.doBestClaim()
       }
     }
+
+    val coherencyStall = Counter(2)
+    when(coherencyStall =/= 0) {
+      slaveBus.readHalt()
+      coherencyStall.increment()
+    }
+    slaveBus.onReadPrimitive(AllMapping, haltSensitive = false, documentation = "") {
+      coherencyStall.increment()
+    }
+    slaveBus.onWritePrimitive(AllMapping, haltSensitive = false, documentation = "") {
+      coherencyStall.increment()
+    }
   }
 }
