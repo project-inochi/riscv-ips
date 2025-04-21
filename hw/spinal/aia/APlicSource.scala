@@ -60,7 +60,7 @@ case class APlicMSITarget() extends Bundle {
 
 case class APlicMSIRequest(idWidth: Int, target: APlicMSITarget) extends APlicGenericRequest(idWidth) {
   override def prioritize(other: APlicGenericRequest): Bool = {
-    val x = other.asInstanceOf[APlicDirectRequest]
+    val x = other.asInstanceOf[APlicMSIRequest]
     !x.valid || (valid && id <= x.id)
   }
 
