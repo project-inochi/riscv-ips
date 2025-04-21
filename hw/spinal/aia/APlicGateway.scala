@@ -34,9 +34,16 @@ case class APlicMSIGateway(interrupts: Seq[APlicSource], enable: Bool) extends A
   bestRequest.valid := resultRequest.pending(0) && enable
   bestRequest.payload := resultRequest.asInstanceOf[APlicMSIRequest]
 
-  val (requestStream, _) = bestRequest.queueWithAvailability(8)
+  val (requestStream, requestStreamAvailability) = bestRequest.queueWithAvailability(8)
 
-  when (requestStream.ready) {
+  /*
+   * This is a fast path to control ip masking for the requestStream,
+   * otherwise the stream will send more than one MSI packet to the
+   * target interrupt file.
+   */
+  val allow = requests.map(_.valid).orR
+
+  when (allow && requestStreamAvailability > 0) {
     APlic.doClaim(interrupts, bestRequest.id)
   }
 }
