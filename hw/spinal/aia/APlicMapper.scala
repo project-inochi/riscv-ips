@@ -155,6 +155,30 @@ object APlicMapper {
         }
       }
 
+      val target = new Area {
+        val configFlow = slaveBus.createAndDriveFlow(UInt(18 bits), address = targetOffset + configOffset, bitOffset = 0)
+
+        when(configFlow.valid) {
+          when(aplic.isMSI) {
+            interrupt.guestId := configFlow.payload(17 downto 12)
+            interrupt.eiid := configFlow.payload(10 downto 0)
+          } otherwise {
+            interrupt.prio := configFlow.payload(7 downto 0)
+          }
+        }
+
+        val configView = aplic.isMSI.mux(
+          True  -> B(18 bits, (17 downto 12) -> interrupt.guestId.asBits,
+                              (10 downto 0) -> interrupt.eiid.asBits,
+                              default -> False),
+          False -> B(18 bits, (7 downto 0) -> interrupt.prio.asBits,
+                              default -> False),
+        )
+        slaveBus.read(configView, address = targetOffset + configOffset, bitOffset = 0)
+
+        slaveBus.readAndWrite(interrupt.targetId, address = targetOffset + configOffset, bitOffset = 18)
+      }
+
       val iep = new Area {
         slaveBus.readAndWrite(interrupt.ie, address = setieOffset + interruptOffset, bitOffset = interruptBitOffset)
 
@@ -163,11 +187,6 @@ object APlicMapper {
         when(ipDrive.valid) {
           interrupt.doPendingUpdate(ipDrive.payload)
         }
-      }
-
-      val target = new Area {
-        slaveBus.readAndWrite(interrupt.prio, address = targetOffset + configOffset, bitOffset = 0)
-        slaveBus.readAndWrite(interrupt.targetId, address = targetOffset + configOffset, bitOffset = 18)
       }
     }
 
