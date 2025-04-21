@@ -78,7 +78,7 @@ case class APlicMSIRequest(idWidth: Int) extends APlicGenericRequest(idWidth) {
   }
 }
 
-case class APlicSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDomainState, input: Bool) {
+case class APlicSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDomainState, input: Bool) extends Area {
   import APlicSourceMode._
 
   val id = sourceId
