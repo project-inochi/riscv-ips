@@ -31,19 +31,13 @@ case class APlicDirectGateway(interrupts: Seq[APlicSource], hartId: Int, enable:
 case class APlicMSIGateway(interrupts: Seq[APlicSource], enable: Bool) extends APlicGenericGateway(interrupts, _.asMSIRequest(_)) {
   val bestRequest = Flow(APlicMSIRequest(resultRequest.id.getWidth))
   val realRequest = resultRequest.asInstanceOf[APlicMSIRequest]
-  bestRequest.valid := resultRequest.pending(0) && enable
+  val realRequestDelayed = Delay(realRequest, 1)
+  bestRequest.valid := resultRequest.pending(0) && enable && realRequestDelayed =/= realRequest
   bestRequest.payload := resultRequest.asInstanceOf[APlicMSIRequest]
 
   val (requestStream, requestStreamAvailability) = bestRequest.queueWithAvailability(8)
 
-  /*
-   * This is a fast path to control ip masking for the requestStream,
-   * otherwise the stream will send more than one MSI packet to the
-   * target interrupt file.
-   */
-  val allow = requests.map(_.valid).orR
-
-  when (allow && requestStreamAvailability > 0) {
+  when (bestRequest.valid && requestStreamAvailability > 0) {
     APlic.doClaim(interrupts, bestRequest.id)
   }
 }
