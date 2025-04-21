@@ -53,8 +53,8 @@ case class APlicDirectRequest(idWidth: Int, priorityWidth: Int) extends APlicGen
 }
 
 case class APlicMSITarget() extends Bundle {
-  val hartIdx = UInt(14 bits)
-  val guestIdx = UInt(6 bits)
+  val hartId = UInt(14 bits)
+  val guestId = UInt(6 bits)
   val eiid = UInt(11 bits)
 }
 
@@ -92,11 +92,11 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDo
 
   mode.assignFromBits(modeBit)
 
-  val target = RegInit(U(0x0, 14 bits))
+  val targetId = RegInit(U(0x0, 14 bits))
   val prio = RegInit(U(0x0, 8 bits))
 
   // for msi delivery mode
-  val guestindex = RegInit(U(0x0, 6 bits))
+  val guestId = RegInit(U(0x0, 6 bits))
   val eiid = RegInit(U(0x0, 11 bits))
 
   val ipState = new Area {
@@ -158,15 +158,15 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDo
   def asDirectRequest(idWidth: Int, targetHart: Int): APlicGenericRequest = {
     val ret = new APlicDirectRequest(idWidth, prio.getWidth)
     ret.id := U(id)
-    ret.valid := ip && ie && (target === targetHart)
+    ret.valid := ip && ie && (targetId === targetHart)
     ret.prio := prio
     ret
   }
 
   def asMSIRequest(idWidth: Int): APlicGenericRequest = {
     val ret = new APlicMSIRequest(idWidth)
-    ret.target.hartIdx := target
-    ret.target.guestIdx := guestindex
+    ret.target.hartId := targetId
+    ret.target.guestId := guestId
     ret.target.eiid := eiid
     ret.id := U(id)
     ret.valid := ip && ie

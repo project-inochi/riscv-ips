@@ -74,7 +74,7 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
 
   val msiStream = msiGateway.requestStream.map(req => {
     val payload = APlicMSIPayload()
-    payload.address := msiaddrcfg.msiAddress(req.target.hartIdx, req.target.guestIdx).resized
+    payload.address := msiaddrcfg.msiAddress(req.target.hartId, req.target.guestId).resized
     payload.data := req.target.eiid.resized
     payload
   })

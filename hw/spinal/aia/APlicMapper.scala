@@ -119,7 +119,7 @@ object APlicMapper {
         payload
       })
 
-      val msiStream = StreamArbiterFactory.lowerFirst.noLock.onArgs(aplic.msiStream, genmsiStream)
+      val msiStream = StreamArbiterFactory().lowerFirst.noLock.onArgs(aplic.msiStream, genmsiStream)
 
       masterBus.send(msiStream)
     }
@@ -162,7 +162,7 @@ object APlicMapper {
       }
 
       slaveBus.readAndWrite(interrupt.prio, address = targetOffset + configOffset, bitOffset = 0)
-      slaveBus.readAndWrite(interrupt.target, address = targetOffset + configOffset, bitOffset = 18)
+      slaveBus.readAndWrite(interrupt.targetId, address = targetOffset + configOffset, bitOffset = 18)
     }
 
     // mapping interrupt delivery control for each gateway
