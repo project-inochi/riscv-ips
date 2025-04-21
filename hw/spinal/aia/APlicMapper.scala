@@ -119,7 +119,7 @@ object APlicMapper {
         payload
       })
 
-      val msiStream = StreamArbiterFactory().lowerFirst.noLock.onArgs(aplic.msiStream, genmsiStream)
+      val msiStream = StreamArbiterFactory().lowerFirst.transactionLock.onArgs(aplic.msiStream, genmsiStream)
 
       masterBus.send(msiStream)
     }
@@ -209,16 +209,16 @@ object APlicMapper {
       }
     }
 
-    val coherencyStall = Counter(2)
-    when(coherencyStall =/= 0) {
-      slaveBus.readHalt()
-      coherencyStall.increment()
-    }
-    slaveBus.onReadPrimitive(AllMapping, haltSensitive = false, documentation = "") {
-      coherencyStall.increment()
-    }
-    slaveBus.onWritePrimitive(AllMapping, haltSensitive = false, documentation = "") {
-      coherencyStall.increment()
-    }
+    // val coherencyStall = Counter(2)
+    // when(coherencyStall =/= 0) {
+    //   slaveBus.readHalt()
+    //   coherencyStall.increment()
+    // }
+    // slaveBus.onReadPrimitive(AllMapping, haltSensitive = false, documentation = "") {
+    //   coherencyStall.increment()
+    // }
+    // slaveBus.onWritePrimitive(AllMapping, haltSensitive = false, documentation = "") {
+    //   coherencyStall.increment()
+    // }
   }
 }

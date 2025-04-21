@@ -318,17 +318,18 @@ object APlicMSISim extends App {
       print(agent.putFullData(0, masteroffset + aplicmap.setienumOffset, SimUInt32(i)))
     }
 
-    print(agent.putFullData(0, masteroffset + aplicmap.domaincfgOffset, SimUInt32(0x80000104)))
-    print(agent.putFullData(0, slaveoffset + aplicmap.domaincfgOffset, SimUInt32(0x80000104)))
-
-    dut.io.sources #= 0b0011111
-
     print(agent.putFullData(0, masteroffset + aplicmap.mmsiaddrcfgOffset, SimUInt32(imsicoffset>>12)))
     print(agent.putFullData(0, masteroffset + aplicmap.mmsiaddrcfghOffset, SimUInt32(0x1000)))
+
+    print(agent.putFullData(0, masteroffset + aplicmap.domaincfgOffset, SimUInt32(0x80000104)))
+    print(agent.putFullData(0, slaveoffset + aplicmap.domaincfgOffset, SimUInt32(0x80000104)))
+    
+    dut.io.sources #= 0b0011111
+
     print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x2)))
     print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x40004)))
 
-    dut.clockDomain.waitRisingEdge(10)
+    dut.clockDomain.waitRisingEdge(50)
   }
 
   def assertData(data: tilelink.sim.TransactionD, answer: Int, name: String): Unit = {
