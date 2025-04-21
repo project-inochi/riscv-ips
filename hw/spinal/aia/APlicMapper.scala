@@ -148,21 +148,27 @@ object APlicMapper {
       val interruptBitOffset = interrupt.id % slaveBus.busDataWidth
       val configOffset = (interrupt.id - 1) * 4
 
-      val configFlow = slaveBus.createAndDriveFlow(UInt(11 bits), sourcecfgOffset + configOffset)
-      when(configFlow.valid) {
-        interrupt.setConfig(configFlow.payload)
+      val source = new Area {
+        val configFlow = slaveBus.createAndDriveFlow(UInt(11 bits), sourcecfgOffset + configOffset)
+        when(configFlow.valid) {
+          interrupt.setConfig(configFlow.payload)
+        }
       }
 
-      slaveBus.readAndWrite(interrupt.ie, address = setieOffset + interruptOffset, bitOffset = interruptBitOffset)
+      val iep = new Area {
+        slaveBus.readAndWrite(interrupt.ie, address = setieOffset + interruptOffset, bitOffset = interruptBitOffset)
 
-      slaveBus.read(interrupt.ip, address = setipOffset + interruptOffset, bitOffset = interruptBitOffset)
-      val ipDrive = slaveBus.createAndDriveFlow(Bool(), address = setipOffset + interruptOffset, bitOffset = interruptBitOffset)
-      when(ipDrive.valid) {
-        interrupt.doPendingUpdate(ipDrive.payload)
+        slaveBus.read(interrupt.ip, address = setipOffset + interruptOffset, bitOffset = interruptBitOffset)
+        val ipDrive = slaveBus.createAndDriveFlow(Bool(), address = setipOffset + interruptOffset, bitOffset = interruptBitOffset)
+        when(ipDrive.valid) {
+          interrupt.doPendingUpdate(ipDrive.payload)
+        }
       }
 
-      slaveBus.readAndWrite(interrupt.prio, address = targetOffset + configOffset, bitOffset = 0)
-      slaveBus.readAndWrite(interrupt.targetId, address = targetOffset + configOffset, bitOffset = 18)
+      val target = new Area {
+        slaveBus.readAndWrite(interrupt.prio, address = targetOffset + configOffset, bitOffset = 0)
+        slaveBus.readAndWrite(interrupt.targetId, address = targetOffset + configOffset, bitOffset = 18)
+      }
     }
 
     // mapping interrupt delivery control for each gateway
