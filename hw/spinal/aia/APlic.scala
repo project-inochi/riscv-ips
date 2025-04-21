@@ -3,6 +3,51 @@ package aia
 import spinal.core._
 import spinal.lib._
 
+case class APlicGenParam(withIEP: Boolean,
+                         withMSI: Boolean,
+                         msiFifoSize: Int = 8)
+
+object APlicGenParam {
+  def full = APlicGenParam(
+    withIEP     = true,
+    withMSI     = true,
+  )
+
+  def MSI = APlicGenParam(
+    withIEP     = false,
+    withMSI     = true,
+  )
+
+  def light = APlicGenParam(
+    withIEP     = false,
+    withMSI     = false,
+  )
+}
+
+case class APlicDomainParam(isRoot: Boolean,
+                            isMDomain: Boolean,
+                            genParam: APlicGenParam)
+
+object APlicDomainParam {
+  def root(genParam: APlicGenParam) = APlicDomainParam(
+    isRoot    = true,
+    isMDomain = true,
+    genParam  = genParam,
+  )
+
+  def M(genParam: APlicGenParam) = APlicDomainParam(
+    isRoot    = false,
+    isMDomain = true,
+    genParam  = genParam,
+  )
+
+  def S(genParam: APlicGenParam) = APlicDomainParam(
+    isRoot    = false,
+    isMDomain = false,
+    genParam  = genParam,
+  )
+}
+
 case class APlicSlaveInfo(childIdx: Int, sourceIds: Seq[Int])
 
 case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSlaveInfo]) extends Area {
