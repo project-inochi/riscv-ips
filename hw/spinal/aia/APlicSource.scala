@@ -99,6 +99,28 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDo
   val guestId = RegInit(U(0x0, 6 bits))
   val eiid = RegInit(U(0x0, 11 bits))
 
+  val rectified = new Area {
+    val value = Bool()
+
+    switch(mode) {
+      is(EDGE1) {
+        value := input.rise()
+      }
+      is(EDGE0) {
+        value := input.fall()
+      }
+      is(LEVEL1) {
+        value := input
+      }
+      is(LEVEL0) {
+        value := ~input
+      }
+      default {
+        value := False
+      }
+    }
+  }
+
   val ipState = new Area {
     val allowModify = Bool()
     val ctx = WhenBuilder()
@@ -225,6 +247,9 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDo
         for (state <- APlicSourceMode.elements) {
           is(state.asBits.asUInt) {
             config := payload(2 downto 0).resized
+            when (rectified.value) {
+              doSet()
+            }
           }
         }
 
