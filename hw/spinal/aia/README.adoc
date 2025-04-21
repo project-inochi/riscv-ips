@@ -41,8 +41,10 @@ TODOs:
 
    - lock idc Reg
 
+   - clrip and clrie [x]
+
 3. APlic:
 
-   - lock target output(better method)
+   - lock target output(better method) [x]
 
-   - Separate DM
+   - Separate DM [x]

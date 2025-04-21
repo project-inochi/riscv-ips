@@ -137,6 +137,10 @@ object APlicSim extends App {
     print(agent.putFullData(0, slaveoffset + aplicmap.domaincfgOffset, SimUInt32(0x80000100)))
 
     // set/clripnum
+    print(agent.putFullData(0, masteroffset + aplicmap.clrieOffset, SimUInt32(0b100)))
+    assertData(agent.get(0, masteroffset + aplicmap.setieOffset, 4), 0xe8, "master_ip")
+    print(agent.putFullData(0, masteroffset + aplicmap.setieOffset, SimUInt32(0xff)))
+
     print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x2)))
     dut.clockDomain.waitRisingEdge(10)
 
@@ -146,6 +150,11 @@ object APlicSim extends App {
     assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000004, "master_ip")
     print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x1)))
     assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000004, "master_ip")
+
+    print(agent.putFullData(0, masteroffset + aplicmap.in_clripOffset, SimUInt32(0b100)))
+    assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000000, "master_ip")
+
+    print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x2)))
 
     assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00020002, "master_claimi")
     assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000000, "master_ip")
@@ -168,6 +177,7 @@ object APlicSim extends App {
     // input and delagation
     dut.io.sources #= 0b0111110
     dut.clockDomain.waitRisingEdge(2)
+    assertData(agent.get(0, masteroffset + aplicmap.in_clripOffset, 4), 0x000000c0, "master_ip")
     assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x000000c8, "master_ip")
     assertData(agent.get(0, slaveoffset + aplicmap.setipOffset, 4), 0x00000002, "slave_ip")
 
