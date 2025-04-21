@@ -297,9 +297,8 @@ object APlicMSISim extends App {
   compile.doSim{ dut =>
     dut.clockDomain.forkStimulus(10)
 
-    dut.io.sources #= 0b1000001
+    dut.io.sources #= 0b0000000
     dut.io.ie(0) #= 0x7f
-
 
     implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
     val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
@@ -310,8 +309,20 @@ object APlicMSISim extends App {
 
     // addsim
     // msicfg
+    print(agent.putFullData(0, masteroffset + aplicmap.domaincfgOffset, SimUInt32(0x80000004)))
+    print(agent.putFullData(0, slaveoffset + aplicmap.domaincfgOffset, SimUInt32(0x80000004)))
+
+    for (i <- 1 to 6) {
+      print(agent.putFullData(0, masteroffset + aplicmap.sourcecfgOffset + (i - 1) * 4, SimUInt32(0x6)))
+      print(agent.putFullData(0, masteroffset + aplicmap.targetOffset + (i - 1) * 4, SimUInt32(i)))
+      print(agent.putFullData(0, masteroffset + aplicmap.setienumOffset, SimUInt32(i)))
+    }
+
     print(agent.putFullData(0, masteroffset + aplicmap.domaincfgOffset, SimUInt32(0x80000104)))
     print(agent.putFullData(0, slaveoffset + aplicmap.domaincfgOffset, SimUInt32(0x80000104)))
+
+    dut.io.sources #= 0b0011111
+
     print(agent.putFullData(0, masteroffset + aplicmap.mmsiaddrcfgOffset, SimUInt32(imsicoffset>>12)))
     print(agent.putFullData(0, masteroffset + aplicmap.mmsiaddrcfghOffset, SimUInt32(0x1000)))
     print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x2)))
