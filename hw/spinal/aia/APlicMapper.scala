@@ -92,14 +92,18 @@ object APlicMapper {
         }
       }
 
-      val genmsiFlow = slaveBus.createAndDriveFlow(UInt(32 bits), genmsiOffset)
-      val (genmsiFlowStream, _) = genmsiFlow.queueWithOccupancy(2)
+      val genmsiBusy = Bool()
+      val genmsiFlow = slaveBus.createAndDriveFlow(UInt(32 bits), genmsiOffset).discardWhen(genmsiBusy)
+      val (genmsiFlowStream, requestStreamOccupancy) = genmsiFlow.queueWithOccupancy(1)
+      genmsiBusy := requestStreamOccupancy > 0
       val genmsiStream = genmsiFlowStream.map(params => {
         val payload = APlicMSIPayload()
         payload.address := msiaddrcfg.msiAddress(params(31 downto 18)).resized
         payload.data := params(10 downto 0).resized
         payload
       })
+
+      slaveBus.read(genmsiFlowStream.payload | (genmsiBusy.asUInt << 12).resized, address = genmsiOffset)
 
       val msiStream = StreamArbiterFactory().lowerFirst.transactionLock.onArgs(aplic.msiStream, genmsiStream)
 
