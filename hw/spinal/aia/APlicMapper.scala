@@ -94,8 +94,8 @@ object APlicMapper {
 
       val genmsiBusy = Bool()
       val genmsiFlow = slaveBus.createAndDriveFlow(UInt(32 bits), genmsiOffset).discardWhen(genmsiBusy)
-      val (genmsiFlowStream, requestStreamOccupancy) = genmsiFlow.queueWithOccupancy(1)
-      genmsiBusy := requestStreamOccupancy > 0
+      val genmsiFlowStream = genmsiFlow.toStream.m2sPipe()
+      genmsiBusy := genmsiFlowStream.valid
       val genmsiStream = genmsiFlowStream.map(params => {
         val payload = APlicMSIPayload()
         payload.address := msiaddrcfg.msiAddress(params(31 downto 18)).resized

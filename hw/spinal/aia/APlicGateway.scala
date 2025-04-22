@@ -43,15 +43,17 @@ case class APlicMSIGateway(interrupts: Seq[APlicSource], enable: Bool) extends A
     takeA ? a | b
   }))
 
-  val bestRequest = Flow(APlicMSIRequest(resultRequest.id.getWidth))
   val realRequest = resultRequest.asInstanceOf[APlicMSIRequest]
   val realRequestDelayed = Delay(realRequest, 1)
-  bestRequest.valid := resultRequest.pending(0) && enable && realRequestDelayed =/= realRequest
-  bestRequest.payload := resultRequest.asInstanceOf[APlicMSIRequest]
 
-  val requestStream = bestRequest.toStream
+  val requestStream = Stream(APlicMSIRequest(resultRequest.id.getWidth))
 
-  when (bestRequest.valid) {
-    APlic.doClaim(interrupts, bestRequest.id)
+  val requestMask = RegNext(requestStream.ready)
+
+  requestStream.valid   := resultRequest.pending(0) && enable && !requestMask
+  requestStream.payload := realRequest
+
+  when (requestStream.ready) {
+    APlic.doClaim(interrupts, requestStream.payload.id)
   }
 }
