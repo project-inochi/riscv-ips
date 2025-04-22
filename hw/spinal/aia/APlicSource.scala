@@ -36,11 +36,17 @@ case class APlicDirectRequest(idWidth: Int, priorityWidth: Int) extends APlicGen
 
   override def prioritize(other: APlicGenericRequest): Bool = {
     val x = other.asInstanceOf[APlicDirectRequest]
-    !x.valid || (valid && ((prio < x.prio) || ((prio === x.prio) && (id <= x.id))))
+    val prioCheck = (prio < x.prio) || ((prio === x.prio) && (id <= x.id))
+
+    // !x.valid || (valid && prioCheck)
+    !x.valid || (valid && ((x.id === 0) || ((id =/= 0) && prioCheck)))
   }
 
   override def pending(threshold: UInt): Bool = {
-    valid && ((threshold === 0) || (prio < threshold))
+    val prioCheck = (threshold === 0) || (prio < threshold)
+
+    // vaild && prioCheck
+    valid && ((id === 0) || ((id =/= 0) && prioCheck ))
   }
 
   override def dummy(): APlicGenericRequest = {

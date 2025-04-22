@@ -3,22 +3,26 @@ package aia
 import spinal.core._
 import spinal.lib._
 
-class APlicGenericGateway(interrupts: Seq[APlicSource], requestGen: (APlicSource, Int) => APlicGenericRequest) extends Area {
+case class APlicDirectGateway(interrupts: Seq[APlicSource], hartId: Int, enable: Bool) extends Area {
   val maxSource = (interrupts.map(_.id) ++ Seq(0)).max + 1
+  val priorityWidth = (interrupts.map(_.prio.getWidth)).max
   val idWidth = log2Up(maxSource)
 
-  val requests = interrupts.sortBy(_.id).map(requestGen(_, idWidth))
+  val idelivery = RegInit(False)
+  val iforce = RegInit(False)
+  val ithreshold = RegInit(U(0x0, 8 bits))
+
+  val iforceRequest = new APlicDirectRequest(idWidth, priorityWidth)
+  iforceRequest.id := 0
+  iforceRequest.valid := iforce
+  iforceRequest.prio := 0
+
+  val requests = Seq(iforceRequest) ++ interrupts.sortBy(_.id).map(_.asDirectRequest(idWidth, hartId))
 
   val resultRequest = RegNext(requests.reduceBalancedTree((a, b) => {
     val takeA = a.prioritize(b)
     takeA ? a | b
   }))
-}
-
-case class APlicDirectGateway(interrupts: Seq[APlicSource], hartId: Int, enable: Bool) extends APlicGenericGateway(interrupts, _.asDirectRequest(_, hartId)) {
-  val idelivery = RegInit(False)
-  val iforce = RegInit(False)
-  val ithreshold = RegInit(U(0x0, 8 bits))
 
   val iep = resultRequest.pending(ithreshold) && enable
   val bestRequest = resultRequest.verify(iep)
@@ -28,7 +32,17 @@ case class APlicDirectGateway(interrupts: Seq[APlicSource], hartId: Int, enable:
   }
 }
 
-case class APlicMSIGateway(interrupts: Seq[APlicSource], enable: Bool) extends APlicGenericGateway(interrupts, _.asMSIRequest(_)) {
+case class APlicMSIGateway(interrupts: Seq[APlicSource], enable: Bool) extends Area {
+  val maxSource = (interrupts.map(_.id) ++ Seq(0)).max + 1
+  val idWidth = log2Up(maxSource)
+
+  val requests = interrupts.sortBy(_.id).map(_.asMSIRequest(idWidth))
+
+  val resultRequest = RegNext(requests.reduceBalancedTree((a, b) => {
+    val takeA = a.prioritize(b)
+    takeA ? a | b
+  }))
+
   val bestRequest = Flow(APlicMSIRequest(resultRequest.id.getWidth))
   val realRequest = resultRequest.asInstanceOf[APlicMSIRequest]
   val realRequestDelayed = Delay(realRequest, 1)
