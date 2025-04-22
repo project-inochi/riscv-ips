@@ -49,6 +49,7 @@ case class APlicMSIGateway(interrupts: Seq[APlicSource], enable: Bool) extends A
   val requestStream = Stream(APlicMSIRequest(resultRequest.id.getWidth))
 
   val requestMask = RegNext(requestStream.ready)
+  val requestStreamValidMask = requestMask || requestStream.valid
 
   requestStream.valid   := resultRequest.pending(0) && enable && !requestMask
   requestStream.payload := realRequest

@@ -38,6 +38,11 @@ case class APlicMSIPayload() extends Bundle {
   val data = UInt(32 bits)
 }
 
+case class APlicGenMSIPayload() extends Bundle {
+  val hartId = UInt(14 bits)
+  val eiid = UInt(11 bits)
+}
+
 trait APlicBusMasterSend {
   def send(stream: Stream[APlicMSIPayload]): Area
 }
@@ -92,18 +97,46 @@ object APlicMapper {
         }
       }
 
-      val genmsiBusy = Bool()
-      val genmsiFlow = slaveBus.createAndDriveFlow(UInt(32 bits), genmsiOffset).discardWhen(genmsiBusy)
-      val genmsiFlowStream = genmsiFlow.toStream.m2sPipe()
-      genmsiBusy := genmsiFlowStream.valid
-      val genmsiStream = genmsiFlowStream.map(params => {
+      val genmsiPayload = Flow(APlicGenMSIPayload())
+      val genmsiFlow = slaveBus.createAndDriveFlow(UInt(32 bits), genmsiOffset).discardWhen(genmsiPayload.valid)
+
+      // use register to store and wrap genmsiFlow's value
+      val rGenmsiFlow = new Area {
+        val valid = RegInit(False)
+        val hartId = RegInit(U(0, 14 bits))
+        val eiid = RegInit(U(0, 11 bits))
+
+        when(genmsiFlow.valid) {
+          valid := True
+          hartId := genmsiFlow.payload(31 downto 18)
+          eiid := genmsiFlow.payload(10 downto 0)
+        }
+      }
+
+      genmsiPayload.valid := rGenmsiFlow.valid
+      genmsiPayload.payload.hartId := rGenmsiFlow.hartId
+      genmsiPayload.payload.eiid := rGenmsiFlow.eiid
+
+      val genmsiPayloadStream = Stream(APlicGenMSIPayload())
+      genmsiPayloadStream.valid := genmsiPayload.valid && !aplic.msiGateway.requestStreamValidMask
+      genmsiPayloadStream.payload := genmsiPayload.payload
+
+      when(genmsiPayloadStream.ready) {
+        rGenmsiFlow.valid := False
+        rGenmsiFlow.hartId := 0
+        rGenmsiFlow.eiid := 0
+      }
+
+      val genmsiStream = genmsiPayloadStream.map(param => {
         val payload = APlicMSIPayload()
-        payload.address := msiaddrcfg.msiAddress(params(31 downto 18)).resized
-        payload.data := params(10 downto 0).resized
+        payload.address := msiaddrcfg.msiAddress(param.hartId).resized
+        payload.data := param.eiid.resized
         payload
       })
 
-      slaveBus.read(genmsiFlowStream.payload | (genmsiBusy.asUInt << 12).resized, address = genmsiOffset)
+      slaveBus.read(genmsiPayload.payload.hartId, address = genmsiOffset, bitOffset = 18)
+      slaveBus.read(genmsiPayload.valid, address = genmsiOffset, bitOffset = 12)
+      slaveBus.read(genmsiPayload.payload.eiid, address = genmsiOffset, bitOffset = 0)
 
       val msiStream = StreamArbiterFactory().lowerFirst.noLock.onArgs(aplic.msiStream, genmsiStream)
 
