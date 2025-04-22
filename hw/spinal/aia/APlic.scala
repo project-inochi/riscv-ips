@@ -50,13 +50,15 @@ object APlicDomainParam {
 
 case class APlicSlaveInfo(childIdx: Int, sourceIds: Seq[Int])
 
-case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSlaveInfo]) extends Area {
+case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSlaveInfo], domainParam: APlicDomainParam) extends Area {
   require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
   require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")
 
   val sources = Bits(sourceIds.size bits)
   val directTargets = Bits(hartIds.size bits)
   val slaveSources = Vec(slaveInfos.map(slaveInfo => Bits(slaveInfo.sourceIds.size bits)))
+  val mmsiaddrcfg = UInt(64 bits)
+  val smsiaddrcfg = UInt(64 bits)
 
   val slaveInterruptIds = slaveInfos.flatMap(slaveInfo => slaveInfo.sourceIds).distinct
   val interruptDelegatable = for (sourceId <- sourceIds) yield slaveInterruptIds.find(_ == sourceId).isDefined
@@ -67,32 +69,54 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
 
   val msiaddrcfg = new Area {
     val lock = RegInit(False)
-    val ppn = RegInit(U(0x0, 44 bits))
-    val hhxs = RegInit(U(0x0, 5 bits))
-    val lhxs = RegInit(U(0x0, 3 bits))
-    val hhxw = RegInit(U(0x0, 3 bits))
-    val lhxw = RegInit(U(0x0, 4 bits))
+    val ppn_M = RegInit(U(0x0, 44 bits))
+    val hhxs_M = RegInit(U(0x0, 5 bits))
+    val lhxs_M = RegInit(U(0x0, 3 bits))
+    val hhxw_M = RegInit(U(0x0, 3 bits))
+    val lhxw_M = RegInit(U(0x0, 4 bits))
 
-    val maskH = U(1) << hhxw - 1
-    val maskL = U(1) << lhxw - 1
+    val ppn_S = RegInit(U(0x0, 44 bits))
+    val lhxs_S = RegInit(U(0x0, 3 bits))
+
+    if (!domainParam.isRoot){
+      lock := mmsiaddrcfg(31)
+      ppn_M := (mmsiaddrcfg(63 downto 32)##mmsiaddrcfg(11 downto 0)).asUInt
+      hhxs_M := mmsiaddrcfg(28 downto 24)
+      lhxs_M := mmsiaddrcfg(22 downto 20)
+      hhxw_M := mmsiaddrcfg(18 downto 16)
+      lhxw_M := mmsiaddrcfg(15 downto 12)
+
+      ppn_S := Mux(Bool(domainParam.isMDomain), U(0), (smsiaddrcfg(63 downto 32)##smsiaddrcfg(11 downto 0)).asUInt)
+      lhxs_S := Mux(Bool(domainParam.isMDomain), U(0), smsiaddrcfg(22 downto 20))
+    }
+
+    val maskH = U(1) << hhxw_M - 1
+    val maskL = U(1) << lhxw_M - 1
 
     val readable = !lock && isMSI
+    val writeable = !lock && isMSI && Bool(domainParam.isRoot)
 
-    val msiaddrh = U(0x0, 32 bits)
-    msiaddrh(31) := lock
-    msiaddrh(28 downto 24) := hhxs
-    msiaddrh(22 downto 20) := lhxs
-    msiaddrh(18 downto 16) := hhxw
-    msiaddrh(15 downto 12) := lhxw
-    msiaddrh(11 downto 0) := ppn(43 downto 32)
+    val msiaddr_M = U(0x0, 64 bits)
+    msiaddr_M(63 downto 32) := ppn_M(31 downto 0)
+    msiaddr_M(31) := lock
+    msiaddr_M(28 downto 24) := hhxs_M
+    msiaddr_M(22 downto 20) := lhxs_M
+    msiaddr_M(18 downto 16) := hhxw_M
+    msiaddr_M(15 downto 12) := lhxw_M
+    msiaddr_M(11 downto 0) := ppn_M(43 downto 32)
+
+    val msiaddr_S = U(0x0, 64 bits)
+    msiaddr_S(63 downto 32) := ppn_S(31 downto 0)
+    msiaddr_S(22 downto 20) := lhxs_S
+    msiaddr_S(11 downto 0) := ppn_S(43 downto 32)
 
     def msiAddress(hartIndex: UInt, guestIndex: UInt = 0): UInt = {
-      val groupId = (hartIndex >> lhxw) & maskH.resized
+      val groupId = (hartIndex >> lhxw_M) & maskH.resized
       val hartId = hartIndex & maskL.resized
-      val groupOffset = groupId << (hhxs + 12)
-      val hartOffset = hartId << lhxs
+      val groupOffset = groupId << (hhxs_M + 12)
+      val hartOffset = hartId << Mux(Bool(domainParam.isMDomain), lhxs_M, lhxs_S)
 
-      val msiaddr = (ppn | groupOffset.resized | hartOffset.resized | guestIndex.resized) << 12
+      val msiaddr = (ppn_M | groupOffset.resized | hartOffset.resized | guestIndex.resized) << 12
       msiaddr
     }
   }

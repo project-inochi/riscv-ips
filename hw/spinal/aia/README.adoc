@@ -41,10 +41,11 @@ TODOs:
 
    - lock idc Reg
 
-   - clrip and clrie [x]
+3. mmsicfg/smsicfg
 
-3. APlic:
+   - root no In, leaf no Out
 
-   - lock target output(better method) [x]
+   - domainParam when build
 
-   - Separate DM [x]
+   - line between master and slave
+   
