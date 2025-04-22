@@ -4,63 +4,33 @@ import spinal.core._
 import spinal.lib._
 import spinal.lib.bus.misc.{BusSlaveFactory, AllMapping, SingleMapping}
 
-case class APlicMapping(
-  domaincfgOffset     : Int,
-  sourcecfgOffset     : Int,
-  mmsiaddrcfgOffset   : Int,
-  mmsiaddrcfghOffset  : Int,
-  smsiaddrcfgOffset   : Int,
-  smsiaddrcfghOffset  : Int,
-  setipOffset         : Int,
-  setipnumOffset      : Int,
-  in_clripOffset      : Int,
-  clripnumOffset      : Int,
-  setieOffset         : Int,
-  setienumOffset      : Int,
-  clrieOffset         : Int,
-  clrienumOffset      : Int,
-  setipnum_leOffset   : Int,
-  setipnum_beOffset   : Int,
-  genmsiOffset        : Int,
-  targetOffset        : Int,
-  idcOffset           : Int,
-  idcGroup            : Int,
-  ideliveryOffset     : Int,
-  iforceOffset        : Int,
-  ithresholdOffset    : Int,
-  topiOffset          : Int,
-  claimiOffset        : Int
-)
-
 object APlicMapping {
-  def aplicMap = APlicMapping(
-    domaincfgOffset     = 0x0000,
-    sourcecfgOffset     = 0x0004,
-    mmsiaddrcfgOffset   = 0x1BC0,
-    mmsiaddrcfghOffset  = 0x1BC4,
-    smsiaddrcfgOffset   = 0x1BC8,
-    smsiaddrcfghOffset  = 0x1BCC,
-    setipOffset         = 0x1C00,
-    setipnumOffset      = 0x1CDC,
-    in_clripOffset      = 0x1D00,
-    clripnumOffset      = 0x1DDC,
-    setieOffset         = 0x1E00,
-    setienumOffset      = 0x1EDC,
-    clrieOffset         = 0x1F00,
-    clrienumOffset      = 0x1FDC,
-    setipnum_leOffset   = 0x2000,
-    setipnum_beOffset   = 0x2004,
-    genmsiOffset        = 0x3000,
-    targetOffset        = 0x3004,
+  val domaincfgOffset     = 0x0000
+  val sourcecfgOffset     = 0x0004
+  val mmsiaddrcfgOffset   = 0x1BC0
+  val mmsiaddrcfghOffset  = 0x1BC4
+  val smsiaddrcfgOffset   = 0x1BC8
+  val smsiaddrcfghOffset  = 0x1BCC
+  val setipOffset         = 0x1C00
+  val setipnumOffset      = 0x1CDC
+  val in_clripOffset      = 0x1D00
+  val clripnumOffset      = 0x1DDC
+  val setieOffset         = 0x1E00
+  val setienumOffset      = 0x1EDC
+  val clrieOffset         = 0x1F00
+  val clrienumOffset      = 0x1FDC
+  val setipnum_leOffset   = 0x2000
+  val setipnum_beOffset   = 0x2004
+  val genmsiOffset        = 0x3000
+  val targetOffset        = 0x3004
 
-    idcOffset           = 0x4000,
-    idcGroup            = 32,
-    ideliveryOffset     = 0x00,
-    iforceOffset        = 0x04,
-    ithresholdOffset    = 0x08,
-    topiOffset          = 0x18,
-    claimiOffset        = 0x1c
-  )
+  val idcOffset           = 0x4000
+  val idcGroupSize        = 0x20
+  val ideliveryOffset     = 0x00
+  val iforceOffset        = 0x04
+  val ithresholdOffset    = 0x08
+  val topiOffset          = 0x18
+  val claimiOffset        = 0x1c
 }
 
 case class APlicMSIPayload() extends Bundle {
@@ -73,8 +43,8 @@ trait APlicBusMasterSend {
 }
 
 object APlicMapper {
-  def apply(slaveBus: BusSlaveFactory, masterBus: APlicBusMasterSend, mapping: APlicMapping)(aplic: APlic) = new Area{
-    import mapping._
+  def apply(slaveBus: BusSlaveFactory, masterBus: APlicBusMasterSend)(aplic: APlic) = new Area{
+    import APlicMapping._
 
     val domaincfg = new Area {
       slaveBus.read(U(0x80, 8 bits), address = domaincfgOffset, bitOffset = 24)
@@ -203,7 +173,7 @@ object APlicMapper {
 
     // mapping interrupt delivery control for each gateway
     val idcs = for(idc <- aplic.directGateways) yield new Area {
-      val idcThisOffset = idcOffset + (idc.hartId * idcGroup)
+      val idcThisOffset = idcOffset + (idc.hartId * idcGroupSize)
       val nowRequest = idc.bestRequest.asInstanceOf[APlicDirectRequest]
 
       slaveBus.readAndWrite(idc.idelivery, address = idcThisOffset + ideliveryOffset)

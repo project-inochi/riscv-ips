@@ -21,8 +21,6 @@ class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
   require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
   require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")
 
-  val aplicMap = APlicMapping.aplicMap
-
   val io = new Bundle {
     val slaveBus = slave(slaveType())
     val masterBus = master(masterType())
@@ -39,7 +37,7 @@ class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
 
   val factory = factoryGen(io.slaveBus)
   val helper = helperGen(io.masterBus)
-  val mapping = APlicMapper(factory, helper, aplicMap)(aplic)
+  val mapping = APlicMapper(factory, helper)(aplic)
 }
 
 case class TilelinkAplic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSlaveInfo],

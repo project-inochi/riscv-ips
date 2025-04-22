@@ -78,7 +78,7 @@ object APlicSim extends App {
   val slavesourceIds = IndexedSeq(1, 4)
   val hartIds = for (i <- 0 until hartnum) yield i
 
-  val aplicmap = APlicMapping.aplicMap
+  val aplicmap = APlicMapping
 
   val compile = Config.sim.compile {
     val aplicsFiber = new TilelinkAPLICFiberTest(hartIds, sourceIds, slavesourceIds)
@@ -297,7 +297,7 @@ object APlicMSISim extends App {
   val slavesourceIds = IndexedSeq(1, 4)
   val hartIds = for (i <- 0 until hartnum) yield i
 
-  val aplicmap = APlicMapping.aplicMap
+  val aplicmap = APlicMapping
 
   val compile = Config.sim.compile {
     val aplicsFiber = new TilelinkAPLICMSIFiberTest(hartIds, sourceIds, slavesourceIds)
@@ -333,7 +333,7 @@ object APlicMSISim extends App {
 
     print(agent.putFullData(0, masteroffset + aplicmap.domaincfgOffset, SimUInt32(0x80000104)))
     print(agent.putFullData(0, slaveoffset + aplicmap.domaincfgOffset, SimUInt32(0x80000104)))
-    
+
     dut.io.sources #= 0b0011111
 
     print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x2)))
