@@ -25,15 +25,26 @@ class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
     val slaveBus = slave(slaveType())
     val masterBus = master(masterType())
     val sources = in Bits (sourceIds.size bits)
+    val mmsiaddrcfgIn = in Bits (64 bits)
+    val smsiaddrcfgIn = in Bits (64 bits)
+    val mmsiaddrhcfgOut = out Bits (64 bits)
+    val smsiaddrhcfgOut = out Bits (64 bits)
     val targets = out Bits (hartIds.size bits)
     val slaveSources = out Vec(slaveInfos.map(slaveInfo => Bits(slaveInfo.sourceIds.size bits)))
   }
 
-  val aplic = APlic(sourceIds, hartIds, slaveInfos)
+  // tmp
+  val domainParam = new APlicDomainParam(true, true, APlicGenParam.MSI)
+
+  val aplic = APlic(sourceIds, hartIds, slaveInfos, domainParam)
 
   aplic.sources := io.sources
+  aplic.mmsiaddrcfg := io.mmsiaddrcfgIn.asUInt
+  aplic.smsiaddrcfg := io.smsiaddrcfgIn.asUInt
   io.targets := aplic.directTargets
   io.slaveSources := aplic.slaveSources
+  io.mmsiaddrhcfgOut := aplic.msiaddrcfg.msiaddr_M.asBits
+  io.smsiaddrhcfgOut := aplic.msiaddrcfg.msiaddr_S.asBits
 
   val factory = factoryGen(io.slaveBus)
   val helper = helperGen(io.masterBus)

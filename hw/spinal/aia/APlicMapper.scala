@@ -57,27 +57,35 @@ object APlicMapper {
     val msi = new Area {
       val msiaddrReg = aplic.msiaddrcfg
 
-      slaveBus.read(Mux(msiaddrReg.readable, msiaddrReg.ppn(31 downto 0), U(0)), address = mmsiaddrcfgOffset)
-      slaveBus.read(Mux(msiaddrReg.readable, msiaddrReg.msiaddrh, U(0)), address = mmsiaddrcfghOffset)
+      slaveBus.read(Mux(msiaddrReg.readable, msiaddrReg.ppn_M(31 downto 0), U(0)), address = mmsiaddrcfgOffset)
+      slaveBus.read(Mux(msiaddrReg.readable, msiaddrReg.msiaddr_M(31 downto 0), U(0)), address = mmsiaddrcfghOffset)
+      slaveBus.read(Mux(msiaddrReg.readable, msiaddrReg.ppn_S(31 downto 0), U(0)), address = smsiaddrcfgOffset)
+      slaveBus.read(Mux(msiaddrReg.readable, msiaddrReg.msiaddr_S(31 downto 0), U(0)), address = smsiaddrcfghOffset)
 
-      val msiaddrcfg = slaveBus.createAndDriveFlow(UInt(32 bits), mmsiaddrcfgOffset)
-      when(msiaddrcfg.valid && !msiaddrReg.lock && aplic.isMSI) {
-        msiaddrReg.ppn(31 downto 0) := msiaddrcfg.payload
+      val mmsiaddrcfg = slaveBus.createAndDriveFlow(UInt(32 bits), mmsiaddrcfgOffset)
+      when(mmsiaddrcfg.valid && msiaddrReg.writeable) {
+        msiaddrReg.ppn_M(31 downto 0) := mmsiaddrcfg.payload
       }
 
-      /* when receiving message that make lock 1 to 0, should the other
-      * bits be immediately written into Reg?
-      */
-      val msiaddrhcfg = slaveBus.createAndDriveFlow(UInt(32 bits), mmsiaddrcfghOffset)
-      when(msiaddrhcfg.valid && aplic.isMSI) {
-        msiaddrReg.lock := msiaddrhcfg.payload(31)
-        when(!msiaddrReg.lock) {
-          msiaddrReg.hhxs := msiaddrhcfg.payload(28 downto 24)
-          msiaddrReg.lhxs := msiaddrhcfg.payload(22 downto 20)
-          msiaddrReg.hhxw := msiaddrhcfg.payload(18 downto 16)
-          msiaddrReg.lhxw := msiaddrhcfg.payload(15 downto 12)
-          msiaddrReg.ppn(43 downto 32) := msiaddrhcfg.payload(11 downto 0)
-        }
+      val mmsiaddrhcfg = slaveBus.createAndDriveFlow(UInt(32 bits), mmsiaddrcfghOffset)
+      when(mmsiaddrhcfg.valid && msiaddrReg.writeable) {
+        msiaddrReg.lock := mmsiaddrhcfg.payload(31)
+        msiaddrReg.hhxs_M := mmsiaddrhcfg.payload(28 downto 24)
+        msiaddrReg.lhxs_M := mmsiaddrhcfg.payload(22 downto 20)
+        msiaddrReg.hhxw_M := mmsiaddrhcfg.payload(18 downto 16)
+        msiaddrReg.lhxw_M := mmsiaddrhcfg.payload(15 downto 12)
+        msiaddrReg.ppn_M(43 downto 32) := mmsiaddrhcfg.payload(11 downto 0)
+      }
+
+      val smsiaddrcfg = slaveBus.createAndDriveFlow(UInt(32 bits), smsiaddrcfgOffset)
+      when(smsiaddrcfg.valid && msiaddrReg.writeable) {
+        msiaddrReg.ppn_S(31 downto 0) := smsiaddrcfg.payload
+      }
+
+      val smsiaddrhcfg = slaveBus.createAndDriveFlow(UInt(32 bits), smsiaddrcfghOffset)
+      when(smsiaddrhcfg.valid && msiaddrReg.writeable) {
+        msiaddrReg.lhxs_S := smsiaddrhcfg.payload(22 downto 20)
+        msiaddrReg.ppn_S(43 downto 32) := smsiaddrhcfg.payload(11 downto 0)
       }
 
       val genmsiFlow = slaveBus.createAndDriveFlow(UInt(32 bits), genmsiOffset)
