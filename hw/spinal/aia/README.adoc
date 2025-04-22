@@ -41,11 +41,4 @@ TODOs:
 
    - lock idc Reg
 
-3. mmsicfg/smsicfg
-
-   - root no In, leaf no Out
-
-   - domainParam when build
-
-   - line between master and slave
-   
+3. msiAddress when smsiaddrcfg only

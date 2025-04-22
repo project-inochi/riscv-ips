@@ -62,32 +62,34 @@ object APlicMapper {
       slaveBus.read(msiaddrcfg.S.msiaddrcfgCovered(31 downto 0), address = smsiaddrcfgOffset)
       slaveBus.read(msiaddrcfg.S.msiaddrcfgCovered(63 downto 32), address = smsiaddrcfghOffset)
 
-      // p.isRoot
-      val allowWrite = !msiaddrcfg.M.lock
-      val mmsiaddrcfg = slaveBus.createAndDriveFlow(UInt(32 bits), mmsiaddrcfgOffset)
-      when(mmsiaddrcfg.valid && allowWrite) {
-        msiaddrcfg.M.ppn(31 downto 0) := mmsiaddrcfg.payload
-      }
+      aplic.p.isRoot generate new Area {
+        val allowWrite = !msiaddrcfg.M.lock
 
-      val mmsiaddrcfgh = slaveBus.createAndDriveFlow(UInt(32 bits), mmsiaddrcfghOffset)
-      when(mmsiaddrcfgh.valid && allowWrite) {
-        msiaddrcfg.M.lock := mmsiaddrcfgh.payload(31)
-        msiaddrcfg.M.hhxs := mmsiaddrcfgh.payload(28 downto 24)
-        msiaddrcfg.M.lhxs := mmsiaddrcfgh.payload(22 downto 20)
-        msiaddrcfg.M.hhxw := mmsiaddrcfgh.payload(18 downto 16)
-        msiaddrcfg.M.lhxw := mmsiaddrcfgh.payload(15 downto 12)
-        msiaddrcfg.M.ppn(43 downto 32) := mmsiaddrcfgh.payload(11 downto 0)
-      }
+        val mmsiaddrcfgh = slaveBus.createAndDriveFlow(UInt(32 bits), mmsiaddrcfghOffset)
+        when(mmsiaddrcfgh.valid && allowWrite) {
+          msiaddrcfg.M.lock := mmsiaddrcfgh.payload(31)
+          msiaddrcfg.M.hhxs := mmsiaddrcfgh.payload(28 downto 24)
+          msiaddrcfg.M.lhxs := mmsiaddrcfgh.payload(22 downto 20)
+          msiaddrcfg.M.hhxw := mmsiaddrcfgh.payload(18 downto 16)
+          msiaddrcfg.M.lhxw := mmsiaddrcfgh.payload(15 downto 12)
+          msiaddrcfg.M.ppn(43 downto 32) := mmsiaddrcfgh.payload(11 downto 0)
+        }
 
-      val smsiaddrcfg = slaveBus.createAndDriveFlow(UInt(32 bits), smsiaddrcfgOffset)
-      when(smsiaddrcfg.valid && allowWrite) {
-        msiaddrcfg.S.ppn(31 downto 0) := smsiaddrcfg.payload
-      }
+        val mmsiaddrcfg = slaveBus.createAndDriveFlow(UInt(32 bits), mmsiaddrcfgOffset)
+        when(mmsiaddrcfg.valid && allowWrite) {
+          msiaddrcfg.M.ppn(31 downto 0) := mmsiaddrcfg.payload
+        }
 
-      val smsiaddrcfgh = slaveBus.createAndDriveFlow(UInt(32 bits), smsiaddrcfghOffset)
-      when(smsiaddrcfgh.valid && allowWrite) {
-        msiaddrcfg.S.lhxs := smsiaddrcfgh.payload(22 downto 20)
-        msiaddrcfg.S.ppn(43 downto 32) := smsiaddrcfgh.payload(11 downto 0)
+        val smsiaddrcfgh = slaveBus.createAndDriveFlow(UInt(32 bits), smsiaddrcfghOffset)
+        when(smsiaddrcfgh.valid && allowWrite) {
+          msiaddrcfg.S.lhxs := smsiaddrcfgh.payload(22 downto 20)
+          msiaddrcfg.S.ppn(43 downto 32) := smsiaddrcfgh.payload(11 downto 0)
+        }
+
+        val smsiaddrcfg = slaveBus.createAndDriveFlow(UInt(32 bits), smsiaddrcfgOffset)
+        when(smsiaddrcfg.valid && allowWrite) {
+          msiaddrcfg.S.ppn(31 downto 0) := smsiaddrcfg.payload
+        }
       }
 
       val genmsiFlow = slaveBus.createAndDriveFlow(UInt(32 bits), genmsiOffset)

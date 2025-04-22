@@ -14,6 +14,7 @@ class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
                   TH <: APlicBusMasterSend](sourceIds: Seq[Int],
                                             hartIds: Seq[Int],
                                             slaveInfos: Seq[APlicSlaveInfo],
+                                            p: APlicDomainParam,
                                             slaveType: HardType[TS],
                                             masterType: HardType[TM],
                                             factoryGen: TS => BusSlaveFactory,
@@ -21,31 +22,28 @@ class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
   require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
   require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")
 
-  // tmp
-  val domainParam = new APlicDomainParam(true, true, APlicGenParam.MSI)
-
   val io = new Bundle {
     val slaveBus = slave(slaveType())
     val masterBus = master(masterType())
     val sources = in Bits (sourceIds.size bits)
-    val mmsiaddrcfg = (if (domainParam.isRoot) out else in) UInt (64 bits)
-    val smsiaddrcfg = (if (domainParam.isRoot) out else in) UInt (64 bits)
+    val mmsiaddrcfg = (if (p.isRoot) out else in) UInt (64 bits)
+    val smsiaddrcfg = (if (p.isRoot) out else in) UInt (64 bits)
     val targets = out Bits (hartIds.size bits)
     val slaveSources = out Vec(slaveInfos.map(slaveInfo => Bits(slaveInfo.sourceIds.size bits)))
   }
 
-  if (domainParam.isRoot && domainParam.genParam.withMSI) {
+  if (p.isRoot && p.genParam.withMSI) {
     io.mmsiaddrcfg.assignDontCare()
     io.smsiaddrcfg.assignDontCare()
   }
 
-  val aplic = APlic(sourceIds, hartIds, slaveInfos, domainParam)
+  val aplic = APlic(sourceIds, hartIds, slaveInfos, p)
 
   aplic.sources := io.sources
   io.targets := aplic.directTargets
   io.slaveSources := aplic.slaveSources
 
-  if (domainParam.isRoot) {
+  if (p.isRoot) {
     io.mmsiaddrcfg := aplic.mmsiaddrcfg
     io.smsiaddrcfg := aplic.smsiaddrcfg
   } else {
@@ -59,11 +57,13 @@ class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
 }
 
 case class TilelinkAplic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSlaveInfo],
-                         slaveParams: tilelink.BusParameter, mastersParams: tilelink.BusParameter)
+                         domainParam: APlicDomainParam, slaveParams: tilelink.BusParameter,
+                         mastersParams: tilelink.BusParameter)
                          extends MappedAplic(
   sourceIds,
   hartIds,
   slaveInfos,
+  domainParam,
   new bus.tilelink.Bus(slaveParams),
   new bus.tilelink.Bus(mastersParams),
   new bus.tilelink.SlaveFactory(_, true),
@@ -133,6 +133,9 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
 
   val sources = ArrayBuffer[SourceSpec]()
   val targets = ArrayBuffer[TargetSpec]()
+  var domainParam: Option[APlicDomainParam] = None
+  val mmsiaddrcfg = UInt (64 bits)
+  val smsiaddrcfg = UInt (64 bits)
 
   override def createInterruptMaster(id : Int) : InterruptNode = {
     val spec = up.clockDomain on TargetSpec(InterruptNode.master(), id)
@@ -154,18 +157,28 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
   val thread = Fiber build new Area {
     lock.await()
 
+    val domain = domainParam.get
+
     down.m2s forceParameters m2sParams
     down.s2m.supported load tilelink.S2mSupport.none()
 
     up.m2s.supported.load(TilelinkAplic.getTilelinkSlaveSupport(up.m2s.proposed))
     up.s2m.none()
 
-    core = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaveSources.map(_.slaveInfo).toSeq, up.bus.p, down.bus.p)
+    core = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaveSources.map(_.slaveInfo).toSeq, domain, up.bus.p, down.bus.p)
 
     core.io.masterBus <> down.bus
     core.io.slaveBus <> up.bus
     core.io.sources := sources.map(_.node.flag).asBits()
     Vec(targets.map(_.node.flag)) := core.io.targets.asBools
+
+    if (domain.isRoot) {
+      mmsiaddrcfg := core.io.mmsiaddrcfg
+      smsiaddrcfg := core.io.smsiaddrcfg
+    } else {
+      core.io.mmsiaddrcfg := mmsiaddrcfg
+      core.io.smsiaddrcfg := smsiaddrcfg
+    }
 
     slaveSources.lazyZip(core.io.slaveSources).foreach((slaveSource, ioSlaveSource) => {
       Vec(slaveSource.flags.map(_.flag)) := ioSlaveSource.asBools

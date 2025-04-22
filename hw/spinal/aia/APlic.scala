@@ -70,13 +70,13 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
 
   val msiaddrcfg = p.genParam.withMSI generate new Area {
     val M = new Area {
-      val (lock, ppn, hhxs, lhxs, hhxw, lhxw) = if (p.isRoot) {
+      val (lock, hhxs, lhxs, hhxw, lhxw, ppn) = if (p.isRoot) {
         (RegInit(False),
-         RegInit(U(0x0, 44 bits)),
          RegInit(U(0x0, 5 bits)),
          RegInit(U(0x0, 3 bits)),
          RegInit(U(0x0, 3 bits)),
-         RegInit(U(0x0, 4 bits)))
+         RegInit(U(0x0, 4 bits)),
+         RegInit(U(0x0, 44 bits)))
       } else {
         (mmsiaddrcfg(63),
          mmsiaddrcfg(60 downto 56),
