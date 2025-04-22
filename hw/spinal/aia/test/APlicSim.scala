@@ -226,16 +226,19 @@ case class TilelinkAPLICMSIFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], sla
     val access = tilelink.fabric.Node()
     access << crossBar
 
-    val aplicslave = TilelinkAPLICFiber()
-    aplicslave.up at 0x10000000 of access
-    crossBar << aplicslave.down
+    val S = TilelinkAPLICFiber()
+    S.up at 0x10000000 of access
+    crossBar << S.down
 
-    val aplicmaster = TilelinkAPLICFiber()
-    aplicmaster.up at 0x20000000 of access
-    crossBar << aplicmaster.down
+    val M = TilelinkAPLICFiber()
+    M.up at 0x20000000 of access
+    crossBar << M.down
 
     val dispatcher = TilelinkIMSICFiber()
     dispatcher.node at 0x30000000 of access
+
+    M.domainParam = Some(new APlicDomainParam(true, true, APlicGenParam.MSI))
+    S.domainParam = Some(new APlicDomainParam(false, false, APlicGenParam.MSI))
 
     for (block <- blocks) {
       val trigger = dispatcher.addIMSICinfo(block.asTilelinkIMSICIInfo())
@@ -244,28 +247,31 @@ case class TilelinkAPLICMSIFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], sla
 
     val targetsSBundles = hartIds.map(hartId => {
       val node = InterruptNode.slave()
-      aplicslave.mapDownInterrupt(hartId, node)
+      S.mapDownInterrupt(hartId, node)
       node
     })
 
     val targetsMBundles = hartIds.map(hartId => {
       val node = InterruptNode.slave()
-      aplicmaster.mapDownInterrupt(hartId, node)
+      M.mapDownInterrupt(hartId, node)
       node
     })
 
     val sourcesMBundles = sourceIds.map(sourceId => {
       val node = InterruptNode.master()
-      aplicmaster.mapUpInterrupt(sourceId, node)
+      M.mapUpInterrupt(sourceId, node)
       node
     })
 
-    val slaveSources = slaveInfos.map(aplicmaster.createInterruptDelegation(_))
+    val slaveSources = slaveInfos.map(M.createInterruptDelegation(_))
 
     // XXX: there is only one slave
     val sourcesSBundles = slavesourceIds.zip(slaveSources(0).flags).map {
-      case (id, slaveSource) => aplicslave.mapUpInterrupt(id, slaveSource)
+      case (id, slaveSource) => S.mapUpInterrupt(id, slaveSource)
     }
+
+    S.mmsiaddrcfg := M.mmsiaddrcfg
+    S.smsiaddrcfg := M.smsiaddrcfg
   }
 
   val io = new Bundle {
@@ -317,8 +323,6 @@ object APlicMSISim extends App {
     val masteroffset = 0x20000000
     val imsicoffset = 0x30000000
 
-    // addsim
-    // msicfg
     print(agent.putFullData(0, masteroffset + aplicmap.domaincfgOffset, SimUInt32(0x80000004)))
     print(agent.putFullData(0, slaveoffset + aplicmap.domaincfgOffset, SimUInt32(0x80000004)))
 
@@ -326,10 +330,16 @@ object APlicMSISim extends App {
       print(agent.putFullData(0, masteroffset + aplicmap.sourcecfgOffset + (i - 1) * 4, SimUInt32(0x6)))
       print(agent.putFullData(0, masteroffset + aplicmap.targetOffset + (i - 1) * 4, SimUInt32(i)))
       print(agent.putFullData(0, masteroffset + aplicmap.setienumOffset, SimUInt32(i)))
+
+      print(agent.putFullData(0, slaveoffset + aplicmap.sourcecfgOffset + (i - 1) * 4, SimUInt32(0x6)))
+      print(agent.putFullData(0, slaveoffset + aplicmap.targetOffset + (i - 1) * 4, SimUInt32(i)))
+      print(agent.putFullData(0, slaveoffset + aplicmap.setienumOffset, SimUInt32(i)))
     }
 
     print(agent.putFullData(0, masteroffset + aplicmap.mmsiaddrcfgOffset, SimUInt32(imsicoffset>>12)))
     print(agent.putFullData(0, masteroffset + aplicmap.mmsiaddrcfghOffset, SimUInt32(0x1000)))
+    print(agent.putFullData(0, masteroffset + aplicmap.smsiaddrcfgOffset, SimUInt32(imsicoffset>>12)))
+    print(agent.putFullData(0, masteroffset + aplicmap.smsiaddrcfghOffset, SimUInt32(0x0)))
 
     print(agent.putFullData(0, masteroffset + aplicmap.domaincfgOffset, SimUInt32(0x80000104)))
     print(agent.putFullData(0, slaveoffset + aplicmap.domaincfgOffset, SimUInt32(0x80000104)))
@@ -338,6 +348,8 @@ object APlicMSISim extends App {
 
     print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x2)))
     print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x40004)))
+    print(agent.putFullData(0, slaveoffset + aplicmap.genmsiOffset, SimUInt32(0x7)))
+    print(agent.putFullData(0, slaveoffset + aplicmap.genmsiOffset, SimUInt32(0x40001)))
 
     dut.clockDomain.waitRisingEdge(50)
   }
