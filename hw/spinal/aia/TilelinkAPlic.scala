@@ -21,30 +21,37 @@ class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
   require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
   require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")
 
+  // tmp
+  val domainParam = new APlicDomainParam(true, true, APlicGenParam.MSI)
+
   val io = new Bundle {
     val slaveBus = slave(slaveType())
     val masterBus = master(masterType())
     val sources = in Bits (sourceIds.size bits)
-    val mmsiaddrcfgIn = in Bits (64 bits)
-    val smsiaddrcfgIn = in Bits (64 bits)
-    val mmsiaddrhcfgOut = out Bits (64 bits)
-    val smsiaddrhcfgOut = out Bits (64 bits)
+    val mmsiaddrcfg = (if (domainParam.isRoot) out else in) UInt (64 bits)
+    val smsiaddrcfg = (if (domainParam.isRoot) out else in) UInt (64 bits)
     val targets = out Bits (hartIds.size bits)
     val slaveSources = out Vec(slaveInfos.map(slaveInfo => Bits(slaveInfo.sourceIds.size bits)))
   }
 
-  // tmp
-  val domainParam = new APlicDomainParam(true, true, APlicGenParam.MSI)
+  if (domainParam.isRoot && domainParam.genParam.withMSI) {
+    io.mmsiaddrcfg.assignDontCare()
+    io.smsiaddrcfg.assignDontCare()
+  }
 
   val aplic = APlic(sourceIds, hartIds, slaveInfos, domainParam)
 
   aplic.sources := io.sources
-  aplic.mmsiaddrcfg := io.mmsiaddrcfgIn.asUInt
-  aplic.smsiaddrcfg := io.smsiaddrcfgIn.asUInt
   io.targets := aplic.directTargets
   io.slaveSources := aplic.slaveSources
-  io.mmsiaddrhcfgOut := aplic.msiaddrcfg.msiaddr_M.asBits
-  io.smsiaddrhcfgOut := aplic.msiaddrcfg.msiaddr_S.asBits
+
+  if (domainParam.isRoot) {
+    io.mmsiaddrcfg := aplic.mmsiaddrcfg
+    io.smsiaddrcfg := aplic.smsiaddrcfg
+  } else {
+    aplic.mmsiaddrcfg := io.mmsiaddrcfg
+    aplic.smsiaddrcfg := io.smsiaddrcfg
+  }
 
   val factory = factoryGen(io.slaveBus)
   val helper = helperGen(io.masterBus)
