@@ -105,7 +105,7 @@ object APlicMapper {
 
       slaveBus.read(genmsiFlowStream.payload | (genmsiBusy.asUInt << 12).resized, address = genmsiOffset)
 
-      val msiStream = StreamArbiterFactory().lowerFirst.transactionLock.onArgs(aplic.msiStream, genmsiStream)
+      val msiStream = StreamArbiterFactory().lowerFirst.noLock.onArgs(aplic.msiStream, genmsiStream)
 
       masterBus.send(msiStream)
     }
