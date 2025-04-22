@@ -49,9 +49,9 @@ case class APlicMSIGateway(interrupts: Seq[APlicSource], enable: Bool) extends A
   bestRequest.valid := resultRequest.pending(0) && enable && realRequestDelayed =/= realRequest
   bestRequest.payload := resultRequest.asInstanceOf[APlicMSIRequest]
 
-  val (requestStream, requestStreamAvailability) = bestRequest.queueWithAvailability(8)
+  val requestStream = bestRequest.toStream
 
-  when (bestRequest.valid && requestStreamAvailability > 0) {
+  when (bestRequest.valid) {
     APlic.doClaim(interrupts, bestRequest.id)
   }
 }
