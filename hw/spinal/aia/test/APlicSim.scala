@@ -346,6 +346,13 @@ object APlicMSISim extends App {
 
     dut.io.sources #= 0b0011111
 
+    print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x7)))
+    print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x6)))
+    print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x5)))
+    print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x4)))
+    print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x3)))
+    print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x2)))
+    print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x1)))
     print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x2)))
     print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x40004)))
     print(agent.putFullData(0, slaveoffset + aplicmap.genmsiOffset, SimUInt32(0x7)))
