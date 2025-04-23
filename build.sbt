@@ -11,6 +11,7 @@ ThisBuild / scalacOptions ++= Seq("-deprecation")
 val spinalCore = "com.github.spinalhdl" %% "spinalhdl-core" % spinalVersion
 val spinalLib = "com.github.spinalhdl" %% "spinalhdl-lib" % spinalVersion
 val spinalIdslPlugin = compilerPlugin("com.github.spinalhdl" %% "spinalhdl-idsl-plugin" % spinalVersion)
+val spinalTester = "com.github.spinalhdl" %% "spinalhdl-tester" % spinalVersion % "test"
 
 lazy val hw = (project in file("hw"))
   .settings(
@@ -25,7 +26,7 @@ lazy val test = (project in file("test"))
     name := "test",
     fork := true,
     Test / scalaSource := baseDirectory.value / "spinal",
-    libraryDependencies ++= Seq(spinalCore, spinalLib, spinalIdslPlugin),
+    libraryDependencies ++= Seq(spinalCore, spinalLib, spinalIdslPlugin, spinalTester),
   )
   .dependsOn(hw)
 
