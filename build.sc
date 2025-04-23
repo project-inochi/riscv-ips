@@ -14,26 +14,20 @@ trait SpinalHDLModule extends SbtModule {
     ivy"com.github.spinalhdl::spinalhdl-lib:$spinalVersion"
   )
 
-  object test extends SbtTests with TestModule.ScalaTest {
-    def ivyDeps = Agg(ivy"com.github.spinalhdl::spinalhdl-tester::${spinalVersion}")
-  }
-
   def scalacPluginIvyDeps = Agg(ivy"com.github.spinalhdl::spinalhdl-idsl-plugin:$spinalVersion")
 }
 
 object hw extends SpinalHDLModule {
   override def millSourcePath = os.pwd / "hw"
-  def sources = T.sources(
-    millSourcePath / "spinal"
-  )
+  override def sources = T.sources(millSourcePath / "spinal")
 }
 
 object test extends SpinalHDLModule {
-  override def millSourcePath = os.pwd / "test"
+  override def moduleDeps = Seq(hw)
 
-  def moduleDeps = Seq(hw)
-
-  def sources = T.sources(
-    millSourcePath / "spinal"
-  )
+  object test extends SbtTests with TestModule.ScalaTest {
+    override def millSourcePath = os.pwd / "test"
+    override def sources = T.sources(millSourcePath / "spinal")
+    override def ivyDeps = Agg(ivy"com.github.spinalhdl::spinalhdl-tester::${spinalVersion}")
+  }
 }
