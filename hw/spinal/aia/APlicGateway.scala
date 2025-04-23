@@ -54,7 +54,7 @@ case class APlicMSIGateway(interrupts: Seq[APlicSource], enable: Bool) extends A
   requestStream.valid   := resultRequest.pending(0) && enable && !requestMask
   requestStream.payload := realRequest
 
-  when (requestStream.ready) {
+  when (requestStream.ready && requestStream.valid) {
     APlic.doClaim(interrupts, requestStream.payload.id)
   }
 }
