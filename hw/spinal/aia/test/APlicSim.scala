@@ -29,6 +29,9 @@ case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slaves
     aplicmaster.up at 0x20000000 of access
     crossBar << aplicmaster.down
 
+    aplicmaster.domainParam = Some(new APlicDomainParam(true, true, APlicGenParam.MSI))
+    aplicslave.domainParam = Some(new APlicDomainParam(false, false, APlicGenParam.MSI))
+
     val targetsSBundles = hartIds.map(hartId => {
       val node = InterruptNode.slave()
       aplicslave.mapDownInterrupt(hartId, node)
@@ -53,6 +56,9 @@ case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slaves
     val sourcesSBundles = slavesourceIds.zip(slaveSources(0).flags).map {
       case (id, slaveSource) => aplicslave.mapUpInterrupt(id, slaveSource)
     }
+
+    aplicslave.mmsiaddrcfg := aplicmaster.mmsiaddrcfg
+    aplicslave.smsiaddrcfg := aplicmaster.smsiaddrcfg
   }
 
   val io = new Bundle {
