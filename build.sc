@@ -5,11 +5,11 @@ import java.io.File
 val conf = ConfigFactory.parseFile(new File("version.conf")).resolve()
 val spinalVersion = conf.getString("spinalVersion")
 
-object aplic extends SbtModule {
+object hw extends SbtModule {
   def scalaVersion = conf.getString("scalaVersion")
-  override def millSourcePath = os.pwd
+  override def millSourcePath = os.pwd / "hw"
   def sources = T.sources(
-    millSourcePath / "hw" / "spinal"
+    millSourcePath / "spinal"
   )
   def ivyDeps = Agg(
     ivy"com.github.spinalhdl::spinalhdl-core:$spinalVersion",
