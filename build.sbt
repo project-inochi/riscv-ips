@@ -20,11 +20,20 @@ lazy val hw = (project in file("hw"))
     libraryDependencies ++= Seq(spinalCore, spinalLib, spinalIdslPlugin),
   )
 
+lazy val test = (project in file("test"))
+  .settings(
+    name := "test",
+    fork := true,
+    Test / scalaSource := baseDirectory.value / "spinal",
+    libraryDependencies ++= Seq(spinalCore, spinalLib, spinalIdslPlugin),
+  )
+  .dependsOn(hw)
+
 lazy val all = (project in file("."))
   .settings(
     publishArtifact := false,
     publishLocal := {},
   )
-  .aggregate(hw)
+  .aggregate(hw, test)
 
 fork := true

@@ -1,11 +1,10 @@
-package aia.test
+package aia
 
 import spinal.core._
 import spinal.core.sim._
 import spinal.lib._
 import spinal.lib.bus.tilelink
 import spinal.lib.misc.InterruptNode
-import aia._
 import config.Config
 import _root_.sim._
 
