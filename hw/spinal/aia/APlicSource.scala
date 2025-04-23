@@ -144,10 +144,10 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDo
     }
   }
 
-  when(domaieState.enable) {
-    when(delegated) {
-      ie := False
-    } otherwise {
+  when(delegated) {
+    ie := False
+  } otherwise {
+    when(domaieState.enable) {
       val ctx = WhenBuilder()
 
       ctx.when(mode === INACTIVE) {
