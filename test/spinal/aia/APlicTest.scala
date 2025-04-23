@@ -21,12 +21,12 @@ class APlicTest extends SpinalAnyFunSuite {
   val aplicmap = APlicMapping
 
   def doCompile(): Unit ={
-      compile = config.Config.sim.compile(
+    compile = config.TestConfig.sim.compile(
       new TilelinkAPLICFiberTest(hartIds, sourceIds, slavesourceIds)
-      )
+    )
   }
 
   test("compile") {
-      doCompile()
+    doCompile()
   }
 }

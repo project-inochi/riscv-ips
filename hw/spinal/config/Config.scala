@@ -18,3 +18,19 @@ object Config {
 
   def sim = SimConfig.withConfig(spinal).withFstWave
 }
+
+object TestConfig {
+  def spinal = SpinalConfig(
+    targetDirectory = "hw/gen",
+    defaultConfigForClockDomains = ClockDomainConfig(
+      resetActiveLevel = HIGH
+    ),
+    genLineComments = true,
+    onlyStdLogicVectorAtTopLevelIo = false,
+    oneFilePerComponent = true,
+    removePruned = true,
+    verbose = false
+  )
+
+  def sim = SimConfig.withConfig(spinal).withFstWave
+}
