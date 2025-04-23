@@ -76,7 +76,7 @@ case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slaves
 }
 
 object APlicSim extends App {
-  val sourcenum = 8
+  val sourcenum = 64
   val hartnum = 2
 
   val sourceIds = for (i <- 1 until sourcenum) yield i
@@ -301,7 +301,7 @@ case class TilelinkAPLICMSIFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], sla
 
 
 object APlicMSISim extends App {
-  val sourcenum = 8
+  val sourcenum = 64
   val hartnum = 2
 
   val sourceIds = for (i <- 1 until sourcenum) yield i
