@@ -98,7 +98,7 @@ object APlicMapper {
       }
 
       val genmsiPayload = Flow(APlicGenMSIPayload())
-      val genmsiFlow = slaveBus.createAndDriveFlow(UInt(32 bits), genmsiOffset).discardWhen(genmsiPayload.valid)
+      val genmsiFlow = slaveBus.createAndDriveFlow(UInt(32 bits), genmsiOffset).discardWhen(genmsiPayload.valid || !aplic.isMSI)
 
       // use register to store and wrap genmsiFlow's value
       val rGenmsiFlow = new Area {
