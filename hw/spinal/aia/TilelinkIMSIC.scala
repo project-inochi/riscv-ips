@@ -18,7 +18,7 @@ class MappedIMSIC[T <: spinal.core.Data with IMasterSlave](infos: Seq[IMSICInfo]
 
   val factory = factoryGen(io.bus)
 
-  val logic = IMSIC(factory, mapping)(infos)
+  val logic = IMSICTrigger(factory, mapping)(infos)
 
   io.triggers := logic.triggers
 }
@@ -46,7 +46,7 @@ object TilelinkIMSIC {
     val maxGroupHartId = infos.map(_.groupHartId).max
     val maxGroupId = infos.map(_.groupId).max
 
-    IMSIC.addressWidth(mapping, maxGuestId, maxGroupHartId, maxGroupId)
+    IMSICTrigger.addressWidth(mapping, maxGuestId, maxGroupHartId, maxGroupId)
   }
 }
 

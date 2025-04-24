@@ -88,7 +88,7 @@ case class IMSICInfo(
   groupHartId   : Int,
 )
 
-object IMSIC {
+object IMSICTrigger {
   val interruptFileSize: BigInt = 4096
 
   def mappingCalibrate(mapping: IMSICMapping, maxGuestId: Int, maxGroupHartId: Int, maxGroupId: Int): IMSICMapping = {
