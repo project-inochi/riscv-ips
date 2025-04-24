@@ -8,73 +8,6 @@ import spinal.lib.misc.InterruptNode
 import config.Config
 import _root_.sim._
 
-case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slavesourceIds: Seq[Int]) extends Component {
-  val masterBus = TilelinkBusFiber()
-
-  val crossBar = tilelink.fabric.Node()
-  crossBar << masterBus.node
-
-  val slaveInfos = Seq(APlicSlaveInfo(1, slavesourceIds))
-
-  val peripherals = new Area {
-    val access = tilelink.fabric.Node()
-    access << crossBar
-
-    val aplicslave = TilelinkAPLICFiber()
-    aplicslave.up at 0x10000000 of access
-    crossBar << aplicslave.down
-
-    val aplicmaster = TilelinkAPLICFiber()
-    aplicmaster.up at 0x20000000 of access
-    crossBar << aplicmaster.down
-
-    aplicmaster.domainParam = Some(new APlicDomainParam(true, true, APlicGenParam.MSI))
-    aplicslave.domainParam = Some(new APlicDomainParam(false, false, APlicGenParam.MSI))
-
-    val targetsSBundles = hartIds.map(hartId => {
-      val node = InterruptNode.slave()
-      aplicslave.mapDownInterrupt(hartId, node)
-      node
-    })
-
-    val targetsMBundles = hartIds.map(hartId => {
-      val node = InterruptNode.slave()
-      aplicmaster.mapDownInterrupt(hartId, node)
-      node
-    })
-
-    val sourcesMBundles = sourceIds.map(sourceId => {
-      val node = InterruptNode.master()
-      aplicmaster.mapUpInterrupt(sourceId, node)
-      node
-    })
-
-    val slaveSources = slaveInfos.map(aplicmaster.createInterruptDelegation(_))
-
-    // XXX: there is only one slave
-    val sourcesSBundles = slavesourceIds.zip(slaveSources(0).flags).map {
-      case (id, slaveSource) => aplicslave.mapUpInterrupt(id, slaveSource)
-    }
-
-    aplicslave.mmsiaddrcfg := aplicmaster.mmsiaddrcfg
-    aplicslave.smsiaddrcfg := aplicmaster.smsiaddrcfg
-  }
-
-  val io = new Bundle {
-    val bus = slave(tilelink.Bus(masterBus.m2sParams.toNodeParameters().toBusParameter()))
-    val sources = in Bits(sourceIds.size bits)
-    val targetsmaster = out Bits(hartIds.size bits)
-    val targetsslave = out Bits(hartIds.size bits)
-  }
-
-  masterBus.bus = Some(io.bus)
-
-  peripherals.sourcesMBundles.lazyZip(io.sources.asBools).foreach(_.flag := _)
-
-  io.targetsmaster := peripherals.targetsMBundles.map(_.flag).asBits()
-  io.targetsslave := peripherals.targetsSBundles.map(_.flag).asBits()
-}
-
 object APlicSim extends App {
   val sourcenum = 64
   val hartnum = 2
@@ -115,9 +48,9 @@ object APlicSim extends App {
                          SimUInt32(0x0),
                          SimUInt32(0x0),
                          SimUInt32(0x0))
-    for (i <- 1 until sourcenum) {
-      print(agent.putFullData(0, masteroffset + aplicmap.sourcecfgOffset + ((i - 1) * 4), prioArrayM(i-1)))
-      print(agent.putFullData(0, slaveoffset + aplicmap.sourcecfgOffset + ((i - 1) * 4), prioArrayS(i-1)))
+    for (i <- 0 until prioArrayM.size) {
+      print(agent.putFullData(0, masteroffset + aplicmap.sourcecfgOffset + i * 4, prioArrayM(i)))
+      print(agent.putFullData(0, slaveoffset + aplicmap.sourcecfgOffset + i * 4, prioArrayS(i)))
     }
 
     print(agent.putFullData(0, masteroffset + aplicmap.setieOffset, SimUInt32(0xff)))
@@ -130,9 +63,9 @@ object APlicSim extends App {
                           SimUInt32(0x5),
                           SimUInt32(0x6),
                           SimUInt32(0x40007))
-    for (i <- 1 until sourcenum) {
-      print(agent.putFullData(0, masteroffset + aplicmap.targetOffset + ((i - 1) * 4), targetArray(i-1)))
-      print(agent.putFullData(0, slaveoffset + aplicmap.targetOffset + ((i - 1) * 4), targetArray(i-1)))
+    for (i <- 0 until targetArray.size) {
+      print(agent.putFullData(0, masteroffset + aplicmap.targetOffset + i * 4, targetArray(i)))
+      print(agent.putFullData(0, slaveoffset + aplicmap.targetOffset + i * 4, targetArray(i)))
     }
 
     print(agent.putFullData(0, masteroffset + aplicmap.setipOffset, SimUInt32(0x0)))
@@ -149,8 +82,8 @@ object APlicSim extends App {
     print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x2)))
     dut.clockDomain.waitRisingEdge(10)
 
-    val aplicmaster = dut.peripherals.aplicmaster.core.aplic
-    val aplicslave = dut.peripherals.aplicslave.core.aplic
+    val aplicmaster = dut.peripherals.M.core.aplic
+    val aplicslave = dut.peripherals.S.core.aplic
 
     assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000004, "master_ip")
     print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x1)))
@@ -217,7 +150,7 @@ object APlicSim extends App {
   }
 }
 
-case class TilelinkAPLICMSIFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slavesourceIds: Seq[Int]) extends Component {
+case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slavesourceIds: Seq[Int]) extends Component {
   val masterBus = TilelinkBusFiber()
 
   val crossBar = tilelink.fabric.Node()
@@ -311,7 +244,7 @@ object APlicMSISim extends App {
   val aplicmap = APlicMapping
 
   val compile = Config.sim.compile {
-    val aplicsFiber = new TilelinkAPLICMSIFiberTest(hartIds, sourceIds, slavesourceIds)
+    val aplicsFiber = new TilelinkAPLICFiberTest(hartIds, sourceIds, slavesourceIds)
     aplicsFiber
   }
 
