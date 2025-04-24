@@ -5,7 +5,7 @@ import spinal.lib._
 
 case class APlicDirectGateway(interrupts: Seq[APlicSource], hartId: Int, enable: Bool) extends Area {
   val maxSource = (interrupts.map(_.id) ++ Seq(0)).max + 1
-  val priorityWidth = (interrupts.map(_.prio.getWidth)).max
+  val priorityWidth = (interrupts.map(i => widthOf(i.prio))).max
   val idWidth = log2Up(maxSource)
 
   val idelivery = RegInit(False)
@@ -46,7 +46,7 @@ case class APlicMSIGateway(interrupts: Seq[APlicSource], enable: Bool) extends A
     takeA ? a | b
   })
 
-  val requestStream = Stream(APlicMSIRequest(resultRequest.id.getWidth))
+  val requestStream = Stream(APlicMSIRequest(widthOf(resultRequest.id)))
   val requestStreamValidMask = requestStream.valid
 
   requestStream.valid   := resultRequest.pending(0) && enable
@@ -72,7 +72,7 @@ case class APlicMSIGateway(interrupts: Seq[APlicSource], enable: Bool) extends A
 //   val realRequest = resultRequest.asInstanceOf[APlicMSIRequest]
 //   val realRequestDelayed = Delay(realRequest, 1)
 
-//   val requestStream = Stream(APlicMSIRequest(resultRequest.id.getWidth))
+//   val requestStream = Stream(APlicMSIRequest(widthOf(resultRequest.id)))
 
 //   val requestMask = RegNext(requestStream.ready)
 //   val requestStreamValidMask = requestMask || requestStream.valid
