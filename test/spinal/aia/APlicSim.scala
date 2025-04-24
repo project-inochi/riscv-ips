@@ -5,7 +5,7 @@ import spinal.core.sim._
 import spinal.lib._
 import spinal.lib.bus.tilelink
 import spinal.lib.misc.InterruptNode
-import spinal.tester.{SpinalAnyFunSuite, SpinalSimTester}
+import spinal.tester.{SpinalAnyFunSuite, SpinalSimTester, SpinalSimFunSuite}
 import _root_.sim._
 
 case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slavesourceIds: Seq[Int]) extends Component {
@@ -90,219 +90,222 @@ case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slaves
   io.ip := Vec(blocks.map(block => block.interrupts.map(_.ip).asBits()))
 }
 
-class APlicSimTest extends SpinalAnyFunSuite {
-  SpinalSimTester { env =>
-    import env._
+class APlicSimTest extends SpinalSimFunSuite {
+  onlyVerilator()
 
-    val sourcenum = 64
-    val hartnum = 8
+  // SpinalSimTester { env =>
+  //   import env._
+  val prefix = ""
 
-    val sourceIds = for (i <- 1 until sourcenum) yield i
-    val slavesourceIds = IndexedSeq(1, 4)
-    val hartIds = for (i <- 0 until hartnum) yield i
+  val sourcenum = 64
+  val hartnum = 8
 
-    val aplicmap = APlicMapping
+  val sourceIds = for (i <- 1 until sourcenum) yield i
+  val slavesourceIds = IndexedSeq(1, 4)
+  val hartIds = for (i <- 0 until hartnum) yield i
 
-    var compiled: SimCompiled[TilelinkAPLICFiberTest] = null
+  val aplicmap = APlicMapping
 
-    def doCompile(): Unit = {
-      compiled = config.TestConfig.sim.compile(
-        new TilelinkAPLICFiberTest(hartIds, sourceIds, slavesourceIds)
-      )
-    }
+  var compiled: SimCompiled[TilelinkAPLICFiberTest] = null
 
-    def assertData(data: tilelink.sim.TransactionD, answer: Int, name: String): Unit = {
-      val value = data.data
-      val result = value.zip(answer.toBytes).forall { case (x, y) => x == y }
-      assert(result, s"$name: missmatch (${value.toList} != 0x${answer.toBytes.slice(0, 4)})")
-    }
+  def doCompile(): Unit = {
+    compiled = SimConfig.compile(
+      new TilelinkAPLICFiberTest(hartIds, sourceIds, slavesourceIds)
+    )
+  }
 
-    test(prefix + "compile") {
+  def assertData(data: tilelink.sim.TransactionD, answer: Int, name: String): Unit = {
+    val value = data.data
+    val result = value.zip(answer.toBytes).forall { case (x, y) => x == y }
+    assert(result, s"$name: missmatch (${value.toList} != 0x${answer.toBytes.slice(0, 4)})")
+  }
+
+  test(prefix + "compile") {
+    doCompile()
+  }
+
+  test(prefix + "aplic sim direct") {
+    if(compiled == null) {
       doCompile()
     }
 
-    test(prefix + "aplic sim direct") {
-      if(compiled == null) {
-        doCompile()
+    compiled.doSim("aplic sim direct") { dut =>
+      dut.clockDomain.forkStimulus(10)
+
+      dut.io.sources #= 0b1000001
+
+      implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
+      val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
+
+      val slaveoffset = 0x10000000
+      val masteroffset = 0x20000000
+
+      val prioArrayM = Seq(SimUInt32(0x400),
+                          SimUInt32(0x1),
+                          SimUInt32(0x4),
+                          SimUInt32(0x400),
+                          SimUInt32(0x5),
+                          SimUInt32(0x6),
+                          SimUInt32(0x7))
+      val prioArrayS = Seq(SimUInt32(0x7),
+                          SimUInt32(0x0),
+                          SimUInt32(0x0),
+                          SimUInt32(0x5),
+                          SimUInt32(0x0),
+                          SimUInt32(0x0),
+                          SimUInt32(0x0))
+      for (i <- 0 until prioArrayM.size) {
+        print(agent.putFullData(0, masteroffset + aplicmap.sourcecfgOffset + i * 4, prioArrayM(i)))
+        print(agent.putFullData(0, slaveoffset + aplicmap.sourcecfgOffset + i * 4, prioArrayS(i)))
       }
 
-      compiled.doSim("aplic sim direct") { dut =>
-        dut.clockDomain.forkStimulus(10)
+      print(agent.putFullData(0, masteroffset + aplicmap.setieOffset, SimUInt32(0xff)))
+      print(agent.putFullData(0, slaveoffset + aplicmap.setieOffset, SimUInt32(0xff)))
 
-        dut.io.sources #= 0b1000001
-
-        implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
-        val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
-
-        val slaveoffset = 0x10000000
-        val masteroffset = 0x20000000
-
-        val prioArrayM = Seq(SimUInt32(0x400),
-                            SimUInt32(0x1),
+      val targetArray = Seq(SimUInt32(0x1),
+                            SimUInt32(0x2),
+                            SimUInt32(0x3),
                             SimUInt32(0x4),
-                            SimUInt32(0x400),
                             SimUInt32(0x5),
                             SimUInt32(0x6),
-                            SimUInt32(0x7))
-        val prioArrayS = Seq(SimUInt32(0x7),
-                            SimUInt32(0x0),
-                            SimUInt32(0x0),
-                            SimUInt32(0x5),
-                            SimUInt32(0x0),
-                            SimUInt32(0x0),
-                            SimUInt32(0x0))
-        for (i <- 0 until prioArrayM.size) {
-          print(agent.putFullData(0, masteroffset + aplicmap.sourcecfgOffset + i * 4, prioArrayM(i)))
-          print(agent.putFullData(0, slaveoffset + aplicmap.sourcecfgOffset + i * 4, prioArrayS(i)))
-        }
-
-        print(agent.putFullData(0, masteroffset + aplicmap.setieOffset, SimUInt32(0xff)))
-        print(agent.putFullData(0, slaveoffset + aplicmap.setieOffset, SimUInt32(0xff)))
-
-        val targetArray = Seq(SimUInt32(0x1),
-                              SimUInt32(0x2),
-                              SimUInt32(0x3),
-                              SimUInt32(0x4),
-                              SimUInt32(0x5),
-                              SimUInt32(0x6),
-                              SimUInt32(0x40007))
-        for (i <- 0 until targetArray.size) {
-          print(agent.putFullData(0, masteroffset + aplicmap.targetOffset + i * 4, targetArray(i)))
-          print(agent.putFullData(0, slaveoffset + aplicmap.targetOffset + i * 4, targetArray(i)))
-        }
-
-        print(agent.putFullData(0, masteroffset + aplicmap.setipOffset, SimUInt32(0x0)))
-        print(agent.putFullData(0, slaveoffset + aplicmap.setipOffset, SimUInt32(0x0)))
-
-        print(agent.putFullData(0, masteroffset + aplicmap.domaincfgOffset, SimUInt32(0x80000100)))
-        print(agent.putFullData(0, slaveoffset + aplicmap.domaincfgOffset, SimUInt32(0x80000100)))
-
-        // set/clripnum
-        print(agent.putFullData(0, masteroffset + aplicmap.clrieOffset, SimUInt32(0b100)))
-        assertData(agent.get(0, masteroffset + aplicmap.setieOffset, 4), 0xe8, "master_ip")
-        print(agent.putFullData(0, masteroffset + aplicmap.setieOffset, SimUInt32(0xff)))
-
-        print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x2)))
-        dut.clockDomain.waitRisingEdge(10)
-
-        val aplicmaster = dut.peripherals.M.core.aplic
-        val aplicslave = dut.peripherals.S.core.aplic
-
-        assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000004, "master_ip")
-        print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x1)))
-        assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000004, "master_ip")
-
-        print(agent.putFullData(0, masteroffset + aplicmap.in_clripOffset, SimUInt32(0b100)))
-        assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000000, "master_ip")
-
-        print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x2)))
-
-        assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00020002, "master_claimi")
-        assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000000, "master_ip")
-        dut.clockDomain.waitRisingEdge(10)
-
-        // setip and the block of setip(num) when mode is high or low
-        print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x5)))
-        assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000020, "master_ip")
-        print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x6)))
-        assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000020, "master_ip")
-        print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x7)))
-        assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000020, "master_ip")
-        print(agent.putFullData(0, masteroffset + aplicmap.setipOffset, SimUInt32(0b00001100)))
-        assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x0000000c, "master_ip")
-
-        assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00020002, "master_claimi")
-        assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00030003, "master_claimi")
-        assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000000, "master_ip")
-
-        // input and delagation
-        dut.io.sources #= 0b0111110
-        dut.clockDomain.waitRisingEdge(2)
-        assertData(agent.get(0, masteroffset + aplicmap.in_clripOffset, 4), 0x000000c0, "master_ip")
-        assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x000000c8, "master_ip")
-        assertData(agent.get(0, slaveoffset + aplicmap.setipOffset, 4), 0x00000002, "slave_ip")
-
-
-        dut.io.sources #= 0b0100110
-        dut.clockDomain.waitRisingEdge(2)
-        assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x000000e8, "master_ip")
-        assertData(agent.get(0, slaveoffset + aplicmap.setipOffset, 4), 0x00000012, "slave_ip")
-
-        // master
-        assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00030003, "master_claimi")
-        assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00050005, "master_claimi")
-        assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00060006, "master_claimi")
-        assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00060006, "master_claimi")
-
-        // slave
-        assertData(agent.get(0, slaveoffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00010001, "slave_claimi")
-        dut.io.sources #= 0b0100111
-        dut.clockDomain.waitRisingEdge(2)
-        assertData(agent.get(0, slaveoffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00040004, "slave_claimi")
-
-        dut.io.sources #= 0b1000001
-        //end
-        print("All sim points are success!\n")
-        dut.clockDomain.waitRisingEdge(10)
-      }
-    }
-
-    test(prefix + "aplic sim msi") {
-      if(compiled == null) {
-        println("rebuild")
-        doCompile()
+                            SimUInt32(0x40007))
+      for (i <- 0 until targetArray.size) {
+        print(agent.putFullData(0, masteroffset + aplicmap.targetOffset + i * 4, targetArray(i)))
+        print(agent.putFullData(0, slaveoffset + aplicmap.targetOffset + i * 4, targetArray(i)))
       }
 
-      compiled.doSim("aplic sim msi") { dut =>
-        dut.clockDomain.forkStimulus(10)
+      print(agent.putFullData(0, masteroffset + aplicmap.setipOffset, SimUInt32(0x0)))
+      print(agent.putFullData(0, slaveoffset + aplicmap.setipOffset, SimUInt32(0x0)))
 
-        dut.io.sources #= 0b0000000
-        dut.io.ie(0) #= 0x7f
+      print(agent.putFullData(0, masteroffset + aplicmap.domaincfgOffset, SimUInt32(0x80000100)))
+      print(agent.putFullData(0, slaveoffset + aplicmap.domaincfgOffset, SimUInt32(0x80000100)))
 
-        implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
-        val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
+      // set/clripnum
+      print(agent.putFullData(0, masteroffset + aplicmap.clrieOffset, SimUInt32(0b100)))
+      assertData(agent.get(0, masteroffset + aplicmap.setieOffset, 4), 0xe8, "master_ip")
+      print(agent.putFullData(0, masteroffset + aplicmap.setieOffset, SimUInt32(0xff)))
 
-        val slaveoffset = 0x10000000
-        val masteroffset = 0x20000000
-        val imsicoffset = 0x30000000
+      print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x2)))
+      dut.clockDomain.waitRisingEdge(10)
 
-        print(agent.putFullData(0, masteroffset + aplicmap.domaincfgOffset, SimUInt32(0x80000004)))
-        print(agent.putFullData(0, slaveoffset + aplicmap.domaincfgOffset, SimUInt32(0x80000004)))
+      val aplicmaster = dut.peripherals.M.core.aplic
+      val aplicslave = dut.peripherals.S.core.aplic
 
-        for (i <- 1 to 6) {
-          print(agent.putFullData(0, masteroffset + aplicmap.sourcecfgOffset + (i - 1) * 4, SimUInt32(0x6)))
-          print(agent.putFullData(0, masteroffset + aplicmap.targetOffset + (i - 1) * 4, SimUInt32(i)))
-          print(agent.putFullData(0, masteroffset + aplicmap.setienumOffset, SimUInt32(i)))
+      assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000004, "master_ip")
+      print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x1)))
+      assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000004, "master_ip")
 
-          print(agent.putFullData(0, slaveoffset + aplicmap.sourcecfgOffset + (i - 1) * 4, SimUInt32(0x6)))
-          print(agent.putFullData(0, slaveoffset + aplicmap.targetOffset + (i - 1) * 4, SimUInt32(i)))
-          print(agent.putFullData(0, slaveoffset + aplicmap.setienumOffset, SimUInt32(i)))
-        }
+      print(agent.putFullData(0, masteroffset + aplicmap.in_clripOffset, SimUInt32(0b100)))
+      assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000000, "master_ip")
 
-        print(agent.putFullData(0, masteroffset + aplicmap.mmsiaddrcfgOffset, SimUInt32(imsicoffset>>12)))
-        print(agent.putFullData(0, masteroffset + aplicmap.mmsiaddrcfghOffset, SimUInt32(0x1000)))
-        print(agent.putFullData(0, masteroffset + aplicmap.smsiaddrcfgOffset, SimUInt32(imsicoffset>>12)))
-        print(agent.putFullData(0, masteroffset + aplicmap.smsiaddrcfghOffset, SimUInt32(0x0)))
+      print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x2)))
 
-        print(agent.putFullData(0, masteroffset + aplicmap.domaincfgOffset, SimUInt32(0x80000104)))
-        print(agent.putFullData(0, slaveoffset + aplicmap.domaincfgOffset, SimUInt32(0x80000104)))
+      assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00020002, "master_claimi")
+      assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000000, "master_ip")
+      dut.clockDomain.waitRisingEdge(10)
 
-        dut.io.sources #= 0b0011111
+      // setip and the block of setip(num) when mode is high or low
+      print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x5)))
+      assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000020, "master_ip")
+      print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x6)))
+      assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000020, "master_ip")
+      print(agent.putFullData(0, masteroffset + aplicmap.setipnumOffset, SimUInt32(0x7)))
+      assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000020, "master_ip")
+      print(agent.putFullData(0, masteroffset + aplicmap.setipOffset, SimUInt32(0b00001100)))
+      assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x0000000c, "master_ip")
 
-        print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x7)))
-        print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x6)))
-        print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x5)))
-        print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x4)))
-        print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x3)))
-        print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x2)))
-        print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x1)))
-        print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x2)))
-        print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x40004)))
-        print(agent.putFullData(0, slaveoffset + aplicmap.genmsiOffset, SimUInt32(0x7)))
-        print(agent.putFullData(0, slaveoffset + aplicmap.genmsiOffset, SimUInt32(0x40001)))
+      assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00020002, "master_claimi")
+      assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00030003, "master_claimi")
+      assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x00000000, "master_ip")
 
-        dut.clockDomain.waitRisingEdge(50)
-      }
+      // input and delagation
+      dut.io.sources #= 0b0111110
+      dut.clockDomain.waitRisingEdge(2)
+      assertData(agent.get(0, masteroffset + aplicmap.in_clripOffset, 4), 0x000000c0, "master_ip")
+      assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x000000c8, "master_ip")
+      assertData(agent.get(0, slaveoffset + aplicmap.setipOffset, 4), 0x00000002, "slave_ip")
+
+
+      dut.io.sources #= 0b0100110
+      dut.clockDomain.waitRisingEdge(2)
+      assertData(agent.get(0, masteroffset + aplicmap.setipOffset, 4), 0x000000e8, "master_ip")
+      assertData(agent.get(0, slaveoffset + aplicmap.setipOffset, 4), 0x00000012, "slave_ip")
+
+      // master
+      assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00030003, "master_claimi")
+      assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00050005, "master_claimi")
+      assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00060006, "master_claimi")
+      assertData(agent.get(0, masteroffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00060006, "master_claimi")
+
+      // slave
+      assertData(agent.get(0, slaveoffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00010001, "slave_claimi")
+      dut.io.sources #= 0b0100111
+      dut.clockDomain.waitRisingEdge(2)
+      assertData(agent.get(0, slaveoffset + aplicmap.idcOffset + aplicmap.claimiOffset, 4), 0x00040004, "slave_claimi")
+
+      dut.io.sources #= 0b1000001
+      //end
+      print("All sim points are success!\n")
+      dut.clockDomain.waitRisingEdge(10)
     }
   }
+
+  test(prefix + "aplic sim msi") {
+    if(compiled == null) {
+      println("rebuild")
+      doCompile()
+    }
+
+    compiled.doSim("aplic sim msi") { dut =>
+      dut.clockDomain.forkStimulus(10)
+
+      dut.io.sources #= 0b0000000
+      dut.io.ie(0) #= 0x7f
+
+      implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
+      val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
+
+      val slaveoffset = 0x10000000
+      val masteroffset = 0x20000000
+      val imsicoffset = 0x30000000
+
+      print(agent.putFullData(0, masteroffset + aplicmap.domaincfgOffset, SimUInt32(0x80000004)))
+      print(agent.putFullData(0, slaveoffset + aplicmap.domaincfgOffset, SimUInt32(0x80000004)))
+
+      for (i <- 1 to 6) {
+        print(agent.putFullData(0, masteroffset + aplicmap.sourcecfgOffset + (i - 1) * 4, SimUInt32(0x6)))
+        print(agent.putFullData(0, masteroffset + aplicmap.targetOffset + (i - 1) * 4, SimUInt32(i)))
+        print(agent.putFullData(0, masteroffset + aplicmap.setienumOffset, SimUInt32(i)))
+
+        print(agent.putFullData(0, slaveoffset + aplicmap.sourcecfgOffset + (i - 1) * 4, SimUInt32(0x6)))
+        print(agent.putFullData(0, slaveoffset + aplicmap.targetOffset + (i - 1) * 4, SimUInt32(i)))
+        print(agent.putFullData(0, slaveoffset + aplicmap.setienumOffset, SimUInt32(i)))
+      }
+
+      print(agent.putFullData(0, masteroffset + aplicmap.mmsiaddrcfgOffset, SimUInt32(imsicoffset>>12)))
+      print(agent.putFullData(0, masteroffset + aplicmap.mmsiaddrcfghOffset, SimUInt32(0x1000)))
+      print(agent.putFullData(0, masteroffset + aplicmap.smsiaddrcfgOffset, SimUInt32(imsicoffset>>12)))
+      print(agent.putFullData(0, masteroffset + aplicmap.smsiaddrcfghOffset, SimUInt32(0x0)))
+
+      print(agent.putFullData(0, masteroffset + aplicmap.domaincfgOffset, SimUInt32(0x80000104)))
+      print(agent.putFullData(0, slaveoffset + aplicmap.domaincfgOffset, SimUInt32(0x80000104)))
+
+      dut.io.sources #= 0b0011111
+
+      print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x7)))
+      print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x6)))
+      print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x5)))
+      print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x4)))
+      print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x3)))
+      print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x2)))
+      print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x1)))
+      print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x2)))
+      print(agent.putFullData(0, masteroffset + aplicmap.genmsiOffset, SimUInt32(0x40004)))
+      print(agent.putFullData(0, slaveoffset + aplicmap.genmsiOffset, SimUInt32(0x7)))
+      print(agent.putFullData(0, slaveoffset + aplicmap.genmsiOffset, SimUInt32(0x40001)))
+
+      dut.clockDomain.waitRisingEdge(50)
+    }
+  }
+  // }
 }
