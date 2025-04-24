@@ -24,11 +24,14 @@ case class APlicDirectGateway(interrupts: Seq[APlicSource], hartId: Int, enable:
     takeA ? a | b
   }))
 
-  val iep = resultRequest.pending(ithreshold) && enable
-  val bestRequest = resultRequest.verify(iep)
+  val valid = resultRequest.pending(ithreshold) && enable
+  val bestRequest = resultRequest.verify(valid)
+  val iep = valid && idelivery && enable
 
   def doBestClaim() = new Area {
-    APlic.doClaim(interrupts, bestRequest.id)
+    when (idelivery) {
+      APlic.doClaim(interrupts, bestRequest.id)
+    }
   }
 }
 
