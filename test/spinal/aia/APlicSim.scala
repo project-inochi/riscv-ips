@@ -105,7 +105,7 @@ class APlicSimTest extends SpinalSimFunSuite {
   var compiled: SimCompiled[TilelinkAPLICFiberTest] = null
 
   def doCompile(): Unit = {
-    compiled = SimConfig.compile(
+    compiled = SimConfig.withConfig(config.TestConfig.spinal).compile(
       new TilelinkAPLICFiberTest(hartIds, sourceIds, slavesourceIds)
     )
   }

@@ -24,9 +24,8 @@ object TestConfig {
     defaultConfigForClockDomains = ClockDomainConfig(
       resetActiveLevel = HIGH
     ),
+    oneFilePerComponent = true,
     removePruned = true,
     verbose = true
   )
-
-  def sim = SimConfig.withConfig(spinal)
 }
