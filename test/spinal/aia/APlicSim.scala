@@ -170,6 +170,11 @@ class APlicSimTest extends SpinalSimFunSuite {
         print(agent.putFullData(0, slaveoffset + aplicmap.targetOffset + i * 4, targetArray(i)))
       }
 
+      for (i <- 0 until hartnum) {
+        print(agent.putFullData(0, masteroffset + aplicmap.idcOffset + aplicmap.idcGroupSize * i + aplicmap.ideliveryOffset, SimUInt32(1)))
+        print(agent.putFullData(0, slaveoffset + aplicmap.idcOffset + aplicmap.idcGroupSize * i + aplicmap.ideliveryOffset, SimUInt32(1)))
+      }
+
       print(agent.putFullData(0, masteroffset + aplicmap.setipOffset, SimUInt32(0x0)))
       print(agent.putFullData(0, slaveoffset + aplicmap.setipOffset, SimUInt32(0x0)))
 
