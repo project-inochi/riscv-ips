@@ -93,10 +93,6 @@ case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slaves
 class APlicSimTest extends SpinalSimFunSuite {
   onlyVerilator()
 
-  // SpinalSimTester { env =>
-  //   import env._
-  val prefix = ""
-
   val sourcenum = 64
   val hartnum = 8
 
@@ -120,11 +116,11 @@ class APlicSimTest extends SpinalSimFunSuite {
     assert(result, s"$name: missmatch (${value.toList} != 0x${answer.toBytes.slice(0, 4)})")
   }
 
-  test(prefix + "compile") {
+  test("compile") {
     doCompile()
   }
 
-  test(prefix + "aplic sim direct") {
+  test("aplic sim direct") {
     if(compiled == null) {
       doCompile()
     }
@@ -250,7 +246,7 @@ class APlicSimTest extends SpinalSimFunSuite {
     }
   }
 
-  test(prefix + "aplic sim msi") {
+  test("aplic sim msi") {
     if(compiled == null) {
       println("rebuild")
       doCompile()
