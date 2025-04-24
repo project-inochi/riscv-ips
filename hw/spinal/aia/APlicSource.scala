@@ -99,7 +99,7 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDo
   mode.assignFromBits(modeBit)
 
   val targetId = RegInit(U(0x0, 14 bits))
-  val prio = RegInit(U(0x0, 8 bits))
+  val prio = RegInit(U(1, 8 bits))
 
   // for msi delivery mode
   val guestId = RegInit(U(0x0, 6 bits))

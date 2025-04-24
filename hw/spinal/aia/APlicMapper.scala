@@ -182,7 +182,8 @@ object APlicMapper {
             interrupt.guestId := configFlow.payload(17 downto 12)
             interrupt.eiid := configFlow.payload(10 downto 0)
           } otherwise {
-            interrupt.prio := configFlow.payload(7 downto 0)
+            val prio = configFlow.payload(7 downto 0)
+            interrupt.prio := (prio === 0) ? U(1) | prio
           }
         }
 
