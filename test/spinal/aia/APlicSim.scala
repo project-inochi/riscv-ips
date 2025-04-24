@@ -125,7 +125,7 @@ class APlicSimTest extends SpinalSimFunSuite {
       doCompile()
     }
 
-    compiled.doSim("aplic sim direct") { dut =>
+    compiled.doSimUntilVoid("aplic sim direct") { dut =>
       dut.clockDomain.forkStimulus(10)
 
       dut.io.sources #= 0b1000001
@@ -243,6 +243,7 @@ class APlicSimTest extends SpinalSimFunSuite {
       //end
       print("All sim points are success!\n")
       dut.clockDomain.waitRisingEdge(10)
+      simSuccess()
     }
   }
 
@@ -252,7 +253,7 @@ class APlicSimTest extends SpinalSimFunSuite {
       doCompile()
     }
 
-    compiled.doSim("aplic sim msi") { dut =>
+    compiled.doSimUntilVoid("aplic sim msi") { dut =>
       dut.clockDomain.forkStimulus(10)
 
       dut.io.sources #= 0b0000000
@@ -301,6 +302,7 @@ class APlicSimTest extends SpinalSimFunSuite {
       print(agent.putFullData(0, slaveoffset + aplicmap.genmsiOffset, SimUInt32(0x40001)))
 
       dut.clockDomain.waitRisingEdge(50)
+      simSuccess()
     }
   }
   // }
