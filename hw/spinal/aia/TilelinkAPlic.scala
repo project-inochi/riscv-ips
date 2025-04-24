@@ -73,7 +73,7 @@ case class TilelinkAplic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq
 case class APlicTilelinkMasterHelper(bus: tilelink.Bus) extends Area with APlicBusMasterSend {
   override def send(stream: Stream[APlicMSIPayload]) = new Area {
     val out = stream.map(payload => {
-      val channelA = tilelink.ChannelA(bus.a.p)
+      val channelA = cloneOf(bus.a.payloadType)
       channelA.opcode   := tilelink.Opcode.A.PUT_FULL_DATA
       channelA.size     := 2
       channelA.source   := 0
