@@ -10,6 +10,19 @@ case class SxAIAInterruptSource(sourceId: Int) extends Area {
   val ie = RegInit(False)
   val ip = RegInit(False)
 
+  val profile = new Area {
+    val en = RegInit(False)
+    val counter = Counter(32 bits, en && !ip)
+    val latency = counter.value
+
+    when (!en) {
+      counter.clear()
+    }
+
+    en.simPublic()
+    latency.simPublic()
+  }
+
   ie.simPublic()
   ip.simPublic()
 }
