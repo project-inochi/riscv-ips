@@ -14,7 +14,7 @@ case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slaves
   val crossBar = tilelink.fabric.Node()
   crossBar << masterBus.node
 
-  val blocks = for (hartId <- hartIds) yield new SxAIA(sourceIds, hartId, 0)
+  val blocks = for (hartId <- hartIds) yield new SxAIABlock(sourceIds, hartId, 0)
 
   val slaveInfos = Seq(APlicSlaveInfo(1, slavesourceIds))
 
@@ -38,7 +38,7 @@ case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slaves
 
     for (block <- blocks) {
       val trigger = dispatcher.addIMSICinfo(block.asTilelinkIMSICIInfo())
-      val connector = SxAIATrigger(block, trigger)
+      val connector = SxAIABlockTrigger(block, trigger)
     }
 
     val targetsSBundles = hartIds.map(hartId => {

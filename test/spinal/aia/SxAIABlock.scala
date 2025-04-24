@@ -14,13 +14,13 @@ case class SxAIAInterruptSource(sourceId: Int) extends Area {
   ip.simPublic()
 }
 
-case class SxAIA(sourceIds: Seq[Int], hartId: Int, guestId: Int) extends Area {
+case class SxAIABlock(sourceIds: Seq[Int], hartId: Int, guestId: Int) extends Area {
   val interrupts = for (sourceId <- sourceIds) yield new SxAIAInterruptSource(sourceId)
 
   def asTilelinkIMSICIInfo() = TilelinkIMSICIInfo(hartId, guestId, interrupts.map(_.id))
 }
 
-case class SxAIATrigger(block: SxAIA, triggers: Bits) extends Area {
+case class SxAIABlockTrigger(block: SxAIABlock, triggers: Bits) extends Area {
   for ((interrupt, trigger) <- block.interrupts.zip(triggers.asBools)) {
     when(trigger) {
       interrupt.ip := True

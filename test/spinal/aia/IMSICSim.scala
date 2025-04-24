@@ -9,7 +9,6 @@ import spinal.lib.bus.misc._
 import config.Config
 import _root_.sim._
 import _root_.sim.bus._
-import aia.{SxAIA, SxAIATrigger}
 
 case class TilelinkIMSICFiberTest(sourceIds: Seq[Int], hartIds: Seq[Int]) extends Component {
   val sourcenum = sourceIds.size
@@ -20,7 +19,7 @@ case class TilelinkIMSICFiberTest(sourceIds: Seq[Int], hartIds: Seq[Int]) extend
   val crossBar = tilelink.fabric.Node()
   crossBar << masterBus.node
 
-  val blocks = for (hartId <- hartIds) yield new SxAIA(sourceIds, hartId, 0)
+  val blocks = for (hartId <- hartIds) yield new SxAIABlock(sourceIds, hartId, 0)
 
   val peripherals = new Area {
     val access = tilelink.fabric.Node()
@@ -35,7 +34,7 @@ case class TilelinkIMSICFiberTest(sourceIds: Seq[Int], hartIds: Seq[Int]) extend
 
     for (block <- blocks) {
       val trigger = dispatcher.addIMSICinfo(block.asTilelinkIMSICIInfo())
-      val connector = SxAIATrigger(block, trigger)
+      val connector = SxAIABlockTrigger(block, trigger)
     }
   }
 
