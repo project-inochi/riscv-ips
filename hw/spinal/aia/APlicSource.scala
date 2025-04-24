@@ -66,6 +66,8 @@ case class APlicMSITarget() extends Bundle {
 
 case class APlicMSIRequest(idWidth: Int) extends APlicGenericRequest(idWidth) {
   val target = APlicMSITarget()
+  val keep = RegNext(valid) init(False)
+
   override def prioritize(other: APlicGenericRequest): Bool = {
     val x = other.asInstanceOf[APlicMSIRequest]
     !x.valid || (valid && id <= x.id)
@@ -193,11 +195,12 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDo
 
   def asMSIRequest(idWidth: Int): APlicGenericRequest = {
     val ret = new APlicMSIRequest(idWidth)
+    val enable = (ie && domaieState.enable) || ret.keep
     ret.target.hartId := targetId
     ret.target.guestId := guestId
     ret.target.eiid := eiid
     ret.id := U(id)
-    ret.valid := ip && ie
+    ret.valid := ip && enable
     ret
   }
 
