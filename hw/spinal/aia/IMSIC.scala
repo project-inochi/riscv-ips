@@ -122,6 +122,17 @@ object IMSICTrigger {
     )
   }
 
+  def imsicOffset(mapping: IMSICMapping, groupId: Int, groupHartId: Int, guestId: Int) = {
+    import mapping._
+
+    val offset = groupId * interruptFileGroupSize +
+                 groupHartId * interruptFileHartSize +
+                 interruptFileHartOffset +
+                 guestId * interruptFileSize
+
+    offset
+  }
+
   def apply(bus: BusSlaveFactory, mapping: IMSICMapping)(infos: Seq[IMSICInfo]) = new Area {
     val maxGuestId = infos.map(_.guestId).max
     val maxGroupHartId = infos.map(_.groupHartId).max
@@ -129,11 +140,9 @@ object IMSICTrigger {
 
     val realMapping = mappingCalibrate(mapping, maxGuestId, maxGroupHartId, maxGroupId)
 
-    import realMapping._
-
     val files = for (info <- infos) yield new Area {
       val file = IMSICInterruptFile(info.sourceIds, info.hartId, info.guestId)
-      val offset = info.groupId * interruptFileGroupSize + info.groupHartId * interruptFileHartSize + interruptFileHartOffset + info.guestId * interruptFileSize
+      val offset = imsicOffset(realMapping, info.groupId, info.groupHartId, info.guestId)
 
       file.driveFrom(bus, offset)
     }
@@ -144,13 +153,11 @@ object IMSICTrigger {
   def addressWidth(mapping: IMSICMapping, maxGuestId: Int, maxGroupHartId: Int, maxGroupId: Int): Int = {
     val realMapping = mappingCalibrate(mapping, maxGuestId, maxGroupHartId, maxGroupId)
 
-    import realMapping._
-
     val intFileNumber = 1 << log2Up(maxGuestId + 1)
     val intFileGroupHarts = 1 << log2Up(maxGroupHartId + 1)
     val intFileGroupMax = 1 << log2Up(maxGroupId + 1)
 
-    val IMSICSize = maxGroupId * interruptFileGroupSize + maxGroupHartId * interruptFileHartSize + interruptFileHartOffset + (maxGuestId + 1) * interruptFileSize
+    val IMSICSize = imsicOffset(realMapping, maxGroupId, maxGroupHartId, maxGuestId + 1)
 
     return log2Up(IMSICSize)
   }
