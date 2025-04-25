@@ -60,40 +60,40 @@ object APlicMapper {
 
     // mapping GENMSI, MSIADDRCFG, MSIADDRCFGH
     val msi = new Area {
-      val msiaddrcfg = aplic.msiaddrcfg
+      val logic = aplic.msi
 
-      slaveBus.read(msiaddrcfg.M.msiaddrcfgCovered(31 downto 0), address = mmsiaddrcfgOffset)
-      slaveBus.read(msiaddrcfg.M.msiaddrcfgCovered(63 downto 32), address = mmsiaddrcfghOffset)
-      slaveBus.read(msiaddrcfg.S.msiaddrcfgCovered(31 downto 0), address = smsiaddrcfgOffset)
-      slaveBus.read(msiaddrcfg.S.msiaddrcfgCovered(63 downto 32), address = smsiaddrcfghOffset)
+      slaveBus.read(logic.M.msiaddrcfgCovered(31 downto 0), address = mmsiaddrcfgOffset)
+      slaveBus.read(logic.M.msiaddrcfgCovered(63 downto 32), address = mmsiaddrcfghOffset)
+      slaveBus.read(logic.S.msiaddrcfgCovered(31 downto 0), address = smsiaddrcfgOffset)
+      slaveBus.read(logic.S.msiaddrcfgCovered(63 downto 32), address = smsiaddrcfghOffset)
 
       aplic.p.isRoot generate new Area {
-        val allowWrite = !msiaddrcfg.M.lock
+        val allowWrite = !logic.M.lock
 
         val mmsiaddrcfgh = slaveBus.createAndDriveFlow(UInt(32 bits), mmsiaddrcfghOffset)
         when(mmsiaddrcfgh.valid && allowWrite) {
-          msiaddrcfg.M.lock := mmsiaddrcfgh.payload(31)
-          msiaddrcfg.M.hhxs := mmsiaddrcfgh.payload(28 downto 24)
-          msiaddrcfg.M.lhxs := mmsiaddrcfgh.payload(22 downto 20)
-          msiaddrcfg.M.hhxw := mmsiaddrcfgh.payload(18 downto 16)
-          msiaddrcfg.M.lhxw := mmsiaddrcfgh.payload(15 downto 12)
-          msiaddrcfg.M.ppn(43 downto 32) := mmsiaddrcfgh.payload(11 downto 0)
+          logic.M.lock := mmsiaddrcfgh.payload(31)
+          logic.M.hhxs := mmsiaddrcfgh.payload(28 downto 24)
+          logic.M.lhxs := mmsiaddrcfgh.payload(22 downto 20)
+          logic.M.hhxw := mmsiaddrcfgh.payload(18 downto 16)
+          logic.M.lhxw := mmsiaddrcfgh.payload(15 downto 12)
+          logic.M.ppn(43 downto 32) := mmsiaddrcfgh.payload(11 downto 0)
         }
 
         val mmsiaddrcfg = slaveBus.createAndDriveFlow(UInt(32 bits), mmsiaddrcfgOffset)
         when(mmsiaddrcfg.valid && allowWrite) {
-          msiaddrcfg.M.ppn(31 downto 0) := mmsiaddrcfg.payload
+          logic.M.ppn(31 downto 0) := mmsiaddrcfg.payload
         }
 
         val smsiaddrcfgh = slaveBus.createAndDriveFlow(UInt(32 bits), smsiaddrcfghOffset)
         when(smsiaddrcfgh.valid && allowWrite) {
-          msiaddrcfg.S.lhxs := smsiaddrcfgh.payload(22 downto 20)
-          msiaddrcfg.S.ppn(43 downto 32) := smsiaddrcfgh.payload(11 downto 0)
+          logic.S.lhxs := smsiaddrcfgh.payload(22 downto 20)
+          logic.S.ppn(43 downto 32) := smsiaddrcfgh.payload(11 downto 0)
         }
 
         val smsiaddrcfg = slaveBus.createAndDriveFlow(UInt(32 bits), smsiaddrcfgOffset)
         when(smsiaddrcfg.valid && allowWrite) {
-          msiaddrcfg.S.ppn(31 downto 0) := smsiaddrcfg.payload
+          logic.S.ppn(31 downto 0) := smsiaddrcfg.payload
         }
       }
 
@@ -118,7 +118,7 @@ object APlicMapper {
       genmsiPayload.payload.eiid := rGenmsiFlow.eiid
 
       val genmsiPayloadStream = Stream(APlicGenMSIPayload())
-      genmsiPayloadStream.valid := genmsiPayload.valid && !aplic.msiGateway.requestStreamValidMask
+      genmsiPayloadStream.valid := genmsiPayload.valid && !logic.gateway.requestStreamValidMask
       genmsiPayloadStream.payload := genmsiPayload.payload
 
       when(genmsiPayloadStream.ready && genmsiPayloadStream.valid) {
@@ -129,7 +129,7 @@ object APlicMapper {
 
       val genmsiStream = genmsiPayloadStream.map(param => {
         val payload = APlicMSIPayload()
-        payload.address := msiaddrcfg.msiAddress(param.hartId).resized
+        payload.address := logic.msiAddress(param.hartId).resized
         payload.data := param.eiid.resized
         payload
       })
@@ -138,7 +138,7 @@ object APlicMapper {
       slaveBus.read(genmsiPayload.valid, address = genmsiOffset, bitOffset = 12)
       slaveBus.read(genmsiPayload.payload.eiid, address = genmsiOffset, bitOffset = 0)
 
-      val msiStream = StreamArbiterFactory().lowerFirst.noLock.onArgs(aplic.msiStream, genmsiStream)
+      val msiStream = StreamArbiterFactory().lowerFirst.noLock.onArgs(logic.gatewayStream, genmsiStream)
 
       masterBus.send(msiStream)
     }

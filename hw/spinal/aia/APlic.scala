@@ -92,7 +92,7 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
     }
   }
 
-  val msiaddrcfg = p.genParam.withMSI generate new Area {
+  val msi = p.genParam.withMSI generate new Area {
     val M = new Area {
       val (lock, hhxs, lhxs, hhxw, lhxw, ppn) = if (p.isRoot) {
         (RegInit(False),
@@ -164,6 +164,15 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
       }
     }
 
+    val gateway = new APlicMSIGateway(interrupts, domainEnable)
+
+    val gatewayStream = gateway.requestStream.map(req => {
+      val payload = APlicMSIPayload()
+      payload.address := msiAddress(req.target.hartId, req.target.guestId).resized
+      payload.data := req.target.eiid.resized
+      payload
+    })
+
     def msiAddress(hartIndex: UInt, guestIndex: UInt = 0): UInt = {
       val groupId = (hartIndex >> M.lhxw) & M.maskH.resized
       val hartId = hartIndex & M.maskL.resized
@@ -179,15 +188,6 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
 
   // hartids
   val directGateways = for (hartId <- hartIds) yield new APlicDirectGateway(interrupts, hartId, domainEnable)
-
-  val msiGateway = new APlicMSIGateway(interrupts, domainEnable)
-
-  val msiStream = msiGateway.requestStream.map(req => {
-    val payload = APlicMSIPayload()
-    payload.address := msiaddrcfg.msiAddress(req.target.hartId, req.target.guestId).resized
-    payload.data := req.target.eiid.resized
-    payload
-  })
 
   directTargets := Mux(isMSI, B(0), directGateways.map(_.iep).asBits())
 }
