@@ -185,15 +185,16 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDo
 
   def asDirectRequest(idWidth: Int, targetHart: Int): APlicGenericRequest = {
     val ret = new APlicDirectRequest(idWidth, prio.getWidth)
+    val enable = ie && !domaieState.isMSI
     ret.id := U(id)
-    ret.valid := ip && ie && (targetId === targetHart)
+    ret.valid := ip && enable && (targetId === targetHart)
     ret.prio := prio
     ret
   }
 
   def asMSIRequest(idWidth: Int): APlicGenericRequest = {
     val ret = new APlicMSIRequest(idWidth)
-    val enable = (ie && domaieState.enable) || ret.keep
+    val enable = (ie || ret.keep) && domaieState.isMSI
     ret.target.hartId := targetId
     ret.target.guestId := guestId
     ret.target.eiid := eiid
