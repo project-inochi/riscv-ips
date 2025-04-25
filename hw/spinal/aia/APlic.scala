@@ -169,7 +169,7 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
   }
 
   // hartids
-  val directGateways = for (hartId <- hartIds) yield new APlicDirectGateway(interrupts, hartId, !isMSI)
+  val directGateways = for (hartId <- hartIds) yield new APlicDirectGateway(interrupts, hartId, !isMSI && domainEnable)
 
   val msiGateway = new APlicMSIGateway(interrupts, isMSI)
 

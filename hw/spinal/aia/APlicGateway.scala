@@ -24,7 +24,7 @@ case class APlicDirectGateway(interrupts: Seq[APlicSource], hartId: Int, enable:
     takeA ? a | b
   }))
 
-  val valid = resultRequest.pending(ithreshold) && enable
+  val valid = resultRequest.pending(ithreshold)
   val bestRequest = resultRequest.verify(valid)
   val iep = valid && idelivery && enable
 
