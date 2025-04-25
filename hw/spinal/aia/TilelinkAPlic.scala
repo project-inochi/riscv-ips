@@ -10,15 +10,16 @@ import spinal.lib.misc.plic.InterruptCtrlFiber
 import scala.collection.mutable.ArrayBuffer
 
 class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
-                  TM <: spinal.core.Data with IMasterSlave,
-                  TH <: APlicBusMasterSend](sourceIds: Seq[Int],
-                                            hartIds: Seq[Int],
-                                            slaveInfos: Seq[APlicSlaveInfo],
-                                            p: APlicDomainParam,
-                                            slaveType: HardType[TS],
-                                            masterType: HardType[TM],
-                                            factoryGen: TS => BusSlaveFactory,
-                                            helperGen: TM => TH) extends Component {
+                  TM <: spinal.core.Data with IMasterSlave](
+  sourceIds: Seq[Int],
+  hartIds: Seq[Int],
+  slaveInfos: Seq[APlicSlaveInfo],
+  p: APlicDomainParam,
+  slaveType: HardType[TS],
+  masterType: HardType[TM],
+  factoryGen: TS => BusSlaveFactory,
+  msiSenderGen: (TM, Stream[APlicMSIPayload]) => Area
+) extends Component {
   require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
   require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")
 
@@ -37,8 +38,7 @@ class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
     io.smsiaddrcfg.assignDontCare()
   }
 
-  val helper = helperGen(io.masterBus)
-  val aplic = APlic(p, sourceIds, hartIds, slaveInfos, helper.send(_))
+  val aplic = APlic(p, sourceIds, hartIds, slaveInfos, msiSenderGen(io.masterBus, _))
 
   aplic.sources := io.sources
   io.targets := aplic.direct.targets
@@ -67,26 +67,24 @@ case class TilelinkAplic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq
   new bus.tilelink.Bus(slaveParams),
   new bus.tilelink.Bus(mastersParams),
   new bus.tilelink.SlaveFactory(_, true),
-  new APlicTilelinkMasterHelper(_)
+  new APlicTilelinkMasterHelper(_, _)
 )
 
-case class APlicTilelinkMasterHelper(bus: tilelink.Bus) extends Area with APlicBusMasterSend {
-  override def send(stream: Stream[APlicMSIPayload]) = new Area {
-    val out = stream.map(payload => {
-      val channelA = cloneOf(bus.a.payloadType)
-      channelA.opcode   := tilelink.Opcode.A.PUT_FULL_DATA
-      channelA.size     := 2
-      channelA.source   := 0
-      channelA.address  := payload.address.resized
-      channelA.data     := payload.data.asBits.resized
-      channelA.debugId  := 0
-      channelA.mask     := 0xf
-      channelA
-    })
+case class APlicTilelinkMasterHelper(bus: tilelink.Bus, stream: Stream[APlicMSIPayload]) extends Area {
+  val out = stream.map(payload => {
+    val channelA = cloneOf(bus.a.payloadType)
+    channelA.opcode   := tilelink.Opcode.A.PUT_FULL_DATA
+    channelA.size     := 2
+    channelA.source   := 0
+    channelA.address  := payload.address.resized
+    channelA.data     := payload.data.asBits.resized
+    channelA.debugId  := 0
+    channelA.mask     := 0xf
+    channelA
+  })
 
-    bus.a <-< out
-    bus.d.ready := True
-  }
+  bus.a <-< out
+  bus.d.ready := True
 }
 
 case class TilelinkAPlicMasterParam(addressWidth: Int, pendingSize: Int)

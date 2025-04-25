@@ -38,10 +38,6 @@ case class APlicGenMSIPayload() extends Bundle {
   val eiid = UInt(11 bits)
 }
 
-trait APlicBusMasterSend {
-  def send(stream: Stream[APlicMSIPayload]): Area
-}
-
 object APlicMapper {
   def apply(bus: BusSlaveFactory)(aplic: APlic) = new Area{
     import APlicMapping._
