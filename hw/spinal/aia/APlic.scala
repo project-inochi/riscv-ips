@@ -154,7 +154,7 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
   }
 
   val interrupts: Seq[APlicSource] = for (((sourceId, delegatable), i) <- sourceIds.zip(interruptDelegatable).zipWithIndex)
-    yield new APlicSource(sourceId, delegatable, APlicDomainState(domainEnable, isMSI), sources(i))
+    yield new APlicSource(sourceId, delegatable, isMSI, sources(i))
 
   val slaveMappings = for ((slaveInfo, slaveSource) <- slaveInfos.zip(slaveSources)) yield new Area {
     for ((slaveSourceId, idx) <- slaveInfo.sourceIds.zipWithIndex) yield new Area {
@@ -169,9 +169,9 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
   }
 
   // hartids
-  val directGateways = for (hartId <- hartIds) yield new APlicDirectGateway(interrupts, hartId, !isMSI && domainEnable)
+  val directGateways = for (hartId <- hartIds) yield new APlicDirectGateway(interrupts, hartId, domainEnable)
 
-  val msiGateway = new APlicMSIGateway(interrupts, isMSI)
+  val msiGateway = new APlicMSIGateway(interrupts, domainEnable)
 
   val msiStream = msiGateway.requestStream.map(req => {
     val payload = APlicMSIPayload()

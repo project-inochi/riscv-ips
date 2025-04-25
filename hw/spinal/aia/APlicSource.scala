@@ -29,8 +29,6 @@ object APlicSourceMode extends SpinalEnum {
     LEVEL0 -> 7)
 }
 
-case class APlicDomainState(enable: Bool, isMSI: Bool) extends Bundle
-
 case class APlicDirectRequest(idWidth: Int, priorityWidth: Int) extends APlicGenericRequest(idWidth) {
   val prio = UInt(priorityWidth bits)
 
@@ -86,7 +84,7 @@ case class APlicMSIRequest(idWidth: Int) extends APlicGenericRequest(idWidth) {
   }
 }
 
-case class APlicSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDomainState, input: Bool) extends Area {
+case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: Bool) extends Area {
   import APlicSourceMode._
 
   val id = sourceId
@@ -133,7 +131,7 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDo
     val allowModify = Bool()
     val ctx = WhenBuilder()
 
-    ctx.when(List(LEVEL1, LEVEL0).map(mode === _).orR && !domaieState.isMSI) {
+    ctx.when(List(LEVEL1, LEVEL0).map(mode === _).orR && !isMSI) {
       allowModify := False
     }
 
@@ -165,18 +163,18 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDo
         ip := True
       }
     }
-    ctx.when(mode === LEVEL1 && !domaieState.isMSI) {
+    ctx.when(mode === LEVEL1 && !isMSI) {
       ip := input
     }
-    ctx.when(mode === LEVEL1 && domaieState.isMSI) {
+    ctx.when(mode === LEVEL1 && isMSI) {
       when(input.rise()) {
         ip := True
       }
     }
-    ctx.when(mode === LEVEL0 && !domaieState.isMSI) {
+    ctx.when(mode === LEVEL0 && !isMSI) {
       ip := ~input
     }
-    ctx.when(mode === LEVEL0 && domaieState.isMSI) {
+    ctx.when(mode === LEVEL0 && isMSI) {
       when(input.fall()) {
         ip := True
       }
@@ -185,7 +183,7 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDo
 
   def asDirectRequest(idWidth: Int, targetHart: Int): APlicGenericRequest = {
     val ret = new APlicDirectRequest(idWidth, prio.getWidth)
-    val enable = ie && !domaieState.isMSI
+    val enable = ie && !isMSI
     ret.id := U(id)
     ret.valid := ip && enable && (targetId === targetHart)
     ret.prio := prio
@@ -194,7 +192,7 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDo
 
   def asMSIRequest(idWidth: Int): APlicGenericRequest = {
     val ret = new APlicMSIRequest(idWidth)
-    val enable = (ie || ret.keep) && domaieState.isMSI
+    val enable = (ie || ret.keep) && isMSI
     ret.target.hartId := targetId
     ret.target.guestId := guestId
     ret.target.eiid := eiid
