@@ -77,6 +77,21 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
   val isMSI = RegInit(False)
   val bigEndian = False
 
+  val interrupts: Seq[APlicSource] = for (((sourceId, delegatable), i) <- sourceIds.zip(interruptDelegatable).zipWithIndex)
+    yield new APlicSource(sourceId, delegatable, isMSI, sources(i))
+
+  val slaveMappings = for ((slaveInfo, slaveSource) <- slaveInfos.zip(slaveSources)) yield new Area {
+    for ((slaveSourceId, idx) <- slaveInfo.sourceIds.zipWithIndex) yield new Area {
+      interrupts.find(_.id == slaveSourceId).map(interrupt => new Area {
+        when(domainEnable && interrupt.delegated && (Bool(slaveInfos.size == 1) || interrupt.childIdx === slaveInfo.childIdx)) {
+          slaveSource(idx) := interrupt.input
+        } otherwise {
+          slaveSource(idx) := False
+        }
+      })
+    }
+  }
+
   val msiaddrcfg = p.genParam.withMSI generate new Area {
     val M = new Area {
       val (lock, hhxs, lhxs, hhxw, lhxw, ppn) = if (p.isRoot) {
@@ -159,21 +174,6 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
 
       val msiaddr = (ppn | groupOffset.resized | hartOffset.resized | guestIndex.resized) << 12
       msiaddr
-    }
-  }
-
-  val interrupts: Seq[APlicSource] = for (((sourceId, delegatable), i) <- sourceIds.zip(interruptDelegatable).zipWithIndex)
-    yield new APlicSource(sourceId, delegatable, isMSI, sources(i))
-
-  val slaveMappings = for ((slaveInfo, slaveSource) <- slaveInfos.zip(slaveSources)) yield new Area {
-    for ((slaveSourceId, idx) <- slaveInfo.sourceIds.zipWithIndex) yield new Area {
-      interrupts.find(_.id == slaveSourceId).map(interrupt => new Area {
-        when(domainEnable && interrupt.delegated && (Bool(slaveInfos.size == 1) || interrupt.childIdx === slaveInfo.childIdx)) {
-          slaveSource(idx) := interrupt.input
-        } otherwise {
-          slaveSource(idx) := False
-        }
-      })
     }
   }
 
