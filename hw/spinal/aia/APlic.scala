@@ -4,23 +4,32 @@ import spinal.core._
 import spinal.lib._
 import scala.annotation.meta.param
 
-case class APlicGenParam(withIEP: Boolean,
+case class APlicGenParam(withDirect: Boolean,
                          withMSI: Boolean,
-                         msiFifoSize: Int = 8)
+                         genIEP: Boolean = true,
+                         withIForce: Boolean = false)
 
 object APlicGenParam {
-  def full = APlicGenParam(
-    withIEP     = true,
+  def test = APlicGenParam(
+    withDirect  = true,
     withMSI     = true,
+    genIEP      = true,
+    withIForce  = true,
+  )
+
+  def full = APlicGenParam(
+    withDirect  = true,
+    withMSI     = true,
+    genIEP      = true,
   )
 
   def MSI = APlicGenParam(
-    withIEP     = false,
+    withDirect  = false,
     withMSI     = true,
   )
 
-  def light = APlicGenParam(
-    withIEP     = false,
+  def direct = APlicGenParam(
+    withDirect  = true,
     withMSI     = false,
   )
 }
