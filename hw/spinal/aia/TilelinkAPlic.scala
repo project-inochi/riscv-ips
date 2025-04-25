@@ -37,7 +37,8 @@ class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
     io.smsiaddrcfg.assignDontCare()
   }
 
-  val aplic = APlic(sourceIds, hartIds, slaveInfos, p)
+  val helper = helperGen(io.masterBus)
+  val aplic = APlic(p, sourceIds, hartIds, slaveInfos, helper.send(_))
 
   aplic.sources := io.sources
   io.targets := aplic.direct.targets
@@ -53,11 +54,6 @@ class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
 
   val factory = factoryGen(io.slaveBus)
   val mapping = APlicMapper(factory)(aplic)
-
-  if (p.genParam.withMSI) {
-    val helper = helperGen(io.masterBus)
-    helper.send(aplic.msi.msiStream)
-  }
 }
 
 case class TilelinkAplic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSlaveInfo],

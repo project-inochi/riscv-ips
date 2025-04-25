@@ -60,7 +60,16 @@ object APlicDomainParam {
 
 case class APlicSlaveInfo(childIdx: Int, sourceIds: Seq[Int])
 
-case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSlaveInfo], p: APlicDomainParam) extends Area {
+case class APlicMSIPayload() extends Bundle {
+  val address = UInt(64 bits)
+  val data = UInt(32 bits)
+}
+
+case class APlic(p: APlicDomainParam,
+                 sourceIds: Seq[Int],
+                 hartIds: Seq[Int],
+                 slaveInfos: Seq[APlicSlaveInfo],
+                 msiSender: Stream[APlicMSIPayload] => Area) extends Area {
   require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
   require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")
 
@@ -175,6 +184,8 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
     val genmsiStream = Stream(APlicMSIPayload())
 
     val msiStream = StreamArbiterFactory().lowerFirst.noLock.onArgs(gatewayStream, genmsiStream)
+
+    msiSender(msiStream)
 
     def msiAddress(hartIndex: UInt, guestIndex: UInt = 0): UInt = {
       val groupId = (hartIndex >> M.lhxw) & M.maskH.resized

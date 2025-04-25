@@ -33,11 +33,6 @@ object APlicMapping {
   val claimiOffset        = 0x1c
 }
 
-case class APlicMSIPayload() extends Bundle {
-  val address = UInt(64 bits)
-  val data = UInt(32 bits)
-}
-
 case class APlicGenMSIPayload() extends Bundle {
   val hartId = UInt(14 bits)
   val eiid = UInt(11 bits)
