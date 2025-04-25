@@ -149,38 +149,36 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, domaieState: APlicDo
   when(delegated) {
     ie := False
   } otherwise {
-    when(domaieState.enable) {
-      val ctx = WhenBuilder()
+    val ctx = WhenBuilder()
 
-      ctx.when(mode === INACTIVE) {
-        ip := False
-        ie := False
+    ctx.when(mode === INACTIVE) {
+      ip := False
+      ie := False
+    }
+    ctx.when(mode === EDGE1) {
+      when(input.rise()) {
+        ip := True
       }
-      ctx.when(mode === EDGE1) {
-        when(input.rise()) {
-          ip := True
-        }
+    }
+    ctx.when(mode === EDGE0) {
+      when(input.fall()) {
+        ip := True
       }
-      ctx.when(mode === EDGE0) {
-        when(input.fall()) {
-          ip := True
-        }
+    }
+    ctx.when(mode === LEVEL1 && !domaieState.isMSI) {
+      ip := input
+    }
+    ctx.when(mode === LEVEL1 && domaieState.isMSI) {
+      when(input.rise()) {
+        ip := True
       }
-      ctx.when(mode === LEVEL1 && !domaieState.isMSI) {
-        ip := input
-      }
-      ctx.when(mode === LEVEL1 && domaieState.isMSI) {
-        when(input.rise()) {
-          ip := True
-        }
-      }
-      ctx.when(mode === LEVEL0 && !domaieState.isMSI) {
-        ip := ~input
-      }
-      ctx.when(mode === LEVEL0 && domaieState.isMSI) {
-        when(input.fall()) {
-          ip := True
-        }
+    }
+    ctx.when(mode === LEVEL0 && !domaieState.isMSI) {
+      ip := ~input
+    }
+    ctx.when(mode === LEVEL0 && domaieState.isMSI) {
+      when(input.fall()) {
+        ip := True
       }
     }
   }
