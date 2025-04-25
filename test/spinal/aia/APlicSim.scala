@@ -7,6 +7,7 @@ import spinal.lib.bus.tilelink
 import spinal.lib.misc.InterruptNode
 import spinal.tester.{SpinalAnyFunSuite, SpinalSimTester, SpinalSimFunSuite}
 import _root_.sim._
+import scala.reflect.internal.SomePhase
 
 case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slavesourceIds: Seq[Int]) extends Component {
   val masterBus = TilelinkBusFiber()
@@ -33,8 +34,8 @@ case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slaves
     val dispatcher = TilelinkIMSICFiber()
     dispatcher.node at 0x30000000 of access
 
-    M.domainParam = Some(new APlicDomainParam(true, true, APlicGenParam.MSI))
-    S.domainParam = Some(new APlicDomainParam(false, false, APlicGenParam.MSI))
+    M.domainParam = Some(APlicDomainParam.root(APlicGenParam.MSI))
+    M.domainParam = Some(APlicDomainParam.S(APlicGenParam.MSI))
 
     for (block <- blocks) {
       val trigger = dispatcher.addIMSICinfo(block.asTilelinkIMSICIInfo())
