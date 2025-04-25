@@ -48,7 +48,7 @@ trait APlicBusMasterSend {
 }
 
 object APlicMapper {
-  def apply(slaveBus: BusSlaveFactory, masterBus: APlicBusMasterSend)(aplic: APlic) = new Area{
+  def apply(slaveBus: BusSlaveFactory)(aplic: APlic) = new Area{
     import APlicMapping._
 
     val domaincfg = new Area {
@@ -134,13 +134,11 @@ object APlicMapper {
         payload
       })
 
+      logic.genmsiStream << genmsiStream
+
       slaveBus.read(genmsiPayload.payload.hartId, address = genmsiOffset, bitOffset = 18)
       slaveBus.read(genmsiPayload.valid, address = genmsiOffset, bitOffset = 12)
       slaveBus.read(genmsiPayload.payload.eiid, address = genmsiOffset, bitOffset = 0)
-
-      val msiStream = StreamArbiterFactory().lowerFirst.noLock.onArgs(logic.gatewayStream, genmsiStream)
-
-      masterBus.send(msiStream)
     }
 
     // mapping SETIPNUM, CLRIPNUM, SETIENUM, CLRIPNUM

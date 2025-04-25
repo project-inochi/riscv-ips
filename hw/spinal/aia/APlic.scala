@@ -172,6 +172,10 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
       payload
     })
 
+    val genmsiStream = Stream(APlicMSIPayload())
+
+    val msiStream = StreamArbiterFactory().lowerFirst.noLock.onArgs(gatewayStream, genmsiStream)
+
     def msiAddress(hartIndex: UInt, guestIndex: UInt = 0): UInt = {
       val groupId = (hartIndex >> M.lhxw) & M.maskH.resized
       val hartId = hartIndex & M.maskL.resized
