@@ -34,8 +34,8 @@ case class TilelinkAPLICFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slaves
     val dispatcher = TilelinkIMSICFiber()
     dispatcher.node at 0x30000000 of access
 
-    M.domainParam = Some(APlicDomainParam.root(APlicGenParam.MSI))
-    M.domainParam = Some(APlicDomainParam.S(APlicGenParam.MSI))
+    M.domainParam = Some(APlicDomainParam.root(APlicGenParam.msi))
+    M.domainParam = Some(APlicDomainParam.S(APlicGenParam.msi))
 
     for (block <- blocks) {
       val trigger = dispatcher.addIMSICinfo(block.asTilelinkIMSICIInfo())
