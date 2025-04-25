@@ -65,7 +65,6 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
   require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")
 
   val sources = Bits(sourceIds.size bits)
-  val directTargets = Bits(hartIds.size bits)
   val slaveSources = Vec(slaveInfos.map(slaveInfo => Bits(slaveInfo.sourceIds.size bits)))
   val mmsiaddrcfg = UInt(64 bits)
   val smsiaddrcfg = UInt(64 bits)
@@ -186,10 +185,11 @@ case class APlic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSl
     }
   }
 
-  // hartids
-  val directGateways = for (hartId <- hartIds) yield new APlicDirectGateway(interrupts, hartId, domainEnable)
+  val direct = new Area {
+    val gateways = for (hartId <- hartIds) yield new APlicDirectGateway(interrupts, hartId, domainEnable)
 
-  directTargets := Mux(isMSI, B(0), directGateways.map(_.iep).asBits())
+    val targets = Mux(isMSI, B(0), gateways.map(_.iep).asBits())
+  }
 }
 
 object APlic {

@@ -222,7 +222,7 @@ object APlicMapper {
     }
 
     // mapping interrupt delivery control for each gateway
-    val idcs = for(idc <- aplic.directGateways) yield new Area {
+    val idcs = for(idc <- aplic.direct.gateways) yield new Area {
       val idcThisOffset = idcOffset + (idc.hartId * idcGroupSize)
       val nowRequest = idc.bestRequest.asInstanceOf[APlicDirectRequest]
 

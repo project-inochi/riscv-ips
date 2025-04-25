@@ -40,7 +40,7 @@ class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
   val aplic = APlic(sourceIds, hartIds, slaveInfos, p)
 
   aplic.sources := io.sources
-  io.targets := aplic.directTargets
+  io.targets := aplic.direct.targets
   io.slaveSources := aplic.slaveSources
 
   if (p.isRoot) {
