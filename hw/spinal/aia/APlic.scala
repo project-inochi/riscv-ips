@@ -23,7 +23,7 @@ object APlicGenParam {
     genIEP      = true,
   )
 
-  def MSI = APlicGenParam(
+  def msi = APlicGenParam(
     withDirect  = false,
     withMSI     = true,
   )
