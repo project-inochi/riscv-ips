@@ -63,28 +63,28 @@ class IMSICTest extends SpinalSimFunSuite {
     )
   )
 
-  // test("compile") {
-  //   val infos = hartIds.zip(hartIds).map({case (hartId, guestId) => IMSICInfo(
-  //       hartId = hartId,
-  //       guestId = guestId,
-  //       sourceIds = sourceIds,
-  //       groupId = 0,
-  //       groupHartId = hartId,
-  //     )}).toArray.toSeq
+  test("compile") {
+    val infos = hartIds.zip(hartIds).map({case (hartId, guestId) => IMSICInfo(
+        hartId = hartId,
+        guestId = guestId,
+        sourceIds = sourceIds,
+        groupId = 0,
+        groupHartId = hartId,
+      )}).toArray.toSeq
 
-  //   SimConfig.withConfig(config.TestConfig.spinal).compile(
-  //     new TilelinkIMSIC(
-  //       infos, mapping,
-  //       tilelinkBusP.toNodeParameters().toBusParameter()
-  //     )
-  //   )
-  // }
+    SimConfig.withConfig(config.TestConfig.spinal).compile(
+      new TilelinkIMSIC(
+        infos, mapping,
+        tilelinkBusP.toNodeParameters().toBusParameter()
+      )
+    )
+  }
 
   var compiled: SimCompiled[TilelinkIMSICTest] = null
   val rndTestCase = 4000
 
-  def doCompile(): Unit = {
-    compiled = SimConfig.withConfig(config.TestConfig.spinal).compile(
+  def doCompile() = {
+    SimConfig.withConfig(config.TestConfig.spinal).withFstWave.compile(
       new TilelinkIMSICTest(
         hartIds, sourceIds, guestIds, tilelinkBusP
       )
@@ -106,9 +106,7 @@ class IMSICTest extends SpinalSimFunSuite {
   }
 
   test("set-test") {
-    if(compiled == null) {
-      doCompile()
-    }
+    val compiled = doCompile()
 
     compiled.doSim("set-test") { dut =>
       testInit(dut)
@@ -134,9 +132,7 @@ class IMSICTest extends SpinalSimFunSuite {
   }
 
   test("set-test-clear") {
-    if(compiled == null) {
-      doCompile()
-    }
+    val compiled = doCompile()
 
     compiled.doSim("set-test-clear") { dut =>
       testInit(dut)
@@ -168,13 +164,9 @@ class IMSICTest extends SpinalSimFunSuite {
   }
 
   test("latency") {
-    val compiledWave = SimConfig.withConfig(config.TestConfig.spinal).withFstWave.compile(
-      new TilelinkIMSICTest(
-        hartIds, sourceIds, guestIds, tilelinkBusP
-      )
-    )
+    val compiled = doCompile()
 
-    compiledWave.doSim("latency")(dut => {
+    compiled.doSim("latency")(dut => {
       testInit(dut)
 
       implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
