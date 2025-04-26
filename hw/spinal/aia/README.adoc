@@ -32,13 +32,3 @@
 TODOs:
 
 1. Split the direct delivery mode process in `APlicSource` [x]
-
-2. mapper:
-
-   - genmsi slaveBusRead in mapper
-
-   - block write when busy = 1
-
-   - lock idc Reg
-
-3. msiAddress when smsiaddrcfg only
