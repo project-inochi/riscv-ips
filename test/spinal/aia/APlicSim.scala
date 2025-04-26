@@ -103,10 +103,8 @@ class APlicSimTest extends SpinalSimFunSuite {
 
   val aplicmap = APlicMapping
 
-  var compiled: SimCompiled[TilelinkAPLICFiberTest] = null
-
-  def doCompile(): Unit = {
-    compiled = SimConfig.withConfig(config.TestConfig.spinal).compile(
+  def doCompile() = {
+    SimConfig.withConfig(config.TestConfig.spinal).withFstWave.compile(
       new TilelinkAPLICFiberTest(hartIds, sourceIds, slavesourceIds)
     )
   }
@@ -122,11 +120,9 @@ class APlicSimTest extends SpinalSimFunSuite {
   }
 
   test("aplic sim direct") {
-    if(compiled == null) {
-      doCompile()
-    }
+    val compiled = doCompile()
 
-    compiled.doSimUntilVoid("aplic sim direct") { dut =>
+    compiled.doSimUntilVoid("direct") { dut =>
       dut.clockDomain.forkStimulus(10)
 
       dut.io.sources #= 0b1000001
@@ -254,12 +250,9 @@ class APlicSimTest extends SpinalSimFunSuite {
   }
 
   test("aplic sim msi") {
-    if(compiled == null) {
-      println("rebuild")
-      doCompile()
-    }
+    val compiled = doCompile()
 
-    compiled.doSimUntilVoid("aplic sim msi") { dut =>
+    compiled.doSimUntilVoid("msi") { dut =>
       dut.clockDomain.forkStimulus(10)
 
       dut.io.sources #= 0b0000000
