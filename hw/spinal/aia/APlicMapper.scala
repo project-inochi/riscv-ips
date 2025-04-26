@@ -213,21 +213,27 @@ object APlicMapper {
     }
 
     // mapping interrupt delivery control for each gateway
-    val idcs = for(idc <- aplic.direct.gateways) yield new Area {
-      val idcThisOffset = idcOffset + (idc.hartId * idcGroupSize)
-      val nowRequest = idc.bestRequest.asInstanceOf[APlicDirectRequest]
+    val direct = p.genParam.withDirect generate new Area {
+      val idcs =  for(idc <- aplic.direct.gateways) yield new Area {
+        val idcThisOffset = idcOffset + (idc.hartId * idcGroupSize)
+        val nowRequest = idc.bestRequest.asInstanceOf[APlicDirectRequest]
 
-      bus.readAndWrite(idc.idelivery, address = idcThisOffset + ideliveryOffset)
-      bus.readAndWrite(idc.iforce, address = idcThisOffset + iforceOffset)
-      bus.readAndWrite(idc.ithreshold, address = idcThisOffset + ithresholdOffset)
-      // topi readonly
-      bus.read(nowRequest.prio, address = idcThisOffset + topiOffset, bitOffset = 0)
-      bus.read(nowRequest.id, address = idcThisOffset + topiOffset, bitOffset = 16)
-      // reading claimi trigger clean the top interrupt
-      bus.read(nowRequest.prio, address = idcThisOffset + claimiOffset, bitOffset = 0)
-      bus.read(nowRequest.id, address = idcThisOffset + claimiOffset, bitOffset = 16)
-      bus.onRead(address = idcThisOffset + claimiOffset) {
-        idc.doBestClaim()
+        bus.readAndWrite(idc.idelivery, address = idcThisOffset + ideliveryOffset)
+        if (p.genParam.withIForce) {
+          bus.readAndWrite(idc.iforce, address = idcThisOffset + iforceOffset)
+        }
+        bus.readAndWrite(idc.ithreshold, address = idcThisOffset + ithresholdOffset)
+
+        // topi readonly
+        bus.read(nowRequest.prio, address = idcThisOffset + topiOffset, bitOffset = 0)
+        bus.read(nowRequest.id, address = idcThisOffset + topiOffset, bitOffset = 16)
+
+        // reading claimi trigger clean the top interrupt
+        bus.read(nowRequest.prio, address = idcThisOffset + claimiOffset, bitOffset = 0)
+        bus.read(nowRequest.id, address = idcThisOffset + claimiOffset, bitOffset = 16)
+        bus.onRead(address = idcThisOffset + claimiOffset) {
+          idc.doBestClaim()
+        }
       }
     }
 

@@ -200,7 +200,7 @@ case class APlic(p: APlicDomainParam,
     }
   }
 
-  val direct = new Area {
+  val direct = p.genParam.withDirect generate new Area {
     val gateways = for (hartId <- hartIds) yield new APlicDirectGateway(interrupts, hartId, domainEnable)
 
     val targets = Mux(isMSI, B(0), gateways.map(_.iep).asBits())
