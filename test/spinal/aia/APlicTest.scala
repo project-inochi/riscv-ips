@@ -11,7 +11,6 @@ import _root_.sim._
 
 import scala.util.Random
 import scala.collection.mutable.ArrayBuffer
-import aia.APlicMapping.idcGroupSize
 
 case class APlicFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int]) extends Component {
   val masterBus = TilelinkBusFiber()
@@ -169,11 +168,11 @@ class APlicTest extends SpinalSimFunSuite {
       }
 
       for (i <- 0 until hartnum) {
-        assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.ideliveryOffset + i * idcGroupSize, 4), 0x0, "def_ideliverycfg")
-        assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.iforceOffset + i * idcGroupSize, 4), 0x0, "def_iforcecfg")
-        assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.ithresholdOffset + i * idcGroupSize, 4), 0x0, "def_ithresholdcfg")
-        assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.topiOffset + i * idcGroupSize, 4), 0x0, "def_topicfg")
-        assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.claimiOffset + i * idcGroupSize, 4), 0x0, "def_claimicfg")
+        assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.ideliveryOffset + i * aplicmap.idcGroupSize, 4), 0x0, "def_ideliverycfg")
+        assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.iforceOffset + i * aplicmap.idcGroupSize, 4), 0x0, "def_iforcecfg")
+        assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.ithresholdOffset + i * aplicmap.idcGroupSize, 4), 0x0, "def_ithresholdcfg")
+        assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.topiOffset + i * aplicmap.idcGroupSize, 4), 0x0, "def_topicfg")
+        assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.claimiOffset + i * aplicmap.idcGroupSize, 4), 0x0, "def_claimicfg")
       }
       // default data test END
 
@@ -190,7 +189,7 @@ class APlicTest extends SpinalSimFunSuite {
       }
 
       for (i <- 0 until hartnum) {
-        agent.putFullData(0, baseaddr + aplicmap.idcOffset + aplicmap.ideliveryOffset + i * idcGroupSize, SimUInt32(0x1))
+        agent.putFullData(0, baseaddr + aplicmap.idcOffset + aplicmap.ideliveryOffset + i * aplicmap.idcGroupSize, SimUInt32(0x1))
       }
 
       agent.putFullData(0, baseaddr + aplicmap.domaincfgOffset, SimUInt32(0x80000100))
