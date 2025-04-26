@@ -53,7 +53,7 @@ class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
   }
 
   val factory = factoryGen(io.slaveBus)
-  val mapping = APlicMapper(factory)(aplic)
+  val mapping = APlicMapper(factory, p)(aplic)
 }
 
 case class TilelinkAplic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSlaveInfo],

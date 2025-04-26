@@ -39,7 +39,7 @@ case class APlicGenMSIPayload() extends Bundle {
 }
 
 object APlicMapper {
-  def apply(bus: BusSlaveFactory)(aplic: APlic) = new Area{
+  def apply(bus: BusSlaveFactory, p: APlicDomainParam)(aplic: APlic) = new Area{
     import APlicMapping._
 
     val domaincfg = new Area {
@@ -50,7 +50,7 @@ object APlicMapper {
     }
 
     // mapping GENMSI, MSIADDRCFG, MSIADDRCFGH
-    val msi = new Area {
+    val msi = p.genParam.withMSI generate new Area {
       val logic = aplic.msi
 
       bus.read(logic.M.msiaddrcfgCovered(31 downto 0), address = mmsiaddrcfgOffset)
@@ -149,6 +149,8 @@ object APlicMapper {
 
     bus.read(B(0), address = setipOffset, bitOffset = 0)
     bus.read(B(0), address = setieOffset, bitOffset = 0)
+    bus.read(B(0), address = clrieOffset, bitOffset = 0)
+    bus.read(B(0), address = in_clripOffset, bitOffset = 0)
 
     // mapping SOURCECFG, TARGET, SETIE, SETIP for interrupt
     val interruptMapping = for(interrupt <- aplic.interrupts) yield new Area {
@@ -188,7 +190,7 @@ object APlicMapper {
         bus.readAndWrite(interrupt.targetId, address = targetOffset + configOffset, bitOffset = 18)
       }
 
-      val iep = new Area {
+      val iep = p.genParam.genIEP generate new Area {
         bus.readAndWrite(interrupt.ie, address = setieOffset + interruptOffset, bitOffset = interruptBitOffset)
 
         bus.read(interrupt.ip, address = setipOffset + interruptOffset, bitOffset = interruptBitOffset)
