@@ -3,21 +3,26 @@ package aia
 import spinal.core._
 import spinal.lib._
 
-case class APlicDirectGateway(interrupts: Seq[APlicSource], hartId: Int, enable: Bool) extends Area {
+case class APlicDirectGateway(interrupts: Seq[APlicSource], enable: Bool, hartId: Int, allowSpuriousInterrupt: Boolean) extends Area {
   val maxSource = (interrupts.map(_.id) ++ Seq(0)).max + 1
   val priorityWidth = (interrupts.map(i => widthOf(i.prio))).max
   val idWidth = log2Up(maxSource)
 
   val idelivery = RegInit(False)
-  val iforce = RegInit(False)
-  val ithreshold = RegInit(U(0x0, 8 bits))
+  val ithreshold = RegInit(U(0, 8 bits))
+  val iforce = allowSpuriousInterrupt generate RegInit(False)
 
-  val iforceRequest = new APlicDirectRequest(idWidth, priorityWidth)
-  iforceRequest.id := 0
-  iforceRequest.valid := iforce
-  iforceRequest.prio := 0
+  val iforceRequest = allowSpuriousInterrupt generate {
+    val value = new APlicDirectRequest(idWidth, priorityWidth)
+    value.id := 0
+    value.valid := iforce
+    value.prio := 0
+    value
+  }
 
-  val requests = Seq(iforceRequest) ++ interrupts.sortBy(_.id).map(_.asDirectRequest(idWidth, hartId))
+  val spuriousRequest = if (allowSpuriousInterrupt) Seq(iforceRequest) else Seq()
+
+  val requests = spuriousRequest ++ interrupts.sortBy(_.id).map(_.asDirectRequest(idWidth, hartId))
 
   val resultRequest = RegNext(requests.reduceBalancedTree((a, b) => {
     val takeA = a.prioritize(b)

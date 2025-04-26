@@ -29,7 +29,7 @@ class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
     val sources = in Bits (sourceIds.size bits)
     val mmsiaddrcfg = (if (p.isRoot) out else in) UInt (64 bits)
     val smsiaddrcfg = (if (p.isRoot) out else in) UInt (64 bits)
-    val targets = out Bits (hartIds.size bits)
+    val targets = p.genParam.withDirect generate (out Bits (hartIds.size bits))
     val slaveSources = out Vec(slaveInfos.map(slaveInfo => Bits(slaveInfo.sourceIds.size bits)))
   }
 
@@ -41,7 +41,9 @@ class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
   val aplic = APlic(p, sourceIds, hartIds, slaveInfos, msiSenderGen(io.masterBus, _))
 
   aplic.sources := io.sources
-  io.targets := aplic.direct.targets
+  if (p.genParam.withDirect) {
+    io.targets := aplic.direct.targets
+  }
   io.slaveSources := aplic.slaveSources
 
   if (p.isRoot) {
@@ -155,7 +157,7 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
   val thread = Fiber build new Area {
     lock.await()
 
-    val domain = domainParam.get
+    val p = domainParam.get
 
     down.m2s forceParameters m2sParams
     down.s2m.supported load tilelink.S2mSupport.none()
@@ -163,14 +165,16 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
     up.m2s.supported.load(TilelinkAplic.getTilelinkSlaveSupport(up.m2s.proposed))
     up.s2m.none()
 
-    core = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaveSources.map(_.slaveInfo).toSeq, domain, up.bus.p, down.bus.p)
+    core = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaveSources.map(_.slaveInfo).toSeq, p, up.bus.p, down.bus.p)
 
     core.io.masterBus <> down.bus
     core.io.slaveBus <> up.bus
     core.io.sources := sources.map(_.node.flag).asBits()
-    Vec(targets.map(_.node.flag)) := core.io.targets.asBools
+    if (p.genParam.withDirect) {
+      Vec(targets.map(_.node.flag)) := core.io.targets.asBools
+    }
 
-    if (domain.isRoot) {
+    if (p.isRoot) {
       mmsiaddrcfg := core.io.mmsiaddrcfg
       smsiaddrcfg := core.io.smsiaddrcfg
     } else {
