@@ -130,8 +130,8 @@ case class APlic(p: APlicDomainParam,
         mmsiaddrcfg
       }
 
-      val maskH = U(1) << hhxw - 1
-      val maskL = U(1) << lhxw - 1
+      val maskH = (U(1) << hhxw) - 1
+      val maskL = (U(1) << lhxw) - 1
 
       val msiaddrcfgCovered = lock.mux(
         True  -> U(64 bits, 63 -> True, default -> False),
