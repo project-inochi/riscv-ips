@@ -200,7 +200,9 @@ class APlicTest extends SpinalSimFunSuite {
         }
       }
 
-      // assertData(agent.get(0, baseaddr + aplicmap.in_clripOffset, 4), ((sourceIO & ((BigInt(1) << 31) - 1)<<1)).toInt, "def_in_clripcfg")
+      // 4.5.7
+      assertData(agent.get(0, baseaddr + aplicmap.in_clripOffset, 4), (sourceIO<<1 & ((BigInt(1) << 31) - 1)).toInt, "def_in_clripcfg")
+      assertData(agent.get(0, baseaddr + aplicmap.in_clripOffset + 4, 4), ((sourceIO >> 31) & ((BigInt(1) << 32) - 1)).toInt, "def_in_clripcfg")
 
       dut.io.sources #= sourceIO
 
