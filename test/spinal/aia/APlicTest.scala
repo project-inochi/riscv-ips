@@ -19,6 +19,8 @@ case class APlicFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int]) extends Compon
   val crossBar = tilelink.fabric.Node()
   crossBar << masterBus.node
 
+  val blocks = for (hartId <- hartIds) yield new SxAIABlock(sourceIds, hartId, 0)
+
   val peripherals = new Area {
     val access = tilelink.fabric.Node()
     access << crossBar
@@ -26,6 +28,14 @@ case class APlicFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int]) extends Compon
     val M = TilelinkAPLICFiber()
     M.up at 0x10000000 of access
     crossBar << M.down
+
+    val dispatcher = TilelinkIMSICFiber()
+    dispatcher.node at 0x30000000 of access
+
+    for (block <- blocks) {
+      val trigger = dispatcher.addIMSICinfo(block.asTilelinkIMSICIInfo())
+      val connector = SxAIABlockTrigger(block, trigger)
+    }
 
     M.domainParam = Some(APlicDomainParam.root(APlicGenParam.full))
 
@@ -46,6 +56,8 @@ case class APlicFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int]) extends Compon
     val bus = slave(tilelink.Bus(masterBus.m2sParams.toNodeParameters().toBusParameter()))
     val sources = in Bits(sourceIds.size bits)
     val targetsmaster = out Bits(hartIds.size bits)
+    val ie = in Vec(blocks.map(block => Bits(block.interrupts.size bits)))
+    val ip = out Vec(blocks.map(block => Bits(block.interrupts.size bits)))
   }
 
   masterBus.bus = Some(io.bus)
@@ -53,6 +65,9 @@ case class APlicFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int]) extends Compon
   peripherals.sourcesMBundles.lazyZip(io.sources.asBools).foreach(_.flag := _)
 
   io.targetsmaster := peripherals.targetsMBundles.map(_.flag).asBits()
+
+  Vec(blocks.map(block => block.interrupts.map(_.ie).asBits())) := io.ie
+  io.ip := Vec(blocks.map(block => block.interrupts.map(_.ip).asBits()))
 }
 
 class APlicTest extends SpinalSimFunSuite {
@@ -251,15 +266,82 @@ class APlicTest extends SpinalSimFunSuite {
     }
   }
 
+  test("APlic MSI") {
+    doCompile()
+
+    compile.doSim("APlic MSI"){ dut =>
+      dut.clockDomain.forkStimulus(10)
+
+      dut.io.sources #= 0x0
+      dut.io.ie.map(_ #= BigInt("7fffffffffffffff", 16))
+
+      implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
+      val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
+    
+      val aplicAddr = 0x10000000
+      val imsicAddr = 0x30000000
+
+      agent.putFullData(0, aplicAddr + aplicmap.domaincfgOffset, SimUInt32(0x80000004))
+
+      val configs = ArrayBuffer[gateway]()
+      for (i <- 1 until sourcenum) {
+        val mode = sourceMode.EDGE1
+        val config = createGateway(mode, i, agent, aplicAddr)
+        config.hartId = if (i < 32) 0 else 1
+        config.deliveryMode = true
+        config.setMode(agent, aplicAddr, (i-1)*4)
+        configs += config
+      }
+
+      agent.putFullData(0, aplicAddr + aplicmap.mmsiaddrcfgOffset, SimUInt32(imsicAddr>>12))
+      agent.putFullData(0, aplicAddr + aplicmap.mmsiaddrcfghOffset, SimUInt32(0x3000))
+      agent.putFullData(0, aplicAddr + aplicmap.smsiaddrcfgOffset, SimUInt32(imsicAddr>>12))
+      agent.putFullData(0, aplicAddr + aplicmap.smsiaddrcfghOffset, SimUInt32(0x0))
+
+      agent.putFullData(0, aplicAddr + aplicmap.domaincfgOffset, SimUInt32(0x80000104))
+
+      dut.clockDomain.waitRisingEdge(10)
+
+      var sourceIO = BigInt("0", 16)
+      for ((config, i) <- configs.zipWithIndex) {
+        dut.io.sources #= sourceIO | (BigInt(1) << i)
+        dut.clockDomain.waitRisingEdge(2)
+        dut.io.sources #= sourceIO
+      }
+
+      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x40001))
+      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x40002))
+      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x40003))
+      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x40004))
+      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x40005))
+      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x40006))
+      // dut.io.sources #= BigInt("7fffffffffffffff", 16)
+
+      // // dut.clockDomain.waitRisingEdge(80)
+      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x40007))
+      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x40008))
+      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x40009))
+      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x4000a))
+      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x4000b))
+
+      dut.clockDomain.waitRisingEdge(100)
+    }
+  }
+
   abstract class gateway(id: Int) {
     val idx = id
     var mode = sourceMode.INACTIVE
     var ie = 0
     var ip = 0
+    var deliveryMode = false
     var hartId = 0
     var iprio = 0
+    var guestIndex = 0
+    var eiid = id
 
-    def target = SimUInt32((iprio | (hartId << 18)) & 0xFFFFFFFF)
+    def target = if (deliveryMode) SimUInt32((eiid | (guestIndex << 12) | (hartId << 18)) & 0xFFFFFFFF)
+                   else SimUInt32((iprio | (hartId << 18)) & 0xFFFFFFFF)
+
     def setMode(agent: tilelink.sim.MasterAgent, base: Int, offset: Int): Unit
     def assertIE(): Unit
     def assertIP(io: Int): Unit
