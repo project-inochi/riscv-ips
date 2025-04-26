@@ -101,10 +101,16 @@ class APlicTest extends SpinalSimFunSuite {
     }
   }
 
+  /* 
+   * TODO:
+   * direct mode ifore test
+   * 
+   */
+
   test("APlic Direct") {
     doCompile()
 
-    compile.doSim{ dut =>
+    compile.doSim("APlic Direct"){ dut =>
       dut.clockDomain.forkStimulus(10)
 
       dut.io.sources #= 0x0
@@ -135,7 +141,7 @@ class APlicTest extends SpinalSimFunSuite {
       assertData(agent.get(0, baseaddr + aplicmap.setipnumOffset, 4), 0x0, "def_setipnumcfg")
       assertData(agent.get(0, baseaddr + aplicmap.setienumOffset, 4), 0x0, "def_setienumcfg")
       // should return rectified value, re-test below. ch:4.5.7
-      assertData(agent.get(0, baseaddr + aplicmap.in_clripOffset, 4), 0x0, "def_in_clripcfg")
+      assertData(agent.get(0, baseaddr + aplicmap.in_clripOffset, 4), 0x0, "def_in_clripcfg1")
       assertData(agent.get(0, baseaddr + aplicmap.clripnumOffset, 4), 0x0, "def_clripnumcfg")
       assertData(agent.get(0, baseaddr + aplicmap.clrieOffset, 4), 0x0, "def_clrieOffsetcfg")
       assertData(agent.get(0, baseaddr + aplicmap.clrienumOffset, 4), 0x0, "def_clrienumOffsetcfg")
@@ -156,6 +162,8 @@ class APlicTest extends SpinalSimFunSuite {
       }
       // default data test END
 
+      agent.putFullData(0, baseaddr + aplicmap.domaincfgOffset, SimUInt32(0x80000000))
+
       val configs = ArrayBuffer[gateway]()
       for (i <- 1 until sourcenum) {
         val mode = sourceMode.random()
@@ -165,8 +173,6 @@ class APlicTest extends SpinalSimFunSuite {
         config.setMode(agent, baseaddr, (i-1)*4)
         configs += config
       }
-
-      agent.putFullData(0, baseaddr + aplicmap.domaincfgOffset, SimUInt32(0x80000000))
 
       for (i <- 0 until hartnum) {
         agent.putFullData(0, baseaddr + aplicmap.idcOffset + aplicmap.ideliveryOffset + i * idcGroupSize, SimUInt32(0x1))
@@ -201,8 +207,8 @@ class APlicTest extends SpinalSimFunSuite {
       }
 
       // 4.5.7
-      assertData(agent.get(0, baseaddr + aplicmap.in_clripOffset, 4), (sourceIO<<1 & ((BigInt(1) << 31) - 1)).toInt, "def_in_clripcfg")
-      assertData(agent.get(0, baseaddr + aplicmap.in_clripOffset + 4, 4), ((sourceIO >> 31) & ((BigInt(1) << 32) - 1)).toInt, "def_in_clripcfg")
+      assertData(agent.get(0, baseaddr + aplicmap.in_clripOffset, 4), ((sourceIO & ((BigInt(1) << 31) - 1))<<1).toInt, "def_in_clripcfg2")
+      assertData(agent.get(0, baseaddr + aplicmap.in_clripOffset + 4, 4), ((sourceIO >> 31) & ((BigInt(1) << 32) - 1)).toInt, "def_in_clripcfg3")
 
       dut.io.sources #= sourceIO
 
@@ -210,7 +216,7 @@ class APlicTest extends SpinalSimFunSuite {
       for ((config, i) <- configs.zipWithIndex) {
         if (Set(sourceMode.EDGE0, sourceMode.EDGE1).contains(config.mode)) {
           assertData(agent.get(0, baseaddr + aplicmap.idcOffset + config.hartId * aplicmap.idcGroupSize + aplicmap.claimiOffset, 4),
-          (config.iprio | (config.idx << 16)) & 0xFFFFFFFF, "claimi")
+          (config.iprio | (config.idx << 16)) & 0xFFFFFFFF, "claimi_io")
           config.ip = 0
         }
       }
@@ -225,7 +231,7 @@ class APlicTest extends SpinalSimFunSuite {
       for ((config, i) <- configs.zipWithIndex) {
         if (Set(sourceMode.EDGE0, sourceMode.EDGE1, sourceMode.DETACHED).contains(config.mode)) {
           assertData(agent.get(0, baseaddr + aplicmap.idcOffset + config.hartId * aplicmap.idcGroupSize + aplicmap.claimiOffset, 4),
-          (config.iprio | (config.idx << 16)) & 0xFFFFFFFF, "claimi")
+          (config.iprio | (config.idx << 16)) & 0xFFFFFFFF, "claimi_setipnum")
           config.ip = 0
         }
       }
@@ -236,7 +242,7 @@ class APlicTest extends SpinalSimFunSuite {
       for ((config, i) <- configs.zipWithIndex) {
         if (Set(sourceMode.EDGE0, sourceMode.EDGE1, sourceMode.DETACHED).contains(config.mode)) {
           assertData(agent.get(0, baseaddr + aplicmap.idcOffset + config.hartId * aplicmap.idcGroupSize + aplicmap.claimiOffset, 4),
-          (config.iprio | (config.idx << 16)) & 0xFFFFFFFF, "claimi")
+          (config.iprio | (config.idx << 16)) & 0xFFFFFFFF, "claimi_setip")
           config.ip = 0
         }
       }
