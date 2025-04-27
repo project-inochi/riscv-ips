@@ -36,6 +36,7 @@ case class APlicDirectGateway(interrupts: Seq[APlicSource], enable: Bool, hartId
   def doBestClaim() = new Area {
     when (idelivery) {
       APlic.doClaim(interrupts, bestRequest.id)
+      iforce := False
     }
   }
 }
