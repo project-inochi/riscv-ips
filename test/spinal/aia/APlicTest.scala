@@ -12,7 +12,7 @@ import _root_.sim._
 import scala.util.Random
 import scala.collection.mutable.ArrayBuffer
 
-case class APlicFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int]) extends Component {
+case class APlicUnitFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int]) extends Component {
   val masterBus = TilelinkBusFiber()
 
   val crossBar = tilelink.fabric.Node()
@@ -71,10 +71,8 @@ case class APlicFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int]) extends Compon
   io.ip := Vec(blocks.map(block => block.interrupts.map(_.ip).asBits()))
 }
 
-class APlicTest extends SpinalSimFunSuite {
-  onlyVerilator()
-
-  var compile: SimCompiled[APlicFiberTest] = null
+class APlicUnitTest extends APlicTest {
+  var compile: SimCompiled[APlicUnitFiberTest] = null
 
   val sourcenum = 64
   val hartnum = 8
@@ -82,51 +80,11 @@ class APlicTest extends SpinalSimFunSuite {
   val sourceIds = for (i <- 1 until sourcenum) yield i
   val hartIds = for (i <- 0 until hartnum) yield i
 
-  val aplicmap = APlicMapping
-
   def doCompile(): Unit ={
     compile = SimConfig.withConfig(config.TestConfig.spinal).withFstWave.compile(
-      new APlicFiberTest(hartIds, sourceIds)
+      new APlicUnitFiberTest(hartIds, sourceIds)
     )
   }
-
-  def assertData(data: tilelink.sim.TransactionD, answer: Int, name: String): Unit = {
-    val value = data.data
-    val result = value.zip(answer.toBytes).forall { case (x, y) => x == y }
-    assert(result, s"$name: missmatch (${value.toList} != 0x${answer.toBytes.slice(0, 4)})")
-  }
-
-  def assertBit(data: tilelink.sim.TransactionD, id: Int, answer: Int, name: String = ""): Unit = {
-    val value = data.data
-    val idx = id % 32
-    val byteIndex = idx / 8
-    val bitIndex = idx % 8
-
-    val bit = (value(byteIndex) >> bitIndex) & 1
-    val result = bit == answer
-
-    assert(result, s"$name: missmatch value = (${value.toList}")
-  }
-
-  def assertIO(io: BigInt, id: Int, value: Int, name: String = "") = {
-    assert(((io >> id) & BigInt(1)) == value, s"$name: missmatch value = ${io} >> ($id) & 1 != (${value})")
-  }
-
-  def assertIP(dut: APlicFiberTest, sourceIO: BigInt, configs: ArrayBuffer[gateway]) = {
-    dut.io.sources #= sourceIO
-    for ((config, i) <- configs.zipWithIndex) {
-      if (config.mode != sourceMode.DETACHED) {
-        config.assertIP(sourceIO.testBit(i).toInt)
-      }
-    }
-  }
-
-  /* 
-   * TODO:
-   * direct mode ifore test
-   * for loop add string for i
-   * 
-   */
 
   test("APlic Direct") {
     doCompile()
@@ -349,6 +307,44 @@ class APlicTest extends SpinalSimFunSuite {
       }
 
       dut.clockDomain.waitRisingEdge(100)
+    }
+  }
+}
+
+
+class APlicTest extends SpinalSimFunSuite {
+  onlyVerilator()
+
+  val aplicmap = APlicMapping
+
+  def assertData(data: tilelink.sim.TransactionD, answer: Int, name: String): Unit = {
+    val value = data.data
+    val result = value.zip(answer.toBytes).forall { case (x, y) => x == y }
+    assert(result, s"$name: missmatch (${value.toList} != 0x${answer.toBytes.slice(0, 4)})")
+  }
+
+  def assertBit(data: tilelink.sim.TransactionD, id: Int, answer: Int, name: String = ""): Unit = {
+    val value = data.data
+    val idx = id % 32
+    val byteIndex = idx / 8
+    val bitIndex = idx % 8
+
+    val bit = (value(byteIndex) >> bitIndex) & 1
+    val result = bit == answer
+
+    assert(result, s"$name: missmatch value = (${value.toList}")
+  }
+
+  def assertIO(io: BigInt, id: Int, value: Int, name: String = "") = {
+    assert(((io >> id) & BigInt(1)) == value, s"$name: missmatch value = ${io} >> ($id) & 1 != (${value})")
+  }
+
+  def assertIP(dut: APlicUnitFiberTest, sourceIO: BigInt, configs: ArrayBuffer[gateway]) = {
+    dut.io.sources #= sourceIO
+    for ((config, i) <- configs.zipWithIndex) {
+      if (config.mode != sourceMode.DETACHED) {
+        config.assertIP(sourceIO.testBit(i).toInt)
+      }
     }
   }
 
