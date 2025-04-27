@@ -20,6 +20,8 @@ case class APlicFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int]) extends Compon
 
   val blocks = for (hartId <- hartIds) yield new SxAIABlock(sourceIds, hartId, 0)
 
+  val APlicGenMode = APlicGenParam.test
+
   val peripherals = new Area {
     val access = tilelink.fabric.Node()
     access << crossBar
@@ -36,7 +38,7 @@ case class APlicFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int]) extends Compon
       val connector = SxAIABlockTrigger(block, trigger)
     }
 
-    M.domainParam = Some(APlicDomainParam.root(APlicGenParam.full))
+    M.domainParam = Some(APlicDomainParam.root(APlicGenMode))
 
     val targetsMBundles = hartIds.map(hartId => {
       val node = InterruptNode.slave()
@@ -238,6 +240,18 @@ class APlicTest extends SpinalSimFunSuite {
           assertData(agent.get(0, baseaddr + aplicmap.idcOffset + config.hartId * aplicmap.idcGroupSize + aplicmap.claimiOffset, 4),
           (config.iprio | (config.idx << 16)) & 0xFFFFFFFF, s"claimi_io_$i")
           config.ip = 0
+        }
+      }
+
+      // iforce
+      if (dut.APlicGenMode.withIForce) {
+        for (i <- 0 until hartnum) {
+          agent.putFullData(0, baseaddr + aplicmap.idcOffset + aplicmap.iforceOffset + i * aplicmap.idcGroupSize, SimUInt32(0x1))
+
+          val ipIO = dut.io.targetsmaster.toBigInt
+          assertIO(ipIO, i, 1, s"iforce output_$i")
+          assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.claimiOffset + i * aplicmap.idcGroupSize, 4),
+            0, s"iforce_$i")
         }
       }
 
