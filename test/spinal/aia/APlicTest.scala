@@ -225,6 +225,7 @@ class APlicTest extends SpinalSimFunSuite {
       assertData(agent.get(0, baseaddr + aplicmap.in_clripOffset + 4, 4), ((sourceIO >> 31) & ((BigInt(1) << 32) - 1)).toInt, "def_in_clripcfg3")
 
       dut.io.sources #= sourceIO
+      dut.clockDomain.waitRisingEdge(2)
 
       // claimi 4.8.1.5
       for ((config, i) <- configs.zipWithIndex) {
