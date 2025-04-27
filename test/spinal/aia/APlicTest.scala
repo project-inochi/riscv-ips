@@ -106,6 +106,10 @@ class APlicTest extends SpinalSimFunSuite {
     assert(result, s"$name: missmatch value = (${value.toList}")
   }
 
+  def assertIO(io: BigInt, id: Int, value: Int, name: String = "") = {
+    assert(((io >> id) & BigInt(1)) == value, s"$name: missmatch value = ${io} >> ($id) & 1 != (${value})")
+  }
+
   def assertIP(dut: APlicFiberTest, sourceIO: BigInt, configs: ArrayBuffer[gateway]) = {
     dut.io.sources #= sourceIO
     for ((config, i) <- configs.zipWithIndex) {
@@ -118,6 +122,7 @@ class APlicTest extends SpinalSimFunSuite {
   /* 
    * TODO:
    * direct mode ifore test
+   * for loop add string for i
    * 
    */
 
@@ -303,26 +308,31 @@ class APlicTest extends SpinalSimFunSuite {
       dut.clockDomain.waitRisingEdge(10)
 
       var sourceIO = BigInt("0", 16)
+      var ipIO = BigInt("0", 16)
+      var randomHartid = 0
+
       for ((config, i) <- configs.zipWithIndex) {
+        // 4.5.16
         dut.io.sources #= sourceIO | (BigInt(1) << i)
         dut.clockDomain.waitRisingEdge(2)
         dut.io.sources #= sourceIO
+        dut.clockDomain.waitRisingEdge(2)
+        ipIO = dut.io.ip(config.hartId).toBigInt
+        assertIO(ipIO, i, 1, s"assert gateway ip output_$i")
+
+        // wait busy bit 4.5.15
+        Iterator
+          .continually((agent.get(0, aplicAddr + aplicmap.genmsiOffset, 4).data(1) & 0x10) != 0)
+          .takeWhile(identity)
+          .foreach{_ => }
+
+        randomHartid = Random.between(1, hartnum)
+        agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(randomHartid << 18 | i+1))
+        dut.clockDomain.waitRisingEdge(2)
+
+        ipIO = dut.io.ip(randomHartid).toBigInt
+        assertIO(ipIO, i, 1, s"assert genmsi ip output_$i")
       }
-
-      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x40001))
-      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x40002))
-      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x40003))
-      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x40004))
-      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x40005))
-      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x40006))
-      // dut.io.sources #= BigInt("7fffffffffffffff", 16)
-
-      // // dut.clockDomain.waitRisingEdge(80)
-      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x40007))
-      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x40008))
-      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x40009))
-      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x4000a))
-      // agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(0x4000b))
 
       dut.clockDomain.waitRisingEdge(100)
     }
