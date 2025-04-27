@@ -153,8 +153,8 @@ class APlicTest extends SpinalSimFunSuite {
 
       // setiep
       for (i <- 0 until sourcenum/32) {
-        assertData(agent.get(0, baseaddr + aplicmap.setipOffset + i * 4, 4), 0x0, "def_setipcfg")
-        assertData(agent.get(0, baseaddr + aplicmap.setieOffset + i * 4, 4), 0x0, "def_setiecfg")
+        assertData(agent.get(0, baseaddr + aplicmap.setipOffset + i * 4, 4), 0x0, s"def_setipcfg_$i")
+        assertData(agent.get(0, baseaddr + aplicmap.setieOffset + i * 4, 4), 0x0, s"def_setiecfg_$i")
       }
 
       assertData(agent.get(0, baseaddr + aplicmap.setipnumOffset, 4), 0x0, "def_setipnumcfg")
@@ -168,16 +168,16 @@ class APlicTest extends SpinalSimFunSuite {
       assertData(agent.get(0, baseaddr + aplicmap.genmsiOffset, 4), 0x0, "def_genmsicfg")
 
       for (i <- 0 until sourcenum - 1) {
-        assertData(agent.get(0, baseaddr + aplicmap.sourcecfgOffset + i * 4, 4), 0x0, "def_sourcecfg")
-        assertData(agent.get(0, baseaddr + aplicmap.targetOffset + i * 4, 4), 0x1, "def_targetcfg")
+        assertData(agent.get(0, baseaddr + aplicmap.sourcecfgOffset + i * 4, 4), 0x0, s"def_sourcecfg_$i")
+        assertData(agent.get(0, baseaddr + aplicmap.targetOffset + i * 4, 4), 0x1, s"def_targetcfg_$i")
       }
 
       for (i <- 0 until hartnum) {
-        assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.ideliveryOffset + i * aplicmap.idcGroupSize, 4), 0x0, "def_ideliverycfg")
-        assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.iforceOffset + i * aplicmap.idcGroupSize, 4), 0x0, "def_iforcecfg")
-        assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.ithresholdOffset + i * aplicmap.idcGroupSize, 4), 0x0, "def_ithresholdcfg")
-        assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.topiOffset + i * aplicmap.idcGroupSize, 4), 0x0, "def_topicfg")
-        assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.claimiOffset + i * aplicmap.idcGroupSize, 4), 0x0, "def_claimicfg")
+        assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.ideliveryOffset + i * aplicmap.idcGroupSize, 4), 0x0, s"def_ideliverycfg_$i")
+        assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.iforceOffset + i * aplicmap.idcGroupSize, 4), 0x0, s"def_iforcecfg_$i")
+        assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.ithresholdOffset + i * aplicmap.idcGroupSize, 4), 0x0, s"def_ithresholdcfg_$i")
+        assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.topiOffset + i * aplicmap.idcGroupSize, 4), 0x0, s"def_topicfg_$i")
+        assertData(agent.get(0, baseaddr + aplicmap.idcOffset + aplicmap.claimiOffset + i * aplicmap.idcGroupSize, 4), 0x0, s"def_claimicfg_$i")
       }
       // default data test END
 
@@ -236,7 +236,7 @@ class APlicTest extends SpinalSimFunSuite {
       for ((config, i) <- configs.zipWithIndex) {
         if (Set(sourceMode.EDGE0, sourceMode.EDGE1).contains(config.mode)) {
           assertData(agent.get(0, baseaddr + aplicmap.idcOffset + config.hartId * aplicmap.idcGroupSize + aplicmap.claimiOffset, 4),
-          (config.iprio | (config.idx << 16)) & 0xFFFFFFFF, "claimi_io")
+          (config.iprio | (config.idx << 16)) & 0xFFFFFFFF, s"claimi_io_$i")
           config.ip = 0
         }
       }
@@ -251,7 +251,7 @@ class APlicTest extends SpinalSimFunSuite {
       for ((config, i) <- configs.zipWithIndex) {
         if (Set(sourceMode.EDGE0, sourceMode.EDGE1, sourceMode.DETACHED).contains(config.mode)) {
           assertData(agent.get(0, baseaddr + aplicmap.idcOffset + config.hartId * aplicmap.idcGroupSize + aplicmap.claimiOffset, 4),
-          (config.iprio | (config.idx << 16)) & 0xFFFFFFFF, "claimi_setipnum")
+          (config.iprio | (config.idx << 16)) & 0xFFFFFFFF, s"claimi_setipnum_$i")
           config.ip = 0
         }
       }
@@ -262,7 +262,7 @@ class APlicTest extends SpinalSimFunSuite {
       for ((config, i) <- configs.zipWithIndex) {
         if (Set(sourceMode.EDGE0, sourceMode.EDGE1, sourceMode.DETACHED).contains(config.mode)) {
           assertData(agent.get(0, baseaddr + aplicmap.idcOffset + config.hartId * aplicmap.idcGroupSize + aplicmap.claimiOffset, 4),
-          (config.iprio | (config.idx << 16)) & 0xFFFFFFFF, "claimi_setip")
+          (config.iprio | (config.idx << 16)) & 0xFFFFFFFF, s"claimi_setip_$i")
           config.ip = 0
         }
       }
@@ -368,11 +368,11 @@ class APlicTest extends SpinalSimFunSuite {
     }
     override def assertIE() = {
       val offset = id / 32 * 4
-      assertBit(agent.get(0, base + aplicmap.setieOffset + offset, 4), id, ie)
+      assertBit(agent.get(0, base + aplicmap.setieOffset + offset, 4), id, ie, s"ie: mode: inactive , id: $id")
     }
     override def assertIP(io: Int) = {
       val offset = id / 32 * 4
-      assertBit(agent.get(0, base + aplicmap.setipOffset + offset, 4), id, ip)
+      assertBit(agent.get(0, base + aplicmap.setipOffset + offset, 4), id, ip, s"ip: mode: inactive, id: $id")
     }
   }
 
@@ -387,11 +387,11 @@ class APlicTest extends SpinalSimFunSuite {
     }
     override def assertIE() = {
       val offset = id / 32 * 4
-      assertBit(agent.get(0, base + aplicmap.setieOffset + offset, 4), id, ie)
+      assertBit(agent.get(0, base + aplicmap.setieOffset + offset, 4), id, ie, s"ie: mode: detached, id: $id")
     }
     override def assertIP(io: Int) = {
       val offset = id / 32 * 4
-      assertBit(agent.get(0, base + aplicmap.setipOffset + offset, 4), id, ip)
+      assertBit(agent.get(0, base + aplicmap.setipOffset + offset, 4), id, ip, s"ip: mode: detached, id: $id")
     }
   }
 
@@ -407,14 +407,14 @@ class APlicTest extends SpinalSimFunSuite {
     }
     override def assertIE() = {
         val offset = id / 32 * 4
-        assertBit(agent.get(0, base + aplicmap.setieOffset + offset, 4), id, ie)
+        assertBit(agent.get(0, base + aplicmap.setieOffset + offset, 4), id, ie, s"ie: mode: edge1, id: $id")
     }
     override def assertIP(io: Int) = {
       val offset = id / 32 * 4
       if (reg == 0 && io == 1) {
         ip = 1
       }
-      assertBit(agent.get(0, base + aplicmap.setipOffset + offset, 4), id, ip)
+      assertBit(agent.get(0, base + aplicmap.setipOffset + offset, 4), id, ip, s"ip: mode: edge1, id: $id")
       reg = io
     }
   }
@@ -431,14 +431,14 @@ class APlicTest extends SpinalSimFunSuite {
     }
     override def assertIE() = {
       val offset = id / 32 * 4
-      assertBit(agent.get(0, base + aplicmap.setieOffset + offset, 4), id, ie)
+      assertBit(agent.get(0, base + aplicmap.setieOffset + offset, 4), id, ie, s"ie: mode: edge0, id: $id")
     }
     override def assertIP(io: Int) = {
       val offset = id / 32 * 4
       if (reg == 1 && io == 0) {
         ip = 1
       }
-      assertBit(agent.get(0, base + aplicmap.setipOffset + offset, 4), id, ip)
+      assertBit(agent.get(0, base + aplicmap.setipOffset + offset, 4), id, ip, s"ip: mode: edge0, id: $id")
       reg = io
     }
   }
@@ -454,11 +454,11 @@ class APlicTest extends SpinalSimFunSuite {
     }
     override def assertIE() = {
       val offset = id / 32 * 4
-      assertBit(agent.get(0, base + aplicmap.setieOffset + offset, 4), id, ie)
+      assertBit(agent.get(0, base + aplicmap.setieOffset + offset, 4), id, ie, s"ie: mode: level1, id: $id")
     }
     override def assertIP(io: Int) = {
       val offset = id / 32 * 4
-      assertBit(agent.get(0, base + aplicmap.setipOffset + offset, 4), id, io)
+      assertBit(agent.get(0, base + aplicmap.setipOffset + offset, 4), id, io, s"ip: mode: level1, id: $id")
     }
   }
 
@@ -473,14 +473,14 @@ class APlicTest extends SpinalSimFunSuite {
     }
     override def assertIE() = {
       val offset = id / 32 * 4
-      assertBit(agent.get(0, base + aplicmap.setieOffset + offset, 4), id, ie)
+      assertBit(agent.get(0, base + aplicmap.setieOffset + offset, 4), id, ie, s"ie: mode: level0, id: $id")
     }
     override def assertIP(io: Int) = {
       val offset = id / 32 * 4
       if (io == 0) {
-        assertBit(agent.get(0, base + aplicmap.setipOffset + offset, 4), id, 1)
+        assertBit(agent.get(0, base + aplicmap.setipOffset + offset, 4), id, 1, s"ip: mode: level0, id: $id")
       } else {
-        assertBit(agent.get(0, base + aplicmap.setipOffset + offset, 4), id, 0)
+        assertBit(agent.get(0, base + aplicmap.setipOffset + offset, 4), id, 0, s"ip: mode: level0, id: $id")
       }
     }
   }
