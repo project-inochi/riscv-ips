@@ -4,10 +4,45 @@ import spinal.core._
 import spinal.lib._
 import scala.annotation.meta.param
 
+case class APlicMSIParam(
+  base: BigInt = 0,
+  hhxs: Int = 0,
+  lhxs: Int = 0,
+  hhxw: Int = 0,
+  lhxw: Int = 0,
+)
+
 case class APlicGenParam(withDirect: Boolean,
                          withMSI: Boolean,
                          genIEP: Boolean = true,
-                         withIForce: Boolean = false)
+                         withIForce: Boolean = false,
+                         var _MMsiParams: APlicMSIParam = APlicMSIParam(),
+                         var _SMsiParams: APlicMSIParam = APlicMSIParam(),
+                         var _lockMSI: Boolean = false) {
+
+  def lockMSI(): this.type = {
+    this._lockMSI = true
+    this
+  }
+
+  def withMMSIParams(param: APlicMSIParam): this.type = {
+    this._MMsiParams = param
+    this
+  }
+
+  def withMMSIParams(address: BigInt = 0, hhxs: Int = 0, lhxs: Int = 0, hhxw: Int = 0, lhxw: Int = 0): this.type = {
+    withMMSIParams(APlicMSIParam(base = address, hhxs = hhxs, lhxs = lhxs, hhxw = hhxw, lhxw = lhxw))
+  }
+
+  def withSMSIParams(param: APlicMSIParam): this.type = {
+    this._SMsiParams = param
+    this
+  }
+
+  def withSMSIParams(address: BigInt = 0, lhxs: Int = 0): this.type = {
+    withSMSIParams(APlicMSIParam(base = address, lhxs = lhxs))
+  }
+}
 
 object APlicGenParam {
   def test = APlicGenParam(
@@ -103,12 +138,12 @@ case class APlic(p: APlicDomainParam,
   val msi = p.genParam.withMSI generate new Area {
     val M = new Area {
       val (lock, hhxs, lhxs, hhxw, lhxw, ppn) = if (p.isRoot) {
-        (RegInit(False),
-         RegInit(U(0x0, 5 bits)),
-         RegInit(U(0x0, 3 bits)),
-         RegInit(U(0x0, 3 bits)),
-         RegInit(U(0x0, 4 bits)),
-         RegInit(U(0x0, 44 bits)))
+        (RegInit(Bool(p.genParam._lockMSI)),
+         RegInit(U(p.genParam._MMsiParams.hhxs, 5 bits)),
+         RegInit(U(p.genParam._MMsiParams.lhxs, 3 bits)),
+         RegInit(U(p.genParam._MMsiParams.hhxw, 3 bits)),
+         RegInit(U(p.genParam._MMsiParams.lhxw, 4 bits)),
+         RegInit(U(p.genParam._MMsiParams.base >> 12, 44 bits)))
       } else {
         (mmsiaddrcfg(63),
          mmsiaddrcfg(60 downto 56),
@@ -145,7 +180,8 @@ case class APlic(p: APlicDomainParam,
 
     val S = new Area {
       val (ppn, lhxs) = if (p.isRoot) {
-        (RegInit(U(0x0, 44 bits)), RegInit(U(0x0, 3 bits)))
+        (RegInit(U(p.genParam._SMsiParams.base >> 12, 44 bits)),
+         RegInit(U(p.genParam._SMsiParams.lhxs >> 12, 3 bits)))
       } else {
         (smsiaddrcfg(43 downto 0), smsiaddrcfg(54 downto 52))
       }
