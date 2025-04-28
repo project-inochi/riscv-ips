@@ -449,18 +449,15 @@ class APlicMSTest extends APlicTest {
         val config = createGateway(mode, i, agent, masterAddr)
         config.hartId = Random.nextInt(hartnum)
         config.iprio = 1
-        // need simplify
-        config.setMode(agent, masterAddr, (i-1)*4, if (isDelegaton) {if (randomIds_slave1.contains(i)) 1 else 2} else 0)
+        config.setMode(agent, masterAddr, (i-1)*4, (if (isDelegaton && randomIds_slave1.contains(i)) 1 else if (isDelegaton) 2 else 0))
         masterconfigs += config
       }
 
       val slave1configs = ArrayBuffer[gateway]()
       val slave2configs = ArrayBuffer[gateway]()
       for (i <- candidates) {
-        // need simplify
         var isDelegaton = randomIds_slave1.contains(i)
-        var mode = if (isDelegaton) sourceMode.LEVEL0 else sourceMode.INACTIVE
-        
+        var mode = if (isDelegaton) sourceMode.random() else sourceMode.INACTIVE
         val slave1config = createGateway(mode, i, agent, slave1Addr)
         slave1config.hartId = Random.nextInt(hartnum)
         slave1config.iprio = 1
@@ -468,8 +465,7 @@ class APlicMSTest extends APlicTest {
         slave1configs += slave1config
 
         isDelegaton = randomIds_slave2.contains(i)
-        mode = if (isDelegaton) sourceMode.LEVEL0 else sourceMode.INACTIVE
-
+        mode = if (isDelegaton) sourceMode.random() else sourceMode.INACTIVE
         val slave2config = createGateway(mode, i, agent, slave2Addr)
         slave2config.hartId = Random.nextInt(hartnum)
         slave2config.iprio = 1
@@ -492,8 +488,6 @@ class APlicMSTest extends APlicTest {
       var sourceIO = BigInt("0", 16)
       dut.io.sources #= sourceIO
       assertIP(sourceIO, masterconfigs)
-
-      // modify
       assertIP(sourceIO, slave1configs)
       assertIP(sourceIO, slave2configs)
       dut.clockDomain.waitRisingEdge(10)
@@ -501,7 +495,6 @@ class APlicMSTest extends APlicTest {
       sourceIO = BigInt("7fffffffffffffff", 16)
       dut.io.sources #= sourceIO
       assertIP(sourceIO, masterconfigs)
-
       assertIP(sourceIO, slave1configs)
       assertIP(sourceIO, slave2configs)
 
@@ -509,9 +502,7 @@ class APlicMSTest extends APlicTest {
 
       sourceIO = BigInt("0", 16)
       dut.io.sources #= sourceIO
-
       assertIP(sourceIO, masterconfigs)
-      // modify
       assertIP(sourceIO, slave1configs)
       assertIP(sourceIO, slave2configs)
 
@@ -548,9 +539,9 @@ class APlicTest extends SpinalSimFunSuite {
   }
 
   def assertIP(sourceIO: BigInt, configs: ArrayBuffer[gateway]) = {
-    for ((config, i) <- configs.zipWithIndex) {
+    for (config <- configs) {
       if (config.mode != sourceMode.DETACHED) {
-        config.assertIP(sourceIO.testBit(i).toInt)
+        config.assertIP(sourceIO.testBit(config.idx-1).toInt)
       }
     }
   }
