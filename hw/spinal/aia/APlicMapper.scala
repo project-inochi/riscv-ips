@@ -58,7 +58,7 @@ object APlicMapper {
       bus.read(logic.S.msiaddrcfgCovered(31 downto 0), address = smsiaddrcfgOffset)
       bus.read(logic.S.msiaddrcfgCovered(63 downto 32), address = smsiaddrcfghOffset)
 
-      aplic.p.isRoot generate new Area {
+      val addrcfgWrite = aplic.p.isRoot generate new Area {
         val allowWrite = !logic.M.lock
 
         val mmsiaddrcfgh = bus.createAndDriveFlow(UInt(32 bits), mmsiaddrcfghOffset)
