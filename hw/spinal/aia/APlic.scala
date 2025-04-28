@@ -181,7 +181,7 @@ case class APlic(p: APlicDomainParam,
     val S = new Area {
       val (ppn, lhxs) = if (p.isRoot) {
         (RegInit(U(p.genParam._SMsiParams.base >> 12, 44 bits)),
-         RegInit(U(p.genParam._SMsiParams.lhxs >> 12, 3 bits)))
+         RegInit(U(p.genParam._SMsiParams.lhxs, 3 bits)))
       } else {
         (smsiaddrcfg(43 downto 0), smsiaddrcfg(54 downto 52))
       }
