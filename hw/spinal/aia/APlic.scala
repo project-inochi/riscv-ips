@@ -212,7 +212,7 @@ case class APlic(p: APlicDomainParam,
       }
 
       val msiaddrcfgCovered = M.lock.mux(
-        True  -> U(64 bits, 63 -> True, default -> False),
+        True  -> U(0),
         False -> msiaddrcfg,
       )
 
