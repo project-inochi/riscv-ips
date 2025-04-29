@@ -114,7 +114,9 @@ case class APlicUnitTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: 
 
 }
 
-class APlicUnitTest extends APlicTest {
+class APlicUnitTest extends SpinalSimFunSuite {
+  onlyVerilator()
+
   import APlicTestHelper._
 
   val sourcenum = 64
@@ -606,8 +608,4 @@ case class APlicLevel0Source(id: Int, agent: tilelink.sim.MasterAgent, base: Int
       assertBit(agent.get(0, base + aplicmap.setipOffset + offset, 4), id, 0, s"ip: mode: level0, id: $id")
     }
   }
-}
-
-class APlicTest extends SpinalSimFunSuite {
-  onlyVerilator()
 }

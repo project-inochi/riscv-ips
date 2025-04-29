@@ -6,7 +6,6 @@ import spinal.lib._
 import spinal.lib.bus.tilelink
 import spinal.lib.misc.InterruptNode
 import spinal.tester.SpinalSimFunSuite
-import spinal.tester.SpinalSimFunSuite
 import _root_.sim._
 
 import scala.util.Random
@@ -111,7 +110,9 @@ case class APlicSystemTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], slave1so
   io.ip := Vec(blocks.map(block => block.interrupts.map(_.ip).asBits()))
 }
 
-class APlicSystemTest extends APlicTest {
+class APlicSystemTest extends SpinalSimFunSuite {
+  onlyVerilator()
+
   import APlicTestHelper._
 
   val sourcenum = 64

@@ -5,6 +5,7 @@ import spinal.core.sim._
 import spinal.lib._
 import spinal.lib.bus.tilelink
 import spinal.lib.misc.InterruptNode
+import spinal.tester.SpinalSimFunSuite
 import _root_.sim._
 
 import scala.util.Random
@@ -94,7 +95,9 @@ case class APlicDelegateTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], slaves
   io.targets2slave := peripherals.targets2SBundles.map(_.flag).asBits()
 }
 
-class APlicMSTest extends APlicTest {
+class APlicMSTest extends SpinalSimFunSuite {
+  onlyVerilator()
+
   import APlicTestHelper._
 
   val sourcenum = 64
