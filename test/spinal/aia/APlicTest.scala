@@ -260,7 +260,6 @@ case class APlicSystemFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slave1so
  * cs2?
  * remove masterBus
  * guest id
- * msi lock
  *
  */
 
@@ -493,6 +492,14 @@ class APlicUnitTest extends APlicTest {
         ipIO = dut.io.ip(randomHartid).toBigInt
         assertIO(ipIO, i, 1, s"assert genmsi ip output_$i")
       }
+
+      // 4.5.3 when lock
+      agent.putFullData(0, aplicAddr + aplicmap.mmsiaddrcfghOffset, SimUInt32(0x80003000))
+      assertData(agent.get(0, aplicAddr + aplicmap.mmsiaddrcfgOffset, 4), 0x0, "mmsiaddrcfgWithLock")
+      assertData(agent.get(0, aplicAddr + aplicmap.mmsiaddrcfghOffset, 4), 0x80000000, "mmsiaddrcfghWithLock")
+      assertData(agent.get(0, aplicAddr + aplicmap.smsiaddrcfgOffset, 4), 0x0, "smsiaddrcfgWithLock")
+      assertData(agent.get(0, aplicAddr + aplicmap.smsiaddrcfghOffset, 4), 0x0, "smsiaddrcfghWithLock")
+
 
       dut.clockDomain.waitRisingEdge(100)
     }
