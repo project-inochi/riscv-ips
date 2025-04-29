@@ -112,6 +112,8 @@ case class APlicSystemTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], slave1so
 }
 
 class APlicSystemTest extends APlicTest {
+  import APlicTestHelper._
+
   val sourcenum = 64
   val hartnum = 8
 
