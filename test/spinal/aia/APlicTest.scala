@@ -12,13 +12,13 @@ import _root_.sim._
 import scala.util.Random
 import scala.collection.mutable.ArrayBuffer
 
-case class APlicUnitFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int]) extends Component {
+case class APlicUnitFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: Seq[Int]) extends Component {
   val masterBus = TilelinkBusFiber()
 
   val crossBar = tilelink.fabric.Node()
   crossBar << masterBus.node
 
-  val blocks = for (hartId <- hartIds) yield new SxAIABlock(sourceIds, hartId, 0)
+  val blocks = hartIds.map(hartId => for (guestId <- guestIds) yield new SxAIABlock(sourceIds, hartId, guestId))
 
   val APlicGenMode = APlicGenParam.test
 
@@ -33,9 +33,11 @@ case class APlicUnitFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int]) extends Co
     val dispatcher = TilelinkIMSICFiber()
     dispatcher.node at 0x30000000 of access
 
-    for (block <- blocks) {
-      val trigger = dispatcher.addIMSICinfo(block.asTilelinkIMSICIInfo())
-      val connector = SxAIABlockTrigger(block, trigger)
+    for (hartBlock <- blocks) {
+      for (block <- hartBlock) {
+        val trigger = dispatcher.addIMSICinfo(block.asTilelinkIMSICIInfo())
+        val connector = SxAIABlockTrigger(block, trigger)
+      }
     }
 
     M.domainParam = Some(APlicDomainParam.root(APlicGenMode))
@@ -57,8 +59,8 @@ case class APlicUnitFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int]) extends Co
     val bus = slave(tilelink.Bus(masterBus.m2sParams.toNodeParameters().toBusParameter()))
     val sources = in Bits(sourceIds.size bits)
     val targetsmaster = out Bits(hartIds.size bits)
-    val ie = in Vec(blocks.map(block => Bits(block.interrupts.size bits)))
-    val ip = out Vec(blocks.map(block => Bits(block.interrupts.size bits)))
+    val ie = in Vec(blocks.map(hartBlock => Vec(hartBlock.map(block => Bits(block.interrupts.size bits)))))
+    val ip = out Vec(blocks.map(hartBlock => Vec(hartBlock.map(block => Bits(block.interrupts.size bits)))))
   }
 
   masterBus.bus = Some(io.bus)
@@ -67,8 +69,9 @@ case class APlicUnitFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int]) extends Co
 
   io.targetsmaster := peripherals.targetsMBundles.map(_.flag).asBits()
 
-  Vec(blocks.map(block => block.interrupts.map(_.ie).asBits())) := io.ie
-  io.ip := Vec(blocks.map(block => block.interrupts.map(_.ip).asBits()))
+  io.ip := Vec(blocks.map(hartBlock => Vec(hartBlock.map(block => block.interrupts.map(_.ip).asBits()))))
+  Vec(blocks.map(hartBlock => Vec(hartBlock.map(block => block.interrupts.map(_.ie).asBits())))) := io.ie
+
 }
 
 case class APlicMSFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slavesourceIds: Seq[Int]) extends Component {
@@ -255,24 +258,18 @@ case class APlicSystemFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slave1so
   io.ip := Vec(blocks.map(block => block.interrupts.map(_.ip).asBits()))
 }
 
-/*
- * TODO:
- * cs2?
- * remove masterBus
- * guest id
- *
- */
-
 class APlicUnitTest extends APlicTest {
   val sourcenum = 64
   val hartnum = 8
+  val guestNum = 2
 
   val sourceIds = for (i <- 1 until sourcenum) yield i
   val hartIds = for (i <- 0 until hartnum) yield i
+  val guestIds = for (i <- 0 to guestNum) yield i
 
   test("Direct") {
     SimConfig.withConfig(config.TestConfig.spinal).withFstWave.compile(
-      new APlicUnitFiberTest(hartIds, sourceIds)
+      new APlicUnitFiberTest(hartIds, sourceIds, Seq(0))
     ).doSim("Direct"){ dut =>
       dut.clockDomain.forkStimulus(10)
 
@@ -432,12 +429,12 @@ class APlicUnitTest extends APlicTest {
 
   test("MSI") {
     SimConfig.withConfig(config.TestConfig.spinal).withFstWave.compile(
-      new APlicUnitFiberTest(hartIds, sourceIds)
+      new APlicUnitFiberTest(hartIds, sourceIds, guestIds)
     ).doSim("MSI"){ dut =>
       dut.clockDomain.forkStimulus(10)
 
       dut.io.sources #= 0x0
-      dut.io.ie.map(_ #= BigInt("7fffffffffffffff", 16))
+      dut.io.ie.map(_.map(_ #= BigInt("7fffffffffffffff", 16)))
 
       implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
       val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
@@ -451,16 +448,17 @@ class APlicUnitTest extends APlicTest {
       for (i <- 1 until sourcenum) {
         val mode = sourceMode.EDGE1
         val config = createGateway(mode, i, agent, aplicAddr)
-        config.hartId = if (i < 32) 0 else 1
+        config.hartId = Random.nextInt(hartnum)
         config.deliveryMode = true
+        config.guestIndex = Random.nextInt(3)
         config.setMode(agent, aplicAddr, (i-1)*4)
         configs += config
       }
 
       agent.putFullData(0, aplicAddr + aplicmap.mmsiaddrcfgOffset, SimUInt32(imsicAddr>>12))
-      agent.putFullData(0, aplicAddr + aplicmap.mmsiaddrcfghOffset, SimUInt32(0x3000))
+      agent.putFullData(0, aplicAddr + aplicmap.mmsiaddrcfghOffset, SimUInt32(0x203000))
       agent.putFullData(0, aplicAddr + aplicmap.smsiaddrcfgOffset, SimUInt32(imsicAddr>>12))
-      agent.putFullData(0, aplicAddr + aplicmap.smsiaddrcfghOffset, SimUInt32(0x0))
+      agent.putFullData(0, aplicAddr + aplicmap.smsiaddrcfghOffset, SimUInt32(0x200000))
 
       agent.putFullData(0, aplicAddr + aplicmap.domaincfgOffset, SimUInt32(0x80000104))
 
@@ -476,7 +474,7 @@ class APlicUnitTest extends APlicTest {
         dut.clockDomain.waitRisingEdge(2)
         dut.io.sources #= sourceIO
         dut.clockDomain.waitRisingEdge(2)
-        ipIO = dut.io.ip(config.hartId).toBigInt
+        ipIO = dut.io.ip(config.hartId)(config.guestIndex).toBigInt
         assertIO(ipIO, i, 1, s"assert gateway ip output_$i")
 
         // wait busy bit 4.5.15
@@ -489,12 +487,12 @@ class APlicUnitTest extends APlicTest {
         agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(randomHartid << 18 | i+1))
         dut.clockDomain.waitRisingEdge(2)
 
-        ipIO = dut.io.ip(randomHartid).toBigInt
+        ipIO = dut.io.ip(randomHartid)(0).toBigInt
         assertIO(ipIO, i, 1, s"assert genmsi ip output_$i")
       }
 
-      // 4.5.3 when lock
-      agent.putFullData(0, aplicAddr + aplicmap.mmsiaddrcfghOffset, SimUInt32(0x80003000))
+      // // 4.5.3 when lock
+      agent.putFullData(0, aplicAddr + aplicmap.mmsiaddrcfghOffset, SimUInt32(0x80203000))
       assertData(agent.get(0, aplicAddr + aplicmap.mmsiaddrcfgOffset, 4), 0x0, "mmsiaddrcfgWithLock")
       assertData(agent.get(0, aplicAddr + aplicmap.mmsiaddrcfghOffset, 4), 0x80000000, "mmsiaddrcfghWithLock")
       assertData(agent.get(0, aplicAddr + aplicmap.smsiaddrcfgOffset, 4), 0x0, "smsiaddrcfgWithLock")
