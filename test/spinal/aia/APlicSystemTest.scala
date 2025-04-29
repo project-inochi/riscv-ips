@@ -220,7 +220,7 @@ class APlicSystemTest extends SpinalSimFunSuite {
           dut.io.sources #= sourceIO & ~((BigInt(1) << (config.idx-1)))
           dut.clockDomain.waitRisingEdge(4)
           ipIO = dut.io.ip(config.hartId-1).toBigInt
-          assertIO(ipIO, (config.idx-1), 1, s"assert APlicSource ip output_${(config.idx-1)}")
+          assertIO(ipIO, (config.idx-1), 1, s"assert gateway ip output_${(config.idx-1)}")
 
           // wait busy bit 4.5.15
           Iterator

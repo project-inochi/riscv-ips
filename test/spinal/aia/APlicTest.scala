@@ -335,7 +335,7 @@ class APlicUnitTest extends SpinalSimFunSuite {
         dut.io.sources #= sourceIO
         dut.clockDomain.waitRisingEdge(2)
         ipIO = dut.io.ip(config.hartId)(config.guestIndex).toBigInt
-        assertIO(ipIO, i, 1, s"assert APlicSource ip output_$i")
+        assertIO(ipIO, i, 1, s"assert gateway ip output_$i")
 
         // wait busy bit 4.5.15
         Iterator
