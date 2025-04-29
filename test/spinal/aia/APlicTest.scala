@@ -1,9 +1,11 @@
 package aia
 
 import spinal.core._
+import spinal.core.fiber.{Fiber, Lock}
 import spinal.core.sim._
 import spinal.sim._
 import spinal.lib._
+import spinal.lib.bus.misc.SizeMapping
 import spinal.lib.bus.tilelink
 import spinal.lib.misc.InterruptNode
 import spinal.tester.{SpinalAnyFunSuite, SpinalSimTester, SpinalSimFunSuite}
@@ -12,8 +14,46 @@ import _root_.sim._
 import scala.util.Random
 import scala.collection.mutable.ArrayBuffer
 
+case class TilelinkAPlicReadPortFiber() extends Area {
+  val node = tilelink.fabric.Node.down()
+
+  val m2sParams = tilelink.M2sParameters(
+    addressWidth = 32,
+    dataWidth = 64,
+    masters = List(
+      tilelink.M2sAgent(
+        name = TilelinkAPlicReadPortFiber.this,
+        mapping = List(
+          tilelink.M2sSource(
+            id = SizeMapping(0, 4),
+            emits = tilelink.M2sTransfers(
+              get = tilelink.SizeRange(1, 64),
+              putFull = tilelink.SizeRange(1, 64)
+            )
+          )
+        )
+      )
+    )
+  )
+
+  var bus: Option[tilelink.Bus] = None
+
+  val fiber = Fiber build new Area {
+    node.m2s forceParameters m2sParams
+
+    node.s2m.supported load tilelink.S2mSupport.none()
+
+    val mappings = spinal.lib.system.tag.MemoryConnection.getMemoryTransfers(node)
+    for(mapping <- mappings){
+      println(s"- ${mapping.where} -> ${mapping.transfers}")
+    }
+
+    bus.map(node.bus <> _)
+  }
+}
+
 case class APlicUnitFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: Seq[Int]) extends Component {
-  val masterBus = TilelinkBusFiber()
+  val masterBus = TilelinkAPlicReadPortFiber()
 
   val crossBar = tilelink.fabric.Node()
   crossBar << masterBus.node
@@ -75,7 +115,7 @@ case class APlicUnitFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: 
 }
 
 case class APlicMSFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slavesourceIds: Seq[Int]) extends Component {
-  val masterBus = TilelinkBusFiber()
+  val masterBus = TilelinkAPlicReadPortFiber()
 
   val crossBar = tilelink.fabric.Node()
   crossBar << masterBus.node
@@ -160,7 +200,7 @@ case class APlicMSFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slavesourceI
 }
 
 case class APlicSystemFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slave1sourceIds: Seq[Int], slave2sourceIds: Seq[Int]) extends Component {
-  val masterBus = TilelinkBusFiber()
+  val masterBus = TilelinkAPlicReadPortFiber()
 
   val crossBar = tilelink.fabric.Node()
   crossBar << masterBus.node
