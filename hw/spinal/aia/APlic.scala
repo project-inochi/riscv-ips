@@ -127,6 +127,12 @@ case class APlic(p: APlicDomainParam,
   val isMSI = RegInit(False)
   val bigEndian = False
 
+  if (!p.genParam.withDirect) {
+    when (!isMSI) {
+      domainEnable := False
+    }
+  }
+
   val interrupts: Seq[APlicSource] = for (((sourceId, delegatable), i) <- sourceIds.zip(interruptDelegatable).zipWithIndex)
     yield new APlicSource(sourceId, delegatable, isMSI, sources(i))
 
