@@ -148,7 +148,7 @@ class APlicSystemTest extends APlicTest {
       val shuffledMCandidates = Random.shuffle(candidatesFull.toList).take(50)
       val shuffledS1Candidates = (1 to 32).toSet
 
-      val masterconfigs = ArrayBuffer[gateway]()
+      val masterconfigs = ArrayBuffer[APlicSource]()
       for (i <- 1 until sourcenum) {
         val isDelegaton = shuffledMCandidates.contains(i)
         val mode = if (isDelegaton) sourceMode.INACTIVE else sourceMode.random()
@@ -159,8 +159,8 @@ class APlicSystemTest extends APlicTest {
         masterconfigs += config
       }
 
-      val slave1configs = ArrayBuffer[gateway]()
-      val slave2configs = ArrayBuffer[gateway]()
+      val slave1configs = ArrayBuffer[APlicSource]()
+      val slave2configs = ArrayBuffer[APlicSource]()
       for (i <- candidatesFull) {
         var MDelegation = shuffledMCandidates.contains(i)
         var S1Delegation = shuffledS1Candidates.contains(i)
@@ -217,7 +217,7 @@ class APlicSystemTest extends APlicTest {
           dut.io.sources #= sourceIO & ~((BigInt(1) << (config.idx-1)))
           dut.clockDomain.waitRisingEdge(4)
           ipIO = dut.io.ip(config.hartId-1).toBigInt
-          assertIO(ipIO, (config.idx-1), 1, s"assert gateway ip output_${(config.idx-1)}")
+          assertIO(ipIO, (config.idx-1), 1, s"assert APlicSource ip output_${(config.idx-1)}")
 
           // wait busy bit 4.5.15
           Iterator

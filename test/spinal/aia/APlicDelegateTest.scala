@@ -127,7 +127,7 @@ class APlicMSTest extends APlicTest {
       val randomIds_slave1 = shuffledCandidates.take(16)
       val randomIds_slave2 = shuffledCandidates.drop(16)
 
-      val masterconfigs = ArrayBuffer[gateway]()
+      val masterconfigs = ArrayBuffer[APlicSource]()
       for (i <- 1 until sourcenum) {
         val isDelegaton = randomIds_slave1.contains(i) || randomIds_slave2.contains(i)
         val mode = if (isDelegaton) sourceMode.INACTIVE else sourceMode.random()
@@ -138,8 +138,8 @@ class APlicMSTest extends APlicTest {
         masterconfigs += config
       }
 
-      val slave1configs = ArrayBuffer[gateway]()
-      val slave2configs = ArrayBuffer[gateway]()
+      val slave1configs = ArrayBuffer[APlicSource]()
+      val slave2configs = ArrayBuffer[APlicSource]()
       for (i <- candidates) {
         var isDelegaton = randomIds_slave1.contains(i)
         var mode = if (isDelegaton) sourceMode.random() else sourceMode.INACTIVE

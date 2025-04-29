@@ -180,7 +180,7 @@ class APlicUnitTest extends APlicTest {
 
       agent.putFullData(0, baseaddr + aplicmap.domaincfgOffset, SimUInt32(0x80000000))
 
-      val configs = ArrayBuffer[gateway]()
+      val configs = ArrayBuffer[APlicSource]()
       for (i <- 1 until sourcenum) {
         val mode = sourceMode.random()
         val config = createGateway(mode, i, agent, baseaddr)
@@ -300,7 +300,7 @@ class APlicUnitTest extends APlicTest {
 
       agent.putFullData(0, aplicAddr + aplicmap.domaincfgOffset, SimUInt32(0x80000004))
 
-      val configs = ArrayBuffer[gateway]()
+      val configs = ArrayBuffer[APlicSource]()
       for (i <- 1 until sourcenum) {
         val mode = sourceMode.EDGE1
         val config = createGateway(mode, i, agent, aplicAddr)
@@ -331,7 +331,7 @@ class APlicUnitTest extends APlicTest {
         dut.io.sources #= sourceIO
         dut.clockDomain.waitRisingEdge(2)
         ipIO = dut.io.ip(config.hartId)(config.guestIndex).toBigInt
-        assertIO(ipIO, i, 1, s"assert gateway ip output_$i")
+        assertIO(ipIO, i, 1, s"assert APlicSource ip output_$i")
 
         // wait busy bit 4.5.15
         Iterator
@@ -387,7 +387,7 @@ class APlicTest extends SpinalSimFunSuite {
     assert(((io >> id) & BigInt(1)) == value, s"$name: missmatch value = ${io} >> ($id) & 1 != (${value})")
   }
 
-  def assertIP(sourceIO: BigInt, configs: ArrayBuffer[gateway]) = {
+  def assertIP(sourceIO: BigInt, configs: ArrayBuffer[APlicSource]) = {
     for (config <- configs) {
       if (config.mode != sourceMode.DETACHED) {
         config.assertIP(sourceIO.testBit(config.idx-1).toInt)
@@ -395,7 +395,7 @@ class APlicTest extends SpinalSimFunSuite {
     }
   }
 
-  abstract class gateway(id: Int) {
+  abstract class APlicSource(id: Int) {
     val idx = id
     var mode = sourceMode.INACTIVE
     var ie = 0
@@ -414,7 +414,7 @@ class APlicTest extends SpinalSimFunSuite {
     def assertIP(io: Int): Unit
   }
 
-  case class inactive(id: Int, agent: tilelink.sim.MasterAgent, base: Int) extends gateway(id) {
+  case class APlicInactiveSource(id: Int, agent: tilelink.sim.MasterAgent, base: Int) extends APlicSource(id) {
     mode = sourceMode.INACTIVE
 
     override def setMode(agent: tilelink.sim.MasterAgent, base: Int, offset: Int, childId: Int = 0) = {
@@ -426,17 +426,19 @@ class APlicTest extends SpinalSimFunSuite {
       agent.putFullData(0, base + aplicmap.clrienumOffset, SimUInt32(id))
       agent.putFullData(0, base + aplicmap.targetOffset + offset, target)
     }
+
     override def assertIE() = {
       val offset = id / 32 * 4
       assertBit(agent.get(0, base + aplicmap.setieOffset + offset, 4), id, ie, s"ie: mode: inactive , id: $id")
     }
+
     override def assertIP(io: Int) = {
       val offset = id / 32 * 4
       assertBit(agent.get(0, base + aplicmap.setipOffset + offset, 4), id, ip, s"ip: mode: inactive, id: $id")
     }
   }
 
-  case class detached(id: Int, agent: tilelink.sim.MasterAgent, base: Int) extends gateway(id) {
+  case class APlicDetachedSource(id: Int, agent: tilelink.sim.MasterAgent, base: Int) extends APlicSource(id) {
     mode = sourceMode.DETACHED
 
     override def setMode(agent: tilelink.sim.MasterAgent, base: Int, offset: Int, childId: Int = 0) = {
@@ -448,17 +450,19 @@ class APlicTest extends SpinalSimFunSuite {
       agent.putFullData(0, base + aplicmap.setienumOffset, SimUInt32(id))
       agent.putFullData(0, base + aplicmap.targetOffset + offset, target)
     }
+
     override def assertIE() = {
       val offset = id / 32 * 4
       assertBit(agent.get(0, base + aplicmap.setieOffset + offset, 4), id, ie, s"ie: mode: detached, id: $id")
     }
+
     override def assertIP(io: Int) = {
       val offset = id / 32 * 4
       assertBit(agent.get(0, base + aplicmap.setipOffset + offset, 4), id, ip, s"ip: mode: detached, id: $id")
     }
   }
 
-  case class edge1(id: Int, agent: tilelink.sim.MasterAgent, base: Int) extends gateway(id) {
+  case class APlicEdge1Source(id: Int, agent: tilelink.sim.MasterAgent, base: Int) extends APlicSource(id) {
     mode = sourceMode.EDGE1
     var reg = 0
 
@@ -471,10 +475,12 @@ class APlicTest extends SpinalSimFunSuite {
       agent.putFullData(0, base + aplicmap.setienumOffset, SimUInt32(id))
       agent.putFullData(0, base + aplicmap.targetOffset + offset, target)
     }
+
     override def assertIE() = {
         val offset = id / 32 * 4
         assertBit(agent.get(0, base + aplicmap.setieOffset + offset, 4), id, ie, s"ie: mode: edge1, id: $id")
     }
+
     override def assertIP(io: Int) = {
       val offset = id / 32 * 4
       if (reg == 0 && io == 1) {
@@ -485,7 +491,7 @@ class APlicTest extends SpinalSimFunSuite {
     }
   }
 
-  case class edge0(id: Int, agent: tilelink.sim.MasterAgent, base: Int) extends gateway(id) {
+  case class APlicEdge0Source(id: Int, agent: tilelink.sim.MasterAgent, base: Int) extends APlicSource(id) {
     mode = sourceMode.EDGE0
     var reg = 0
 
@@ -498,10 +504,12 @@ class APlicTest extends SpinalSimFunSuite {
       agent.putFullData(0, base + aplicmap.setienumOffset, SimUInt32(id))
       agent.putFullData(0, base + aplicmap.targetOffset + offset, target)
     }
+
     override def assertIE() = {
       val offset = id / 32 * 4
       assertBit(agent.get(0, base + aplicmap.setieOffset + offset, 4), id, ie, s"ie: mode: edge0, id: $id")
     }
+
     override def assertIP(io: Int) = {
       val offset = id / 32 * 4
       if (reg == 1 && io == 0) {
@@ -512,7 +520,7 @@ class APlicTest extends SpinalSimFunSuite {
     }
   }
 
-  case class level1(id: Int, agent: tilelink.sim.MasterAgent, base: Int) extends gateway(id) {
+  case class APlicLevel1Source(id: Int, agent: tilelink.sim.MasterAgent, base: Int) extends APlicSource(id) {
     mode = sourceMode.LEVEL1
 
     override def setMode(agent: tilelink.sim.MasterAgent, base: Int, offset: Int, childId: Int = 0) = {
@@ -524,17 +532,19 @@ class APlicTest extends SpinalSimFunSuite {
       agent.putFullData(0, base + aplicmap.setienumOffset, SimUInt32(id))
       agent.putFullData(0, base + aplicmap.targetOffset + offset, target)
     }
+
     override def assertIE() = {
       val offset = id / 32 * 4
       assertBit(agent.get(0, base + aplicmap.setieOffset + offset, 4), id, ie, s"ie: mode: level1, id: $id")
     }
+
     override def assertIP(io: Int) = {
       val offset = id / 32 * 4
       assertBit(agent.get(0, base + aplicmap.setipOffset + offset, 4), id, io, s"ip: mode: level1, id: $id")
     }
   }
 
-  case class level0(id: Int, agent: tilelink.sim.MasterAgent, base: Int) extends gateway(id) {
+  case class APlicLevel0Source(id: Int, agent: tilelink.sim.MasterAgent, base: Int) extends APlicSource(id) {
     mode = sourceMode.LEVEL0
 
     override def setMode(agent: tilelink.sim.MasterAgent, base: Int, offset: Int, childId: Int = 0) = {
@@ -546,10 +556,12 @@ class APlicTest extends SpinalSimFunSuite {
       agent.putFullData(0, base + aplicmap.setienumOffset, SimUInt32(id))
       agent.putFullData(0, base + aplicmap.targetOffset + offset, target)
     }
+
     override def assertIE() = {
       val offset = id / 32 * 4
       assertBit(agent.get(0, base + aplicmap.setieOffset + offset, 4), id, ie, s"ie: mode: level0, id: $id")
     }
+
     override def assertIP(io: Int) = {
       val offset = id / 32 * 4
       if (io == 0) {
@@ -560,17 +572,16 @@ class APlicTest extends SpinalSimFunSuite {
     }
   }
 
-  def createGateway(mode: sourceMode.Value, id: Int, agent: tilelink.sim.MasterAgent, baseaddr: Int): gateway = {
+  def createGateway(mode: sourceMode.Value, id: Int, agent: tilelink.sim.MasterAgent, baseaddr: Int): APlicSource = {
     mode match {
-      case sourceMode.INACTIVE => inactive(id, agent, baseaddr)
-      case sourceMode.DETACHED => detached(id, agent, baseaddr)
-      case sourceMode.EDGE1    => edge1(id, agent, baseaddr)
-      case sourceMode.EDGE0    => edge0(id, agent, baseaddr)
-      case sourceMode.LEVEL1   => level1(id, agent, baseaddr)
-      case sourceMode.LEVEL0   => level0(id, agent, baseaddr)
+      case sourceMode.INACTIVE => APlicInactiveSource(id, agent, baseaddr)
+      case sourceMode.DETACHED => APlicDetachedSource(id, agent, baseaddr)
+      case sourceMode.EDGE1    => APlicEdge1Source(id, agent, baseaddr)
+      case sourceMode.EDGE0    => APlicEdge0Source(id, agent, baseaddr)
+      case sourceMode.LEVEL1   => APlicLevel1Source(id, agent, baseaddr)
+      case sourceMode.LEVEL0   => APlicLevel0Source(id, agent, baseaddr)
     }
   }
-
 
   object sourceMode extends Enumeration {
     type mode = Value
