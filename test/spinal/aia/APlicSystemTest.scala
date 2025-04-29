@@ -151,10 +151,10 @@ class APlicSystemTest extends SpinalSimFunSuite {
       val shuffledMCandidates = Random.shuffle(candidatesFull.toList).take(50)
       val shuffledS1Candidates = (1 to 32).toSet
 
-      val masterconfigs = ArrayBuffer[APlicSource]()
+      val masterconfigs = ArrayBuffer[APlicSimSource]()
       for (i <- 1 until sourcenum) {
         val isDelegaton = shuffledMCandidates.contains(i)
-        val mode = if (isDelegaton) sourceMode.INACTIVE else sourceMode.random()
+        val mode = if (isDelegaton) APlicSimSourceMode.INACTIVE else APlicSimSourceMode.random()
         val config = createGateway(mode, i, agent, masterAddr)
         config.hartId = 0
         config.iprio = 1
@@ -162,19 +162,19 @@ class APlicSystemTest extends SpinalSimFunSuite {
         masterconfigs += config
       }
 
-      val slave1configs = ArrayBuffer[APlicSource]()
-      val slave2configs = ArrayBuffer[APlicSource]()
+      val slave1configs = ArrayBuffer[APlicSimSource]()
+      val slave2configs = ArrayBuffer[APlicSimSource]()
       for (i <- candidatesFull) {
         var MDelegation = shuffledMCandidates.contains(i)
         var S1Delegation = shuffledS1Candidates.contains(i)
-        var mode = if (MDelegation && !S1Delegation) sourceMode.random() else sourceMode.INACTIVE
+        var mode = if (MDelegation && !S1Delegation) APlicSimSourceMode.random() else APlicSimSourceMode.INACTIVE
         val slave1config = createGateway(mode, i, agent, slave1Addr)
         slave1config.hartId = Random.between(1, hartnum)
         slave1config.iprio = 1
         slave1config.setMode(agent, slave1Addr, (i-1)*4, (if (S1Delegation) 1 else 0))
         slave1configs += slave1config
 
-        mode = if (S1Delegation && MDelegation) sourceMode.EDGE0 else sourceMode.INACTIVE
+        mode = if (S1Delegation && MDelegation) APlicSimSourceMode.EDGE0 else APlicSimSourceMode.INACTIVE
         val slave2config = createGateway(mode, i, agent, slave2Addr)
         slave2config.hartId = Random.between(1, hartnum)
         slave2config.deliveryMode = true
@@ -216,7 +216,7 @@ class APlicSystemTest extends SpinalSimFunSuite {
       var randomHartid = 0
       for (config <- slave2configs) {
         // 4.5.16
-        if (config.mode != sourceMode.INACTIVE) {
+        if (config.mode != APlicSimSourceMode.INACTIVE) {
           dut.io.sources #= sourceIO & ~((BigInt(1) << (config.idx-1)))
           dut.clockDomain.waitRisingEdge(4)
           ipIO = dut.io.ip(config.hartId-1).toBigInt

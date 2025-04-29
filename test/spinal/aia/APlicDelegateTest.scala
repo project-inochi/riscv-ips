@@ -132,10 +132,10 @@ class APlicMSTest extends SpinalSimFunSuite {
       val randomIds_slave1 = shuffledCandidates.take(16)
       val randomIds_slave2 = shuffledCandidates.drop(16)
 
-      val masterconfigs = ArrayBuffer[APlicSource]()
+      val masterconfigs = ArrayBuffer[APlicSimSource]()
       for (i <- 1 until sourcenum) {
         val isDelegaton = randomIds_slave1.contains(i) || randomIds_slave2.contains(i)
-        val mode = if (isDelegaton) sourceMode.INACTIVE else sourceMode.random()
+        val mode = if (isDelegaton) APlicSimSourceMode.INACTIVE else APlicSimSourceMode.random()
         val config = createGateway(mode, i, agent, masterAddr)
         config.hartId = Random.nextInt(hartnum)
         config.iprio = 1
@@ -143,11 +143,11 @@ class APlicMSTest extends SpinalSimFunSuite {
         masterconfigs += config
       }
 
-      val slave1configs = ArrayBuffer[APlicSource]()
-      val slave2configs = ArrayBuffer[APlicSource]()
+      val slave1configs = ArrayBuffer[APlicSimSource]()
+      val slave2configs = ArrayBuffer[APlicSimSource]()
       for (i <- candidates) {
         var isDelegaton = randomIds_slave1.contains(i)
-        var mode = if (isDelegaton) sourceMode.random() else sourceMode.INACTIVE
+        var mode = if (isDelegaton) APlicSimSourceMode.random() else APlicSimSourceMode.INACTIVE
         val slave1config = createGateway(mode, i, agent, slave1Addr)
         slave1config.hartId = Random.nextInt(hartnum)
         slave1config.iprio = 1
@@ -155,7 +155,7 @@ class APlicMSTest extends SpinalSimFunSuite {
         slave1configs += slave1config
 
         isDelegaton = randomIds_slave2.contains(i)
-        mode = if (isDelegaton) sourceMode.random() else sourceMode.INACTIVE
+        mode = if (isDelegaton) APlicSimSourceMode.random() else APlicSimSourceMode.INACTIVE
         val slave2config = createGateway(mode, i, agent, slave2Addr)
         slave2config.hartId = Random.nextInt(hartnum)
         slave2config.iprio = 1
