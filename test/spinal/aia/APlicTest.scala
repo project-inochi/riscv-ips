@@ -265,24 +265,16 @@ case class APlicSystemFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slave1so
  */
 
 class APlicUnitTest extends APlicTest {
-  var compile: SimCompiled[APlicUnitFiberTest] = null
-
   val sourcenum = 64
   val hartnum = 8
 
   val sourceIds = for (i <- 1 until sourcenum) yield i
   val hartIds = for (i <- 0 until hartnum) yield i
 
-  def doCompile(): Unit ={
-    compile = SimConfig.withConfig(config.TestConfig.spinal).withFstWave.compile(
-      new APlicUnitFiberTest(hartIds, sourceIds)
-    )
-  }
-
   test("Direct") {
-    doCompile()
-
-    compile.doSim("Direct"){ dut =>
+    SimConfig.withConfig(config.TestConfig.spinal).withFstWave.compile(
+      new APlicUnitFiberTest(hartIds, sourceIds)
+    ).doSim("Direct"){ dut =>
       dut.clockDomain.forkStimulus(10)
 
       dut.io.sources #= 0x0
@@ -440,9 +432,9 @@ class APlicUnitTest extends APlicTest {
   }
 
   test("MSI") {
-    doCompile()
-
-    compile.doSim("MSI"){ dut =>
+    SimConfig.withConfig(config.TestConfig.spinal).withFstWave.compile(
+      new APlicUnitFiberTest(hartIds, sourceIds)
+    ).doSim("MSI"){ dut =>
       dut.clockDomain.forkStimulus(10)
 
       dut.io.sources #= 0x0
@@ -508,8 +500,6 @@ class APlicUnitTest extends APlicTest {
 }
 
 class APlicMSTest extends APlicTest {
-  var compile: SimCompiled[APlicMSFiberTest] = null
-
   val sourcenum = 64
   val hartnum = 8
 
@@ -517,16 +507,10 @@ class APlicMSTest extends APlicTest {
   val slavesourceIds = (1 to 63).toIndexedSeq
   val hartIds = for (i <- 0 until hartnum) yield i
 
-  def doCompile(): Unit ={
-    compile = SimConfig.withConfig(config.TestConfig.spinal).withFstWave.compile(
-      new APlicMSFiberTest(hartIds, sourceIds, slavesourceIds)
-    )
-  }
-
   test("MS Direct") {
-    doCompile()
-
-    compile.doSim("MS Direct"){ dut =>
+    SimConfig.withConfig(config.TestConfig.spinal).withFstWave.compile(
+      new APlicMSFiberTest(hartIds, sourceIds, slavesourceIds)
+    ).doSim("MS Direct"){ dut =>
       dut.clockDomain.forkStimulus(10)
 
       dut.io.sources #= 0x0
@@ -618,8 +602,6 @@ class APlicMSTest extends APlicTest {
 }
 
 class APlicSystemTest extends APlicTest {
-  var compile: SimCompiled[APlicSystemFiberTest] = null
-
   val sourcenum = 64
   val hartnum = 8
 
@@ -628,16 +610,10 @@ class APlicSystemTest extends APlicTest {
   val slave2sourceIds = (1 to 32).toIndexedSeq
   val hartIds = for (i <- 0 until hartnum) yield i
 
-  def doCompile(): Unit ={
-    compile = SimConfig.withConfig(config.TestConfig.spinal).withFstWave.compile(
-      new APlicSystemFiberTest(hartIds, sourceIds, slave1sourceIds, slave2sourceIds)
-    )
-  }
-
   test("system") {
-    doCompile()
-
-    compile.doSim("system"){ dut =>
+    SimConfig.withConfig(config.TestConfig.spinal).withFstWave.compile(
+      new APlicSystemFiberTest(hartIds, sourceIds, slave1sourceIds, slave2sourceIds)
+    ).doSim("system"){ dut =>
       dut.clockDomain.forkStimulus(10)
 
       dut.io.sources #= 0x0
