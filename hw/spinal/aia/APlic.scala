@@ -18,10 +18,17 @@ case class APlicGenParam(withDirect: Boolean,
                          withIForce: Boolean = false,
                          var _MMsiParams: APlicMSIParam = APlicMSIParam(),
                          var _SMsiParams: APlicMSIParam = APlicMSIParam(),
+
+                         var _withMSIAddrCfg: Boolean = false,
                          var _lockMSI: Boolean = false) {
 
   def lockMSI(): this.type = {
     this._lockMSI = true
+    this
+  }
+
+  def withMSIAddrCfg(): this.type = {
+    this._withMSIAddrCfg = true
     this
   }
 
@@ -135,7 +142,7 @@ case class APlic(p: APlicDomainParam,
     }
   }
 
-  val msi = p.genParam.withMSI generate new Area {
+  val msiaddrcfg = (p.genParam.withMSI || p.genParam._withMSIAddrCfg) generate new Area {
     val M = new Area {
       val (lock, hhxs, lhxs, hhxw, lhxw, ppn) = if (p.isRoot) {
         (RegInit(Bool(p.genParam._lockMSI)),
@@ -208,21 +215,6 @@ case class APlic(p: APlicDomainParam,
       }
     }
 
-    val gateway = new APlicMSIGateway(interrupts, domainEnable)
-
-    val gatewayStream = gateway.requestStream.map(req => {
-      val payload = APlicMSIPayload()
-      payload.address := msiAddress(req.target.hartId, req.target.guestId).resized
-      payload.data := req.target.eiid.resized
-      payload
-    })
-
-    val genmsiStream = Stream(APlicMSIPayload())
-
-    val msiStream = StreamArbiterFactory().lowerFirst.noLock.onArgs(gatewayStream, genmsiStream)
-
-    msiSender(msiStream)
-
     def msiAddress(hartIndex: UInt, guestIndex: UInt = 0): UInt = {
       val groupId = (hartIndex >> M.lhxw) & M.maskH.resized
       val hartId = hartIndex & M.maskL.resized
@@ -234,6 +226,23 @@ case class APlic(p: APlicDomainParam,
       val msiaddr = (ppn | groupOffset.resized | hartOffset.resized | guestIndex.resized) << 12
       msiaddr
     }
+  }
+
+  val msi = p.genParam.withMSI generate new Area {
+    val gateway = new APlicMSIGateway(interrupts, domainEnable)
+
+    val gatewayStream = gateway.requestStream.map(req => {
+      val payload = APlicMSIPayload()
+      payload.address := msiaddrcfg.msiAddress(req.target.hartId, req.target.guestId).resized
+      payload.data := req.target.eiid.resized
+      payload
+    })
+
+    val genmsiStream = Stream(APlicMSIPayload())
+
+    val msiStream = StreamArbiterFactory().lowerFirst.noLock.onArgs(gatewayStream, genmsiStream)
+
+    msiSender(msiStream)
   }
 
   val direct = p.genParam.withDirect generate new Area {

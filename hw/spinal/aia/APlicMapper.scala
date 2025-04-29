@@ -49,44 +49,50 @@ object APlicMapper {
       bus.readAndWrite(aplic.bigEndian, address = domaincfgOffset, bitOffset = 0)
     }
 
-    // mapping GENMSI, MSIADDRCFG, MSIADDRCFGH
-    val msi = p.genParam.withMSI generate new Area {
-      val logic = aplic.msi
+    // mapping MSIADDRCFG, MSIADDRCFGH
+    val msiaddrcfg = (p.genParam.withMSI || p.genParam._withMSIAddrCfg) generate new Area {
+      val addrcfg = aplic.msiaddrcfg
 
-      bus.read(logic.M.msiaddrcfgCovered(31 downto 0), address = mmsiaddrcfgOffset)
-      bus.read(logic.M.msiaddrcfgCovered(63 downto 32), address = mmsiaddrcfghOffset)
-      bus.read(logic.S.msiaddrcfgCovered(31 downto 0), address = smsiaddrcfgOffset)
-      bus.read(logic.S.msiaddrcfgCovered(63 downto 32), address = smsiaddrcfghOffset)
+      bus.read(addrcfg.M.msiaddrcfgCovered(31 downto 0), address = mmsiaddrcfgOffset)
+      bus.read(addrcfg.M.msiaddrcfgCovered(63 downto 32), address = mmsiaddrcfghOffset)
+      bus.read(addrcfg.S.msiaddrcfgCovered(31 downto 0), address = smsiaddrcfgOffset)
+      bus.read(addrcfg.S.msiaddrcfgCovered(63 downto 32), address = smsiaddrcfghOffset)
 
       val addrcfgWrite = aplic.p.isRoot generate new Area {
-        val allowWrite = !logic.M.lock
+        val allowWrite = !addrcfg.M.lock
 
         val mmsiaddrcfgh = bus.createAndDriveFlow(UInt(32 bits), mmsiaddrcfghOffset)
         when(mmsiaddrcfgh.valid && allowWrite) {
-          logic.M.lock := mmsiaddrcfgh.payload(31)
-          logic.M.hhxs := mmsiaddrcfgh.payload(28 downto 24)
-          logic.M.lhxs := mmsiaddrcfgh.payload(22 downto 20)
-          logic.M.hhxw := mmsiaddrcfgh.payload(18 downto 16)
-          logic.M.lhxw := mmsiaddrcfgh.payload(15 downto 12)
-          logic.M.ppn(43 downto 32) := mmsiaddrcfgh.payload(11 downto 0)
+          addrcfg.M.lock := mmsiaddrcfgh.payload(31)
+          addrcfg.M.hhxs := mmsiaddrcfgh.payload(28 downto 24)
+          addrcfg.M.lhxs := mmsiaddrcfgh.payload(22 downto 20)
+          addrcfg.M.hhxw := mmsiaddrcfgh.payload(18 downto 16)
+          addrcfg.M.lhxw := mmsiaddrcfgh.payload(15 downto 12)
+          addrcfg.M.ppn(43 downto 32) := mmsiaddrcfgh.payload(11 downto 0)
         }
 
         val mmsiaddrcfg = bus.createAndDriveFlow(UInt(32 bits), mmsiaddrcfgOffset)
         when(mmsiaddrcfg.valid && allowWrite) {
-          logic.M.ppn(31 downto 0) := mmsiaddrcfg.payload
+          addrcfg.M.ppn(31 downto 0) := mmsiaddrcfg.payload
         }
 
         val smsiaddrcfgh = bus.createAndDriveFlow(UInt(32 bits), smsiaddrcfghOffset)
         when(smsiaddrcfgh.valid && allowWrite) {
-          logic.S.lhxs := smsiaddrcfgh.payload(22 downto 20)
-          logic.S.ppn(43 downto 32) := smsiaddrcfgh.payload(11 downto 0)
+          addrcfg.S.lhxs := smsiaddrcfgh.payload(22 downto 20)
+          addrcfg.S.ppn(43 downto 32) := smsiaddrcfgh.payload(11 downto 0)
         }
 
         val smsiaddrcfg = bus.createAndDriveFlow(UInt(32 bits), smsiaddrcfgOffset)
         when(smsiaddrcfg.valid && allowWrite) {
-          logic.S.ppn(31 downto 0) := smsiaddrcfg.payload
+          addrcfg.S.ppn(31 downto 0) := smsiaddrcfg.payload
         }
       }
+    }
+
+    // mapping GENMSI
+    val msi = p.genParam.withMSI generate new Area {
+      val logic = aplic.msi
+      val addrcfg = aplic.msiaddrcfg
 
       val genmsiPayload = Flow(APlicGenMSIPayload())
       val genmsiFlow = bus.createAndDriveFlow(UInt(32 bits), genmsiOffset).discardWhen(genmsiPayload.valid || !aplic.isMSI)
@@ -120,7 +126,7 @@ object APlicMapper {
 
       val genmsiStream = genmsiPayloadStream.map(param => {
         val payload = APlicMSIPayload()
-        payload.address := logic.msiAddress(param.hartId).resized
+        payload.address := addrcfg.msiAddress(param.hartId).resized
         payload.data := param.eiid.resized
         payload
       })

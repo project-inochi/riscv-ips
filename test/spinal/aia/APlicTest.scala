@@ -186,7 +186,7 @@ case class APlicSystemFiberTest(hartIds: Seq[Int], sourceIds: Seq[Int], slave1so
     val dispatcher = TilelinkIMSICFiber()
     dispatcher.node at 0x40000000 of access
 
-    M.domainParam = Some(APlicDomainParam.root(APlicGenParam.full))
+    M.domainParam = Some(APlicDomainParam.root(APlicGenParam.direct.withMSIAddrCfg()))
     S1.domainParam = Some(APlicDomainParam.M(APlicGenParam.full))
     S2.domainParam = Some(APlicDomainParam.S(APlicGenParam.full))
 

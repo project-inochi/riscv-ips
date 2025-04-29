@@ -25,7 +25,7 @@ class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
 
   val io = new Bundle {
     val slaveBus = slave(slaveType())
-    val masterBus = master(masterType())
+    val masterBus = p.genParam.withMSI generate master(masterType())
     val sources = in Bits (sourceIds.size bits)
     val mmsiaddrcfg = (if (p.isRoot) out else in) UInt (64 bits)
     val smsiaddrcfg = (if (p.isRoot) out else in) UInt (64 bits)
@@ -33,7 +33,7 @@ class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
     val slaveSources = out Vec(slaveInfos.map(slaveInfo => Bits(slaveInfo.sourceIds.size bits)))
   }
 
-  if (p.isRoot && p.genParam.withMSI) {
+  if (p.isRoot && (p.genParam.withMSI || p.genParam._withMSIAddrCfg)) {
     io.mmsiaddrcfg.assignDontCare()
     io.smsiaddrcfg.assignDontCare()
   }
@@ -167,7 +167,12 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
 
     core = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaveSources.map(_.slaveInfo).toSeq, p, up.bus.p, down.bus.p)
 
-    core.io.masterBus <> down.bus
+    if (p.genParam.withMSI) {
+      core.io.masterBus <> down.bus
+    } else {
+      down.bus.assignDontCare()
+    }
+
     core.io.slaveBus <> up.bus
     core.io.sources := sources.map(_.node.flag).asBits()
     if (p.genParam.withDirect) {
