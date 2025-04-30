@@ -1,7 +1,7 @@
 package aia
 
 import spinal.core._
-import spinal.core.fiber.{Fiber, Lock}
+import spinal.core.fiber._
 import spinal.lib._
 import spinal.lib.bus.misc._
 import spinal.lib.bus.tilelink
@@ -121,7 +121,7 @@ object TilelinkAplic {
 case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
   val up = tilelink.fabric.Node.up()
   val down = tilelink.fabric.Node.down()
-  var core: TilelinkAplic = null
+  val core = Handle[TilelinkAplic]()
 
   val m2sParams = TilelinkAplic.getTilelinkMasterSupport(TilelinkAPlicMasterParam(64, 4), TilelinkAPLICFiber.this)
 
@@ -165,7 +165,7 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
     up.m2s.supported.load(TilelinkAplic.getTilelinkSlaveSupport(up.m2s.proposed))
     up.s2m.none()
 
-    core = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaveSources.map(_.slaveInfo).toSeq, p, up.bus.p, down.bus.p)
+    val aplic = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaveSources.map(_.slaveInfo).toSeq, p, up.bus.p, down.bus.p)
 
     if (p.genParam.withMSI) {
       core.io.masterBus <> down.bus
@@ -190,5 +190,7 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
     slaveSources.lazyZip(core.io.slaveSources).foreach((slaveSource, ioSlaveSource) => {
       Vec(slaveSource.flags.map(_.flag)) := ioSlaveSource.asBools
     })
+
+    core.load(aplic)
   }
 }
