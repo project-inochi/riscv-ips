@@ -167,6 +167,8 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
 
     val aplic = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaveSources.map(_.slaveInfo).toSeq, p, up.bus.p, down.bus.p)
 
+    core.load(aplic)
+
     if (p.genParam.withMSI) {
       core.io.masterBus <> down.bus
     } else {
@@ -190,7 +192,5 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
     slaveSources.lazyZip(core.io.slaveSources).foreach((slaveSource, ioSlaveSource) => {
       Vec(slaveSource.flags.map(_.flag)) := ioSlaveSource.asBools
     })
-
-    core.load(aplic)
   }
 }
