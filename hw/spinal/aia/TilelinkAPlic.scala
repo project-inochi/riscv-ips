@@ -9,28 +9,25 @@ import spinal.lib.misc.InterruptNode
 import spinal.lib.misc.plic.InterruptCtrlFiber
 import scala.collection.mutable.ArrayBuffer
 
-class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
-                  TM <: spinal.core.Data with IMasterSlave](
+class MappedAplic[T <: spinal.core.Data with IMasterSlave](
   sourceIds: Seq[Int],
   hartIds: Seq[Int],
   slaveInfos: Seq[APlicSlaveInfo],
   p: APlicDomainParam,
-  slaveType: HardType[TS],
-  masterType: HardType[TM],
-  factoryGen: TS => BusSlaveFactory,
-  msiSenderGen: (TM, Stream[APlicMSIPayload]) => Area
+  slaveType: HardType[T],
+  factoryGen: T => BusSlaveFactory,
 ) extends Component {
   require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
   require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")
 
   val io = new Bundle {
     val slaveBus = slave(slaveType())
-    val masterBus = p.genParam.withMSI generate master(masterType())
     val sources = in Bits (sourceIds.size bits)
     val mmsiaddrcfg = (if (p.isRoot) out else in) UInt (64 bits)
     val smsiaddrcfg = (if (p.isRoot) out else in) UInt (64 bits)
     val targets = p.genParam.withDirect generate (out Bits (hartIds.size bits))
     val slaveSources = out Vec(slaveInfos.map(slaveInfo => Bits(slaveInfo.sourceIds.size bits)))
+    val msiMsg = p.genParam.withMSI generate master(Stream(APlicMSIPayload()))
   }
 
   if (p.isRoot && (p.genParam.withMSI || p.genParam._withMSIAddrCfg)) {
@@ -38,7 +35,7 @@ class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
     io.smsiaddrcfg.assignDontCare()
   }
 
-  val aplic = APlic(p, sourceIds, hartIds, slaveInfos, msiSenderGen(io.masterBus, _))
+  val aplic = APlic(p, sourceIds, hartIds, slaveInfos)
 
   aplic.sources := io.sources
   if (p.genParam.withDirect) {
@@ -54,6 +51,10 @@ class MappedAplic[TS <: spinal.core.Data with IMasterSlave,
     aplic.smsiaddrcfg := io.smsiaddrcfg
   }
 
+  if (p.genParam.withMSI) {
+    io.msiMsg << aplic.msi.msiStream
+  }
+
   val factory = factoryGen(io.slaveBus)
   val mapping = APlicMapper(factory, p)(aplic)
 }
@@ -67,9 +68,7 @@ case class TilelinkAplic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq
   slaveInfos,
   domainParam,
   new bus.tilelink.Bus(slaveParams),
-  new bus.tilelink.Bus(mastersParams),
-  new bus.tilelink.SlaveFactory(_, true),
-  new APlicTilelinkMasterHelper(_, _)
+  new bus.tilelink.SlaveFactory(_, true)
 )
 
 case class APlicTilelinkMasterHelper(bus: tilelink.Bus, stream: Stream[APlicMSIPayload]) extends Area {
@@ -87,6 +86,28 @@ case class APlicTilelinkMasterHelper(bus: tilelink.Bus, stream: Stream[APlicMSIP
 
   bus.a <-< out
   bus.d.ready := True
+}
+
+case class TilelinkAPlicMasterHelper(mastersParams: tilelink.BusParameter) extends Component {
+  val io = new Bundle {
+    val msiMsg = slave(Stream(APlicMSIPayload()))
+    val bus = master(tilelink.Bus(mastersParams))
+  }
+
+  val out = io.msiMsg.map(payload => {
+    val channelA = cloneOf(io.bus.a.payloadType)
+    channelA.opcode   := tilelink.Opcode.A.PUT_FULL_DATA
+    channelA.size     := 2
+    channelA.source   := 0
+    channelA.address  := payload.address.resized
+    channelA.data     := payload.data.asBits.resized
+    channelA.debugId  := 0
+    channelA.mask     := 0xf
+    channelA
+  })
+
+  io.bus.a <-< out
+  io.bus.d.ready := True
 }
 
 case class TilelinkAPlicMasterParam(addressWidth: Int, pendingSize: Int)
@@ -170,7 +191,9 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
     core.load(aplic)
 
     if (p.genParam.withMSI) {
-      core.io.masterBus <> down.bus
+      val sender = TilelinkAPlicMasterHelper(down.bus.p)
+      sender.io.bus <> down.bus
+      sender.io.msiMsg << core.io.msiMsg
     } else {
       down.bus.assignDontCare()
     }

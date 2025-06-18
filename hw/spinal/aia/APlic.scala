@@ -110,8 +110,7 @@ case class APlicMSIPayload() extends Bundle {
 case class APlic(p: APlicDomainParam,
                  sourceIds: Seq[Int],
                  hartIds: Seq[Int],
-                 slaveInfos: Seq[APlicSlaveInfo],
-                 msiSender: Stream[APlicMSIPayload] => Area) extends Area {
+                 slaveInfos: Seq[APlicSlaveInfo]) extends Area {
   require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
   require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")
 
@@ -247,8 +246,6 @@ case class APlic(p: APlicDomainParam,
     val genmsiStream = Stream(APlicMSIPayload())
 
     val msiStream = StreamArbiterFactory().lowerFirst.noLock.onArgs(gatewayStream, genmsiStream)
-
-    msiSender(msiStream)
   }
 
   val direct = p.genParam.withDirect generate new Area {
