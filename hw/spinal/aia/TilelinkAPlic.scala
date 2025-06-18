@@ -43,8 +43,13 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](
   }
   io.slaveSources := aplic.slaveSources
 
-  io.mmsiaddrcfg <> aplic.mmsiaddrcfg
-  io.smsiaddrcfg <> aplic.smsiaddrcfg
+  if (p.isRoot) {
+    io.mmsiaddrcfg := aplic.mmsiaddrcfg
+    io.smsiaddrcfg := aplic.smsiaddrcfg
+  } else {
+    aplic.mmsiaddrcfg := io.mmsiaddrcfg
+    aplic.smsiaddrcfg := io.smsiaddrcfg
+  }
 
   if (p.genParam.withMSI) {
     io.msiMsg << aplic.msi.msiStream
