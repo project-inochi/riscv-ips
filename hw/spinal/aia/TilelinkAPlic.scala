@@ -66,23 +66,6 @@ case class TilelinkAplic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq
   new bus.tilelink.SlaveFactory(_, true)
 )
 
-case class APlicTilelinkMasterHelper(bus: tilelink.Bus, stream: Stream[APlicMSIPayload]) extends Area {
-  val out = stream.map(payload => {
-    val channelA = cloneOf(bus.a.payloadType)
-    channelA.opcode   := tilelink.Opcode.A.PUT_FULL_DATA
-    channelA.size     := 2
-    channelA.source   := 0
-    channelA.address  := payload.address.resized
-    channelA.data     := payload.data.asBits.resized
-    channelA.debugId  := 0
-    channelA.mask     := 0xf
-    channelA
-  })
-
-  bus.a <-< out
-  bus.d.ready := True
-}
-
 case class TilelinkAPlicMasterHelper(mastersParams: tilelink.BusParameter) extends Component {
   val io = new Bundle {
     val msiMsg = slave(Stream(APlicMSIPayload()))
