@@ -1,5 +1,8 @@
 package iommu
 
+import spinal.core._
+import spinal.lib._
+
 object IOMMUGlobal {
   val CAUSE_ENUM = new {
     val INSTRUCTION_ACCESS_FAULT = 1
@@ -63,5 +66,44 @@ object IOMMUGlobal {
     val icvecOffset = 0x02f8
     val msiCfgTableOffset = 0x0300
   }
+
+  val CAP_ENUM = new {
+    val deviceIdSize = 24
+    val processIdSize = 16
+    val ppnSize = 44
+  }
 }
 
+object IOMMUTranslationState extends SpinalEnum {
+  val OK, ERROR, PASS = newElement()
+}
+
+object IOMMUTranslationType extends SpinalEnum {
+  val Untranslated, Translated, Translation = newElement()
+}
+
+case class IOMMUTranslationCommon() extends Bundle {
+  import IOMMUGlobal._
+
+  val address = UInt(64 bits)
+  val deviceId = UInt(CAP_ENUM.deviceIdSize bits)
+  val processId = Flow(UInt(CAP_ENUM.processIdSize bits))
+  val tranType = IOMMUTranslationType()
+  val state = IOMMUTranslationState()
+}
+
+case class IOMMUTranslationRequest() extends Bundle {
+  val perm = new Bundle {
+    val execute = Bool()
+    val write = Bool()
+    val priv = Bool()
+  }
+}
+
+case class IOMMUTranslationRespond() extends Bundle {
+  import IOMMUGlobal._
+
+  val ppn = UInt(CAP_ENUM.ppnSize bits)
+  val superPage = Bool()
+  val error = Bool()
+}

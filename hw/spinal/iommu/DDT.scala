@@ -91,40 +91,25 @@ case class CacheAccess() extends Bundle with IMasterSlave {
   }
 }
 
-object IOMMUTranslationState extends SpinalEnum {
-  val OK, ERROR, PASS = newElement()
+case class IOMMUTransDDTReq() extends Bundle {
+  val trans = IOMMUTranslationCommon()
 }
 
-object IOMMUTranslationType extends SpinalEnum {
-  val Untranslated, Translated, Translation = newElement()
-}
-
-case class TranslationPayload() extends Bundle {
-  val address = UInt(64 bits)
-  val deviceId = UInt(32 bits)
-  val tranType = IOMMUTranslationType()
-  val state = IOMMUTranslationState()
-}
-
-case class TranslationDDTReq() extends Bundle {
-  val trans = TranslationPayload()
-}
-
-case class TranslationDDTRsp() extends Bundle {
-  val trans = TranslationPayload()
+case class IOMMUTransDDTRsp() extends Bundle {
+  val trans = IOMMUTranslationCommon()
   val ddt = UInt(512 bits)
 }
 
 case class DDTWalker(spec: DdtSpec) extends Area {
   val io = new Bundle {
     val access = slave(CacheAccess())
-    val input = slave Stream(TranslationDDTReq())
-    val output = master Stream(TranslationDDTRsp())
+    val input = slave Stream(IOMMUTransDDTReq())
+    val output = master Stream(IOMMUTransDDTRsp())
   }
 
   val ppn = Reg(UInt(44 bits))
   val mode = Reg(UInt(4 bits))
-  val tranRsp = Reg(TranslationDDTRsp())
+  val tranRsp = Reg(cloneOf(io.output.payload))
   /* busy */
 
   io.output.payload := tranRsp
