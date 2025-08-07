@@ -26,66 +26,66 @@ case class APlicSystemTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], slave1so
     val access = tilelink.fabric.Node()
     access << crossBar
 
-    val S2 = TilelinkAPLICFiber()
-    S2.up at 0x10000000 of access
-    crossBar << S2.down
-
-    val S1 = TilelinkAPLICFiber()
-    S1.up at 0x20000000 of access
-    crossBar << S1.down
+    val S = TilelinkAPLICFiber()
+    S.up at 0x10000000 of access
+    crossBar << S.down
 
     val M = TilelinkAPLICFiber()
-    M.up at 0x30000000 of access
+    M.up at 0x20000000 of access
     crossBar << M.down
+
+    val ROOT = TilelinkAPLICFiber()
+    ROOT.up at 0x30000000 of access
+    crossBar << ROOT.down
 
     val dispatcher = TilelinkIMSICFiber()
     dispatcher.node at 0x40000000 of access
 
-    M.domainParam = Some(APlicDomainParam.root(APlicGenParam.direct.withMSIAddrCfg()))
-    S1.domainParam = Some(APlicDomainParam.M(APlicGenParam.full))
-    S2.domainParam = Some(APlicDomainParam.S(APlicGenParam.full))
+    ROOT.domainParam = Some(APlicDomainParam.root(APlicGenParam.direct.withMSIAddrCfg()))
+    M.domainParam = Some(APlicDomainParam.M(APlicGenParam.full))
+    S.domainParam = Some(APlicDomainParam.S(APlicGenParam.full))
 
     for (block <- blocks) {
       val trigger = dispatcher.addIMSICinfo(block.asTilelinkIMSICIInfo())
       val connector = SxAIABlockTrigger(block, trigger)
     }
 
-    val targetsS2Bundles = hartIds.map(hartId => {
+    val targetsSBundles = hartIds.map(hartId => {
       val node = InterruptNode.slave()
-      S2.mapDownInterrupt(hartId, node)
+      S.mapDownInterrupt(hartId, node)
       node
     })
 
-    val targetsS1Bundles = hartIds.map(hartId => {
+    val targetsMBundles = hartIds.map(hartId => {
       val node = InterruptNode.slave()
-      S1.mapDownInterrupt(hartId, node)
+      M.mapDownInterrupt(hartId, node)
       node
     })
 
-    val targetsMBundles = InterruptNode.slave()
-    M.mapDownInterrupt(0, targetsMBundles)
+    val targetsRootBundles = InterruptNode.slave()
+    ROOT.mapDownInterrupt(0, targetsRootBundles)
 
     val sourcesMBundles = sourceIds.map(sourceId => {
       val node = InterruptNode.master()
-      M.mapUpInterrupt(sourceId, node)
+      ROOT.mapUpInterrupt(sourceId, node)
       node
     })
 
-    val slaveMSources = slave1Infos.map(M.createInterruptDelegation(_))
-    val slaveS1Sources = slave2Infos.map(S1.createInterruptDelegation(_))
+    val slaveMSources = slave1Infos.map(ROOT.createInterruptDelegation(_))
+    val slaveS1Sources = slave2Infos.map(M.createInterruptDelegation(_))
 
     val sourcesS2Bundles = slave2sourceIds.zip(slaveS1Sources(0).flags).map {
-      case (id, slaveSource) => S2.mapUpInterrupt(id, slaveSource)
+      case (id, slaveSource) => S.mapUpInterrupt(id, slaveSource)
     }
 
     val sourcesS1Bundles = slave1sourceIds.zip(slaveMSources(0).flags).map {
-      case (id, slaveSource) => S1.mapUpInterrupt(id, slaveSource)
+      case (id, slaveSource) => M.mapUpInterrupt(id, slaveSource)
     }
 
-    S1.mmsiaddrcfg := M.mmsiaddrcfg
-    S1.smsiaddrcfg := M.smsiaddrcfg
-    S2.mmsiaddrcfg := M.mmsiaddrcfg
-    S2.smsiaddrcfg := M.smsiaddrcfg
+    M.mmsiaddrcfg := ROOT.mmsiaddrcfg
+    M.smsiaddrcfg := ROOT.smsiaddrcfg
+    S.mmsiaddrcfg := ROOT.mmsiaddrcfg
+    S.smsiaddrcfg := ROOT.smsiaddrcfg
   }
 
   val io = new Bundle {
@@ -102,9 +102,9 @@ case class APlicSystemTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], slave1so
 
   peripherals.sourcesMBundles.lazyZip(io.sources.asBools).foreach(_.flag := _)
 
-  io.targetsmaster := peripherals.targetsMBundles.flag.asBits
-  io.targets1slave := peripherals.targetsS1Bundles.map(_.flag).asBits()
-  io.targets2slave := peripherals.targetsS2Bundles.map(_.flag).asBits()
+  io.targetsmaster := peripherals.targetsRootBundles.flag.asBits
+  io.targets1slave := peripherals.targetsMBundles.map(_.flag).asBits()
+  io.targets2slave := peripherals.targetsSBundles.map(_.flag).asBits()
 
   Vec(blocks.map(block => block.interrupts.map(_.ie).asBits())) := io.ie
   io.ip := Vec(blocks.map(block => block.interrupts.map(_.ip).asBits()))
