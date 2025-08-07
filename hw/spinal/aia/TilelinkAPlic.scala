@@ -179,6 +179,7 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
       sender.io.msiMsg << core.io.msiMsg
     } else {
       down.bus.assignDontCare()
+      down.bus.a.valid := False
     }
 
     core.io.slaveBus <> up.bus
