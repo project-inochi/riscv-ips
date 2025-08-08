@@ -96,8 +96,8 @@ case class TilelinkAPlicMasterHelper(mastersParams: tilelink.BusParameter) exten
 case class TilelinkAPlicMasterParam(addressWidth: Int, pendingSize: Int)
 
 object TilelinkAplic {
-  def getTilelinkSlaveSupport(proposed: bus.tilelink.M2sSupport) = bus.tilelink.SlaveFactory.getSupported(
-    addressWidth = 20,
+  def getTilelinkSlaveSupport(proposed: bus.tilelink.M2sSupport, addressWidth: Int = 20) = bus.tilelink.SlaveFactory.getSupported(
+    addressWidth = addressWidth,
     dataWidth = 32,
     allowBurst = false,
     proposed
@@ -120,6 +120,12 @@ object TilelinkAplic {
       )
     )
   )
+
+  def addressWidth(maxTargetId: Int): Int = {
+    import APlicMapping._
+    val aplicSize = idcOffset + maxTargetId * idcGroupSize
+    return log2Up(aplicSize)
+  }
 }
 
 case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
@@ -166,7 +172,7 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
     down.m2s forceParameters m2sParams
     down.s2m.supported load tilelink.S2mSupport.none()
 
-    up.m2s.supported.load(TilelinkAplic.getTilelinkSlaveSupport(up.m2s.proposed))
+    up.m2s.supported.load(TilelinkAplic.getTilelinkSlaveSupport(up.m2s.proposed, TilelinkAplic.addressWidth(targets.map(_.id).max + 1)))
     up.s2m.none()
 
     val aplic = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaveSources.map(_.slaveInfo).toSeq, p, up.bus.p, down.bus.p)
