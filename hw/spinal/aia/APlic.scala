@@ -122,13 +122,13 @@ case class APlic(p: APlicDomainParam,
   val slaveInterruptIds = slaveInfos.flatMap(slaveInfo => slaveInfo.sourceIds).distinct
   val interruptDelegatable = for (sourceId <- sourceIds) yield slaveInterruptIds.find(_ == sourceId).isDefined
 
-  val domainEnable = RegInit(False)
+  val deliveryEnable = RegInit(False)
   val isMSI = RegInit(False)
   val bigEndian = False
 
   if (!p.genParam.withDirect) {
     when (!isMSI) {
-      domainEnable := False
+      deliveryEnable := False
     }
   }
 
@@ -138,7 +138,7 @@ case class APlic(p: APlicDomainParam,
   val slaveMappings = for ((slaveInfo, slaveSource) <- slaveInfos.zip(slaveSources)) yield new Area {
     for ((slaveSourceId, idx) <- slaveInfo.sourceIds.zipWithIndex) yield new Area {
       interrupts.find(_.id == slaveSourceId).map(interrupt => new Area {
-        when(domainEnable && interrupt.delegated && (Bool(slaveInfos.size == 1) || interrupt.childIdx === slaveInfo.childIdx)) {
+        when(interrupt.delegated && (Bool(slaveInfos.size == 1) || interrupt.childIdx === slaveInfo.childIdx)) {
           slaveSource(idx) := interrupt.input
         } otherwise {
           slaveSource(idx) := False
@@ -234,7 +234,7 @@ case class APlic(p: APlicDomainParam,
   }
 
   val msi = p.genParam.withMSI generate new Area {
-    val gateway = new APlicMSIGateway(interrupts, domainEnable)
+    val gateway = new APlicMSIGateway(interrupts, deliveryEnable)
 
     val gatewayStream = gateway.requestStream.map(req => {
       val payload = APlicMSIPayload()
@@ -249,9 +249,9 @@ case class APlic(p: APlicDomainParam,
   }
 
   val direct = p.genParam.withDirect generate new Area {
-    val gateways = for (hartId <- hartIds) yield new APlicDirectGateway(interrupts, domainEnable, hartId, p.genParam.withIForce)
+    val gateways = for (hartId <- hartIds) yield new APlicDirectGateway(interrupts, hartId, p.genParam.withIForce)
 
-    val targets = Mux(isMSI, B(0), gateways.map(_.iep).asBits())
+    val targets = Mux(isMSI, B(0), gateways.map(_.iep && deliveryEnable).asBits())
   }
 }
 

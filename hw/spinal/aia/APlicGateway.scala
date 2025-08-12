@@ -3,7 +3,7 @@ package aia
 import spinal.core._
 import spinal.lib._
 
-case class APlicDirectGateway(interrupts: Seq[APlicSource], enable: Bool, hartId: Int, allowSpuriousInterrupt: Boolean) extends Area {
+case class APlicDirectGateway(interrupts: Seq[APlicSource], hartId: Int, allowSpuriousInterrupt: Boolean) extends Area {
   val maxSource = (interrupts.map(_.id) ++ Seq(0)).max + 1
   val priorityWidth = (interrupts.map(i => widthOf(i.prio))).max
   val idWidth = log2Up(maxSource)
@@ -31,7 +31,7 @@ case class APlicDirectGateway(interrupts: Seq[APlicSource], enable: Bool, hartId
 
   val valid = resultRequest.pending(ithreshold)
   val bestRequest = resultRequest.verify(valid)
-  val iep = valid && idelivery && enable
+  val iep = valid && idelivery
 
   def doBestClaim() = new Area {
     when (idelivery) {
@@ -41,7 +41,7 @@ case class APlicDirectGateway(interrupts: Seq[APlicSource], enable: Bool, hartId
   }
 }
 
-case class APlicMSIGateway(interrupts: Seq[APlicSource], enable: Bool) extends Area {
+case class APlicMSIGateway(interrupts: Seq[APlicSource], delivery: Bool) extends Area {
   val maxSource = (interrupts.map(_.id) ++ Seq(0)).max + 1
   val idWidth = log2Up(maxSource)
 
@@ -55,7 +55,7 @@ case class APlicMSIGateway(interrupts: Seq[APlicSource], enable: Bool) extends A
   val requestStream = Stream(APlicMSIRequest(widthOf(resultRequest.id)))
   val requestStreamValidMask = requestStream.valid
 
-  requestStream.valid   := resultRequest.pending(0) && enable
+  requestStream.valid   := resultRequest.pending(0) && delivery
   requestStream.payload := resultRequest.asInstanceOf[APlicMSIRequest]
 
   when (requestStream.valid && requestStream.ready) {
