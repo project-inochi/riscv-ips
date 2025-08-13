@@ -60,14 +60,13 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](
 }
 
 case class TilelinkAplic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq[APlicSlaveInfo],
-                         domainParam: APlicDomainParam, slaveParams: tilelink.BusParameter,
-                         mastersParams: tilelink.BusParameter)
+                         domainParam: APlicDomainParam, params: tilelink.BusParameter)
                          extends MappedAplic(
   sourceIds,
   hartIds,
   slaveInfos,
   domainParam,
-  new bus.tilelink.Bus(slaveParams),
+  new bus.tilelink.Bus(params),
   new bus.tilelink.SlaveFactory(_, true)
 )
 
@@ -175,7 +174,7 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
     up.m2s.supported.load(TilelinkAplic.getTilelinkSlaveSupport(up.m2s.proposed, TilelinkAplic.addressWidth(targets.map(_.id).max + 1)))
     up.s2m.none()
 
-    val aplic = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaveSources.map(_.slaveInfo).toSeq, p, up.bus.p, down.bus.p)
+    val aplic = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaveSources.map(_.slaveInfo).toSeq, p, up.bus.p)
 
     core.load(aplic)
 
