@@ -70,7 +70,7 @@ case class TilelinkAplic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq
   new bus.tilelink.SlaveFactory(_, true)
 )
 
-case class TilelinkAPlicMasterHelper(mastersParams: tilelink.BusParameter) extends Component {
+case class TilelinkAPLICMSISender(mastersParams: tilelink.BusParameter) extends Component {
   val io = new Bundle {
     val msiMsg = slave(Stream(APlicMSIPayload()))
     val bus = master(tilelink.Bus(mastersParams))
@@ -145,7 +145,7 @@ case class TilelinkAPLICMSISenderFiber() extends Area with APlicMSIConsumerFiber
     node.m2s forceParameters m2sParams
     node.s2m.supported load tilelink.S2mSupport.none()
 
-    val core = TilelinkAPlicMasterHelper(node.bus.p)
+    val core = TilelinkAPLICMSISender(node.bus.p)
 
     core.io.bus <> node.bus
     core.io.msiMsg << msiStream.get
