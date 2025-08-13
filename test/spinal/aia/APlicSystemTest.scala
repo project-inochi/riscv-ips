@@ -28,15 +28,22 @@ case class APlicSystemTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], slave1so
 
     val S = TilelinkAPLICFiber()
     S.up at 0x10000000 of access
-    crossBar << S.down
+
+    val S_Sender = TilelinkAPLICMSISenderFiber()
+    crossBar << S_Sender.node
+
+    S_Sender.createMSIStreamConsumer() << S.createMSIStreamProducer()
 
     val M = TilelinkAPLICFiber()
     M.up at 0x20000000 of access
-    crossBar << M.down
+
+    val M_Sender = TilelinkAPLICMSISenderFiber()
+    crossBar << M_Sender.node
+
+    M_Sender.createMSIStreamConsumer() << M.createMSIStreamProducer()
 
     val ROOT = TilelinkAPLICFiber()
     ROOT.up at 0x30000000 of access
-    crossBar << ROOT.down
 
     val dispatcher = TilelinkIMSICFiber()
     dispatcher.node at 0x40000000 of access

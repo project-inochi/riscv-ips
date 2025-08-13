@@ -107,6 +107,14 @@ case class APlicMSIPayload() extends Bundle {
   val data = UInt(32 bits)
 }
 
+trait APlicMSIProducerFiber extends Nameable{
+  def createMSIStreamProducer(): Stream[APlicMSIPayload]
+}
+
+trait APlicMSIConsumerFiber extends Nameable{
+  def createMSIStreamConsumer(): Stream[APlicMSIPayload]
+}
+
 case class APlic(p: APlicDomainParam,
                  sourceIds: Seq[Int],
                  hartIds: Seq[Int],

@@ -127,12 +127,34 @@ object TilelinkAplic {
   }
 }
 
-case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
-  val up = tilelink.fabric.Node.up()
-  val down = tilelink.fabric.Node.down()
-  val core = Handle[TilelinkAplic]()
+case class TilelinkAPLICMSISenderFiber() extends Area with APlicMSIConsumerFiber {
+  val node = tilelink.fabric.Node.down()
+  var msiStream: Option[Stream[APlicMSIPayload]] = None
 
-  val m2sParams = TilelinkAplic.getTilelinkMasterSupport(TilelinkAPlicMasterParam(64, 4), TilelinkAPLICFiber.this)
+  val m2sParams = TilelinkAplic.getTilelinkMasterSupport(TilelinkAPlicMasterParam(64, 4), TilelinkAPLICMSISenderFiber.this)
+
+  override def createMSIStreamConsumer(): Stream[APlicMSIPayload] = {
+    if (msiStream.isEmpty) {
+      msiStream = Some(Stream(APlicMSIPayload()))
+    }
+
+    msiStream.get
+  }
+
+  val thread = Fiber build new Area {
+    node.m2s forceParameters m2sParams
+    node.s2m.supported load tilelink.S2mSupport.none()
+
+    val core = TilelinkAPlicMasterHelper(node.bus.p)
+
+    core.io.bus <> node.bus
+    core.io.msiMsg << msiStream.get
+  }
+}
+
+case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber with APlicMSIProducerFiber {
+  val up = tilelink.fabric.Node.up()
+  val core = Handle[TilelinkAplic]()
 
   case class SourceSpec(node: InterruptNode, id: Int)
   case class TargetSpec(node: InterruptNode, id: Int)
@@ -143,8 +165,17 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
   val sources = ArrayBuffer[SourceSpec]()
   val targets = ArrayBuffer[TargetSpec]()
   var domainParam: Option[APlicDomainParam] = None
+  var msiStream: Option[Stream[APlicMSIPayload]] = None
   val mmsiaddrcfg = UInt (64 bits)
   val smsiaddrcfg = UInt (64 bits)
+
+  override def createMSIStreamProducer(): Stream[APlicMSIPayload] = {
+    if (msiStream.isEmpty) {
+      msiStream = Some(Stream(APlicMSIPayload()))
+    }
+
+    msiStream.get
+  }
 
   override def createInterruptMaster(id : Int) : InterruptNode = {
     val spec = up.clockDomain on TargetSpec(InterruptNode.master(), id)
@@ -168,9 +199,6 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
 
     val p = domainParam.get
 
-    down.m2s forceParameters m2sParams
-    down.s2m.supported load tilelink.S2mSupport.none()
-
     up.m2s.supported.load(TilelinkAplic.getTilelinkSlaveSupport(up.m2s.proposed, TilelinkAplic.addressWidth(targets.map(_.id).max + 1)))
     up.s2m.none()
 
@@ -179,12 +207,7 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber {
     core.load(aplic)
 
     if (p.genParam.withMSI) {
-      val sender = TilelinkAPlicMasterHelper(down.bus.p)
-      sender.io.bus <> down.bus
-      sender.io.msiMsg << core.io.msiMsg
-    } else {
-      down.bus.assignDontCare()
-      down.bus.a.valid := False
+      msiStream.get << core.io.msiMsg
     }
 
     core.io.slaveBus <> up.bus

@@ -68,7 +68,11 @@ case class APlicUnitTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: 
 
     val M = TilelinkAPLICFiber()
     M.up at 0x10000000 of access
-    crossBar << M.down
+
+    val M_Sender = TilelinkAPLICMSISenderFiber()
+    crossBar << M_Sender.node
+
+    M_Sender.createMSIStreamConsumer() << M.createMSIStreamProducer()
 
     val dispatcher = TilelinkIMSICFiber()
     dispatcher.node at 0x30000000 of access
