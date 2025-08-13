@@ -67,7 +67,7 @@ case class APlicUnitTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: 
     access << crossBar
 
     val M = TilelinkAPLICFiber()
-    M.up at 0x10000000 of access
+    M.node at 0x10000000 of access
 
     val M_Sender = TilelinkAPLICMSISenderFiber()
     crossBar << M_Sender.node

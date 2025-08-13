@@ -153,7 +153,7 @@ case class TilelinkAPLICMSISenderFiber() extends Area with APlicMSIConsumerFiber
 }
 
 case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber with APlicMSIProducerFiber {
-  val up = tilelink.fabric.Node.up()
+  val node = tilelink.fabric.Node.up()
   val core = Handle[TilelinkAplic]()
 
   case class SourceSpec(node: InterruptNode, id: Int)
@@ -178,13 +178,13 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber with APlicM
   }
 
   override def createInterruptMaster(id : Int) : InterruptNode = {
-    val spec = up.clockDomain on TargetSpec(InterruptNode.master(), id)
+    val spec = node.clockDomain on TargetSpec(InterruptNode.master(), id)
     targets += spec
     spec.node
   }
 
   override def createInterruptSlave(id: Int) : InterruptNode = {
-    val spec = up.clockDomain on SourceSpec(InterruptNode.slave(), id)
+    val spec = node.clockDomain on SourceSpec(InterruptNode.slave(), id)
     sources += spec
     spec.node
   }
@@ -199,10 +199,10 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber with APlicM
 
     val p = domainParam.get
 
-    up.m2s.supported.load(TilelinkAplic.getTilelinkSlaveSupport(up.m2s.proposed, TilelinkAplic.addressWidth(targets.map(_.id).max + 1)))
-    up.s2m.none()
+    node.m2s.supported.load(TilelinkAplic.getTilelinkSlaveSupport(node.m2s.proposed, TilelinkAplic.addressWidth(targets.map(_.id).max + 1)))
+    node.s2m.none()
 
-    val aplic = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaveSources.map(_.slaveInfo).toSeq, p, up.bus.p)
+    val aplic = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaveSources.map(_.slaveInfo).toSeq, p, node.bus.p)
 
     core.load(aplic)
 
@@ -210,7 +210,7 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber with APlicM
       msiStream.get << core.io.msiMsg
     }
 
-    core.io.slaveBus <> up.bus
+    core.io.slaveBus <> node.bus
     core.io.sources := sources.map(_.node.flag).asBits()
     if (p.genParam.withDirect) {
       Vec(targets.map(_.node.flag)) := core.io.targets.asBools
