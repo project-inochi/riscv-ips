@@ -7,6 +7,7 @@ val conf = ConfigFactory.parseFile(new File("version.conf")).resolve()
 val spinalVersion = conf.getString("spinalVersion")
 
 trait SpinalHDLModule extends SbtModule {
+  override def forkArgs = Seq("-Xss16M")
   def scalaVersion = conf.getString("scalaVersion")
 
   def ivyDeps = Agg(
@@ -26,6 +27,7 @@ object test extends SpinalHDLModule {
   override def moduleDeps = Seq(hw)
 
   object test extends SbtTests with TestModule.ScalaTest {
+    override def forkArgs = Seq("-Xss16M")
     override def millSourcePath = os.pwd / "test"
     override def sources = T.sources(millSourcePath / "spinal")
     override def ivyDeps = Agg(ivy"com.github.spinalhdl::spinalhdl-tester::${spinalVersion}")
