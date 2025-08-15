@@ -48,29 +48,27 @@ class IMSICTest extends SpinalSimFunSuite {
   val sourceIds = for (i <- 1 until sourceNum) yield i
   val guestIds = for (i <- 0 to guestNum) yield i
 
+  val infos = (for {hartId <- hartIds; guestId <- guestIds} yield IMSICInfo(
+      hartId = hartId,
+      guestId = guestId,
+      sourceIds = sourceIds,
+      groupId = 0,
+      groupHartId = hartId,
+    )).toArray.toSeq
+
   val mapping = IMSICMapping()
   val tilelinkBusP = tilelink.M2sParameters(
     sourceCount = 1,
     support = TilelinkIMSIC.getTilelinkSupport(
-      tilelink.M2sSupport(
-        addressWidth = 20,
-        dataWidth = 32,
-        transfers = tilelink.M2sTransfers(
-          get = tilelink.SizeRange(1, 8),
-          putFull = tilelink.SizeRange(1, 8)
-        )
-      )
+      transfers = tilelink.M2sTransfers(
+        get = tilelink.SizeRange(1, 8),
+        putFull = tilelink.SizeRange(1, 8)
+      ),
+      mapping, infos
     )
   )
 
   test("compile") {
-    val infos = (for {hartId <- hartIds; guestId <- guestIds} yield IMSICInfo(
-        hartId = hartId,
-        guestId = guestId,
-        sourceIds = sourceIds,
-        groupId = 0,
-        groupHartId = hartId,
-      )).toArray.toSeq
 
     SimConfig.withConfig(config.TestConfig.spinal).compile(
       new TilelinkIMSIC(
@@ -187,5 +185,48 @@ class IMSICTest extends SpinalSimFunSuite {
       assert(maxLatency < 10, s"Its max delay seems to be too slow")
       println(s"Test max latency is ${maxLatency}")
     })
+  }
+}
+
+class IMSICCompileTest extends SpinalSimFunSuite {
+  onlyVerilator()
+
+  val hartNum = 64
+  val sourceNum = 1024
+  val guestNum = 15
+  val hartIds = for (i <- 0 until hartNum) yield i
+  val sourceIds = for (i <- 1 until sourceNum) yield i
+  val guestIds = for (i <- 0 to guestNum) yield i
+
+  val infos = (for {hartId <- hartIds; guestId <- guestIds} yield IMSICInfo(
+      hartId = hartId,
+      guestId = guestId,
+      sourceIds = sourceIds,
+      groupId = 0,
+      groupHartId = hartId,
+    )).toArray.toSeq
+
+  val mapping = IMSICMapping()
+  val tilelinkBusP = tilelink.M2sParameters(
+    sourceCount = 1,
+    support = TilelinkIMSIC.getTilelinkSupport(
+      transfers = tilelink.M2sTransfers(
+        get = tilelink.SizeRange(1, 8),
+        putFull = tilelink.SizeRange(1, 8)
+      ),
+      mapping, infos
+    )
+  )
+
+  test("compile") {
+
+    println(infos.size)
+
+    SimConfig.withConfig(config.TestConfig.spinal).compile(
+      new TilelinkIMSIC(
+        infos, mapping,
+        tilelinkBusP.toNodeParameters().toBusParameter()
+      )
+    )
   }
 }
