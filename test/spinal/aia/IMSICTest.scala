@@ -64,13 +64,13 @@ class IMSICTest extends SpinalSimFunSuite {
   )
 
   test("compile") {
-    val infos = hartIds.zip(hartIds).map({case (hartId, guestId) => IMSICInfo(
+    val infos = (for {hartId <- hartIds; guestId <- guestIds} yield IMSICInfo(
         hartId = hartId,
         guestId = guestId,
         sourceIds = sourceIds,
         groupId = 0,
         groupHartId = hartId,
-      )}).toArray.toSeq
+      )).toArray.toSeq
 
     SimConfig.withConfig(config.TestConfig.spinal).compile(
       new TilelinkIMSIC(
