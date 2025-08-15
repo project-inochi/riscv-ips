@@ -4,11 +4,16 @@ import spinal.core._
 import spinal.lib._
 import spinal.lib.bus.misc._
 
-case class IMSICInterruptFile(sourceIds: Seq[Int], hartId: Int, guestId: Int) extends Area {
+case class IMSICTriggerMapper(sourceIds: Seq[Int], hartId: Int, guestId: Int) extends Component {
   val registerWidth = 32
 
   val idWidth = log2Up((sourceIds ++ Seq(0)).max + 1)
   require(idWidth <= registerWidth)
+
+  val io = new Bundle {
+    val drivers = in Vec(Flow(UInt(registerWidth bits)), Flow(UInt(registerWidth bits)))
+    val triggers = out(Bits(sourceIds.size bits))
+  }
 
   case class IMSICSource(sourceId: Int) extends Area {
     val id = U(sourceId, registerWidth bits)
@@ -18,34 +23,30 @@ case class IMSICInterruptFile(sourceIds: Seq[Int], hartId: Int, guestId: Int) ex
   }
 
   val sources = for (sourceId <- sourceIds) yield new IMSICSource(sourceId)
-  val triggers = sources.map(_.trigger).asBits()
+
+  io.triggers := sources.map(_.trigger).asBits()
+
+  /* Main work, mapping the irq set */
+  val triggers = for (driver <- io.drivers) yield new Area {
+    when(driver.valid) {
+      for (source <- sources) {
+        when (driver.payload === source.id) {
+          source.trigger := True
+        }
+      }
+    }
+  }
 
   def driveFrom(bus: BusSlaveFactory, baseAddress: BigInt) = new Area {
     val SETEIPNUM_LE_ADDR = 0x000
     val SETEIPNUM_BE_ADDR = 0x004
 
     val busWithOffset = new BusSlaveFactoryAddressWrapper(bus, baseAddress)
-
-    /* Main work, mapping the irq set */
-    def trigger(target: UInt) = new Area {
-      switch(target) {
-        for (source <- sources) {
-          is (source.id) {
-            source.trigger := True
-          }
-        }
-      }
-    }
-
     val targetDriveLE = busWithOffset.createAndDriveFlow(UInt(registerWidth bits), address = SETEIPNUM_LE_ADDR, documentation = "Set External Interrupt-Pending bit for %s of hart %d by Little-Endian Number".format(if (guestId == 0) "non-guest" else s"guest ${guestId}", hartId))
-    when(targetDriveLE.valid) {
-      trigger(targetDriveLE.payload)
-    }
 
     val targetDriveBE = busWithOffset.createAndDriveFlow(UInt(registerWidth bits), address = SETEIPNUM_BE_ADDR, documentation = "Set External Interrupt-Pending bit for %s of hart %d by Big-Endian Number".format(if (guestId == 0) "non-guest" else s"guest ${guestId}", hartId))
-    when(targetDriveBE.valid) {
-      trigger(EndiannessSwap(targetDriveBE.payload))
-    }
+
+    io.drivers := Vec(targetDriveLE, targetDriveBE.map(EndiannessSwap(_)))
   }
 }
 
@@ -140,14 +141,14 @@ object IMSICTrigger {
 
     val realMapping = mappingCalibrate(mapping, maxGuestId, maxGroupHartId, maxGroupId)
 
-    val files = for (info <- infos) yield new Area {
-      val file = IMSICInterruptFile(info.sourceIds, info.hartId, info.guestId)
+    val mappers = for (info <- infos) yield new Area {
+      val mapper = IMSICTriggerMapper(info.sourceIds, info.hartId, info.guestId)
       val offset = imsicOffset(realMapping, info.groupId, info.groupHartId, info.guestId)
 
-      file.driveFrom(bus, offset)
+      mapper.driveFrom(bus, offset)
     }
 
-    val triggers = Vec(files.map(_.file.triggers))
+    val triggers = Vec(mappers.map(_.mapper.io.triggers))
   }
 
   def addressWidth(mapping: IMSICMapping, maxGuestId: Int, maxGroupHartId: Int, maxGroupId: Int): Int = {
