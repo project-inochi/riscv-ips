@@ -128,19 +128,28 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: 
   }
 
   val ipState = new Area {
-    val allowModify = Bool()
+    val allowSet = Bool()
+    val allowClear = Bool()
     val ctx = WhenBuilder()
 
     ctx.when(List(LEVEL1, LEVEL0).map(mode === _).orR && !isMSI) {
-      allowModify := False
+      allowSet := False
+      allowClear := False
+    }
+
+    ctx.when(List(LEVEL1, LEVEL0).map(mode === _).orR && isMSI) {
+      allowSet := rectified.value
+      allowClear := True
     }
 
     ctx.when(mode === INACTIVE) {
-      allowModify := False
+      allowSet := False
+      allowClear := False
     }
 
     ctx.otherwise {
-      allowModify := !delegated
+      allowSet := !delegated
+      allowClear := !delegated
     }
   }
 
@@ -206,13 +215,13 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: 
   }
 
   def doClaim(): Unit = {
-    when(ipState.allowModify) {
+    when(ipState.allowClear) {
       ip := False
     }
   }
 
   def doSet(): Unit = {
-    when(ipState.allowModify) {
+    when(ipState.allowSet) {
       ip := True
     }
   }
