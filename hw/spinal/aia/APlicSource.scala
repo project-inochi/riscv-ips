@@ -169,6 +169,8 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: 
     ctx.when(mode === LEVEL1 && isMSI) {
       when(input.rise()) {
         ip := True
+      } elsewhen(!input) {
+        ip := False
       }
     }
     ctx.when(mode === LEVEL0 && !isMSI) {
@@ -177,6 +179,8 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: 
     ctx.when(mode === LEVEL0 && isMSI) {
       when(input.fall()) {
         ip := True
+      } elsewhen(input) {
+        ip := False
       }
     }
   }
