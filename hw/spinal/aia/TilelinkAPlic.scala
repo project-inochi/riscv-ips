@@ -7,6 +7,7 @@ import spinal.lib.bus.misc._
 import spinal.lib.bus.tilelink
 import spinal.lib.misc.InterruptNode
 import spinal.lib.misc.plic.InterruptCtrlFiber
+import spinal.lib.misc.slot.{Slot, SlotPool}
 import scala.collection.mutable.ArrayBuffer
 
 class MappedAplic[T <: spinal.core.Data with IMasterSlave](
@@ -70,26 +71,37 @@ case class TilelinkAplic(sourceIds: Seq[Int], hartIds: Seq[Int], slaveInfos: Seq
   new bus.tilelink.SlaveFactory(_, true)
 )
 
-case class TilelinkAPLICMSISender(mastersParams: tilelink.BusParameter) extends Component {
+case class TilelinkAPLICMSISender(pendingSize: Int, busParams: tilelink.BusParameter) extends Component {
   val io = new Bundle {
     val msiMsg = slave(Stream(APlicMSIPayload()))
-    val bus = master(tilelink.Bus(mastersParams))
+    val bus = master(tilelink.Bus(busParams))
   }
+
+  val slots = new SlotPool(pendingSize, true)(new Slot)
 
   val out = io.msiMsg.map(payload => {
     val channelA = cloneOf(io.bus.a.payloadType)
     channelA.opcode   := tilelink.Opcode.A.PUT_FULL_DATA
     channelA.size     := 2
-    channelA.source   := 0
+    channelA.source   := slots.allocate.id
     channelA.address  := payload.address.resized
     channelA.data     := payload.data.asBits.resized
     channelA.debugId  := 0
     channelA.mask     := 0xf
     channelA
-  })
+  }).haltWhen(slots.allocate.full)
+
+  when(out.fire) {
+    slots.allocate{s => {}}
+  }
 
   io.bus.a <-< out
   io.bus.d.ready := True
+
+  val slotReader = slots.slots.reader(io.bus.d.source)
+  when (io.bus.d.fire && io.bus.d.isLast()) {
+    slots.free(io.bus.d.source)
+  }
 }
 
 case class TilelinkAPlicMasterParam(addressWidth: Int, pendingSize: Int)
@@ -145,7 +157,7 @@ case class TilelinkAPLICMSISenderFiber() extends Area with APlicMSIConsumerFiber
     node.m2s forceParameters m2sParams
     node.s2m.supported load tilelink.S2mSupport.none()
 
-    val core = TilelinkAPLICMSISender(node.bus.p)
+    val core = TilelinkAPLICMSISender(4, node.bus.p)
 
     core.io.bus <> node.bus
     core.io.msiMsg << msiStream.get
