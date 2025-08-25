@@ -118,7 +118,7 @@ object APlicMapper {
       genmsiPayloadStream.valid := genmsiPayload.valid && !logic.gateway.requestStreamValidMask
       genmsiPayloadStream.payload := genmsiPayload.payload
 
-      when(genmsiPayloadStream.ready && genmsiPayloadStream.valid) {
+      when(genmsiPayloadStream.fire) {
         rGenmsiFlow.valid := False
         rGenmsiFlow.hartId := 0
         rGenmsiFlow.eiid := 0
