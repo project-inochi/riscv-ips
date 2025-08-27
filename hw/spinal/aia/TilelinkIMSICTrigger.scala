@@ -7,7 +7,7 @@ import spinal.lib.bus.misc._
 import spinal.lib.bus.tilelink
 import scala.collection.mutable.ArrayBuffer
 
-class MappedIMSIC[T <: spinal.core.Data with IMasterSlave](infos: Seq[IMSICInfo],
+class MappedIMSICTrigger[T <: spinal.core.Data with IMasterSlave](infos: Seq[IMSICInfo],
                                                            mapping: IMSICMapping,
                                                            busType: HardType[T],
                                                            factoryGen: T => BusSlaveFactory) extends Component {
@@ -23,16 +23,16 @@ class MappedIMSIC[T <: spinal.core.Data with IMasterSlave](infos: Seq[IMSICInfo]
   io.triggers := logic.triggers
 }
 
-case class TilelinkIMSIC(infos: Seq[IMSICInfo],
-                         mapping: IMSICMapping,
-                         p: bus.tilelink.BusParameter) extends MappedIMSIC[bus.tilelink.Bus](
+case class TilelinkIMSICTrigger(infos: Seq[IMSICInfo],
+                                mapping: IMSICMapping,
+                                p: bus.tilelink.BusParameter) extends MappedIMSICTrigger[bus.tilelink.Bus](
   infos,
   mapping,
   new bus.tilelink.Bus(p),
   new bus.tilelink.SlaveFactory(_, true)
 )
 
-object TilelinkIMSIC {
+object TilelinkIMSICTrigger {
   def getTilelinkSupport(transfers: tilelink.M2sTransfers, addressWidth: Int = 20) = bus.tilelink.SlaveFactory.getSupported(
     addressWidth = addressWidth,
     dataWidth = 32,
@@ -95,10 +95,10 @@ case class TilelinkIMSICFiber() extends Area {
     val imsicMapping = mapping.getOrElse(IMSICMapping())
     val imsicInfos = infos.map(_.asIMSICInfo()).toSeq
 
-    node.m2s.supported.load(TilelinkIMSIC.getTilelinkSupport(node.m2s.proposed.transfers, imsicMapping, imsicInfos))
+    node.m2s.supported.load(TilelinkIMSICTrigger.getTilelinkSupport(node.m2s.proposed.transfers, imsicMapping, imsicInfos))
     node.s2m.none()
 
-    val core = TilelinkIMSIC(imsicInfos, imsicMapping, node.bus.p)
+    val core = TilelinkIMSICTrigger(imsicInfos, imsicMapping, node.bus.p)
 
     core.io.bus <> node.bus
 
