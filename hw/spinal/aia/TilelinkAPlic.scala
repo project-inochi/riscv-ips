@@ -112,6 +112,14 @@ object TilelinkAplic {
     proposed
   )
 
+  def addressWidth(maxTargetId: Int): Int = {
+    import APlicMapping._
+    val aplicSize = idcOffset + maxTargetId * idcGroupSize
+    return log2Up(aplicSize)
+  }
+}
+
+object TilelinkAPLICMSISenderFiber {
   def getTilelinkMasterSupport(pendingSize: Int, addressWidth: Int, name: Nameable) = bus.tilelink.M2sParameters(
     addressWidth = addressWidth,
     dataWidth = 32,
@@ -129,19 +137,11 @@ object TilelinkAplic {
       )
     )
   )
-
-  def addressWidth(maxTargetId: Int): Int = {
-    import APlicMapping._
-    val aplicSize = idcOffset + maxTargetId * idcGroupSize
-    return log2Up(aplicSize)
-  }
 }
 
-case class TilelinkAPLICMSISenderFiber() extends Area with APlicMSIConsumerFiber {
+case class TilelinkAPLICMSISenderFiber(pendingSize: Int = 4, addressWidth: Int = 64) extends Area with APlicMSIConsumerFiber {
   val node = tilelink.fabric.Node.down()
   var msiStream: Option[Stream[APlicMSIPayload]] = None
-
-  val m2sParams = TilelinkAplic.getTilelinkMasterSupport(4, 64, TilelinkAPLICMSISenderFiber.this)
 
   override def createMSIStreamConsumer(): Stream[APlicMSIPayload] = {
     if (msiStream.isEmpty) {
@@ -152,10 +152,12 @@ case class TilelinkAPLICMSISenderFiber() extends Area with APlicMSIConsumerFiber
   }
 
   val thread = Fiber build new Area {
-    node.m2s forceParameters m2sParams
+    val busParams = TilelinkAPLICMSISenderFiber.getTilelinkMasterSupport(pendingSize, addressWidth, TilelinkAPLICMSISenderFiber.this)
+
+    node.m2s forceParameters busParams
     node.s2m.supported load tilelink.S2mSupport.none()
 
-    val core = TilelinkAPLICMSISender(4, node.bus.p)
+    val core = TilelinkAPLICMSISender(pendingSize, node.bus.p)
 
     core.io.bus <> node.bus
     core.io.msiMsg << msiStream.get
