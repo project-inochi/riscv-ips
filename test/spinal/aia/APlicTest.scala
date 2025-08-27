@@ -66,7 +66,7 @@ case class APlicUnitTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: 
     val access = tilelink.fabric.Node()
     access << crossBar
 
-    val M = TilelinkAPLICFiber()
+    val M = TilelinkAPLICFiber(APlicDomainParam.root(APlicGenMode))
     M.node at 0x10000000 of access
 
     val M_Sender = TilelinkAPLICMSISenderFiber()
@@ -83,8 +83,6 @@ case class APlicUnitTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: 
         val connector = SxAIABlockTrigger(block, trigger)
       }
     }
-
-    M.domainParam = Some(APlicDomainParam.root(APlicGenMode))
 
     val targetsMBundles = hartIds.map(hartId => {
       val node = InterruptNode.slave()

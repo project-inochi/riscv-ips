@@ -26,7 +26,7 @@ case class APlicSystemTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], slave1so
     val access = tilelink.fabric.Node()
     access << crossBar
 
-    val S = TilelinkAPLICFiber()
+    val S = TilelinkAPLICFiber(APlicDomainParam.S(APlicGenParam.full))
     S.node at 0x10000000 of access
 
     val S_Sender = TilelinkAPLICMSISenderFiber()
@@ -34,7 +34,7 @@ case class APlicSystemTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], slave1so
 
     S_Sender.createMSIStreamConsumer() << S.createMSIStreamProducer()
 
-    val M = TilelinkAPLICFiber()
+    val M = TilelinkAPLICFiber(APlicDomainParam.M(APlicGenParam.full))
     M.node at 0x20000000 of access
 
     val M_Sender = TilelinkAPLICMSISenderFiber()
@@ -42,15 +42,11 @@ case class APlicSystemTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], slave1so
 
     M_Sender.createMSIStreamConsumer() << M.createMSIStreamProducer()
 
-    val ROOT = TilelinkAPLICFiber()
+    val ROOT = TilelinkAPLICFiber(APlicDomainParam.root(APlicGenParam.direct.withMSIAddrCfg()))
     ROOT.node at 0x30000000 of access
 
     val dispatcher = TilelinkIMSICFiber()
     dispatcher.node at 0x40000000 of access
-
-    ROOT.domainParam = Some(APlicDomainParam.root(APlicGenParam.direct.withMSIAddrCfg()))
-    M.domainParam = Some(APlicDomainParam.M(APlicGenParam.full))
-    S.domainParam = Some(APlicDomainParam.S(APlicGenParam.full))
 
     for (block <- blocks) {
       val trigger = dispatcher.addIMSICinfo(block.asTilelinkIMSICIInfo())
