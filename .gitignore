@@ -44,4 +44,7 @@ bin/
 simWorkspace/
 hw/gen
 
-.vscode
+.*
+!.gitignore
+!.mill-version
+!.scalafmt.conf
