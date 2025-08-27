@@ -2,7 +2,6 @@ package aia
 
 import spinal.core._
 import spinal.lib._
-import scala.annotation.meta.param
 
 case class APlicMSIParam(
   base: BigInt = 0,
