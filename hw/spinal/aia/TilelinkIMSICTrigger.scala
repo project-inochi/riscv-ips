@@ -102,6 +102,8 @@ case class TilelinkIMSICFiber() extends Area {
 
     core.io.bus <> node.bus
 
-    infos.lazyZip(core.io.triggers).foreach(_.trigger := _)
+    for ((info, trigger) <- infos.zip(core.io.triggers)) {
+      info.trigger := trigger
+    }
   }
 }

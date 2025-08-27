@@ -236,8 +236,8 @@ case class TilelinkAPLICFiber() extends Area with InterruptCtrlFiber with APlicM
       core.io.smsiaddrcfg := smsiaddrcfg
     }
 
-    slaveSources.lazyZip(core.io.slaveSources).foreach((slaveSource, ioSlaveSource) => {
+    for ((slaveSource, ioSlaveSource) <- slaveSources.zip(core.io.slaveSources)) {
       Vec(slaveSource.flags.map(_.flag)) := ioSlaveSource.asBools
-    })
+    }
   }
 }
