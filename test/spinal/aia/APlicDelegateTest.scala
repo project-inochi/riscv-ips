@@ -100,7 +100,9 @@ case class APlicDelegateTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], slaves
 
   masterBus.bus = Some(io.bus)
 
-  peripherals.sourcesMBundles.lazyZip(io.sources.asBools).foreach(_.flag := _)
+  for ((bundle, source) <- peripherals.sourcesMBundles.zip(io.sources.asBools)) {
+    bundle.flag := source
+  }
 
   io.targetsmaster := peripherals.targetsMBundles.map(_.flag).asBits()
   io.targets1slave := peripherals.targets1SBundles.map(_.flag).asBits()

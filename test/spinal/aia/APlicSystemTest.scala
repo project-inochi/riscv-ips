@@ -107,7 +107,9 @@ case class APlicSystemTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], slave1so
 
   masterBus.bus = Some(io.bus)
 
-  peripherals.sourcesMBundles.lazyZip(io.sources.asBools).foreach(_.flag := _)
+  for ((bundle, source) <- peripherals.sourcesMBundles.zip(io.sources.asBools)) {
+    bundle.flag := source
+  }
 
   io.targetsmaster := peripherals.targetsRootBundles.flag.asBits
   io.targets1slave := peripherals.targetsMBundles.map(_.flag).asBits()

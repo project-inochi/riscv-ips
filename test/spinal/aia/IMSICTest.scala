@@ -30,11 +30,11 @@ case class TilelinkIMSICTest(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: S
 
   io.bus <> imsic.io.bus
   io.ip := Vec(blocks.map(hartBlock => Vec(hartBlock.map(block => block.interrupts.map(_.ip).asBits()))))
-  blocks.lazyZip(io.profile).flatMap(_.zip(_)).foreach({
-    case (block, profs) => block.interrupts.lazyZip(profs).foreach((int, prof) => {
+  blocks.zip(io.profile).flatMap{ case (block, profile) => block.zip(profile)}.foreach({
+    case (block, profs) => block.interrupts.zip(profs).foreach{ case (int, prof) => {
       int.profile.en := prof.en
       prof.latency := int.profile.latency
-    })
+    }}
   })
 }
 
