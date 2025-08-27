@@ -120,6 +120,7 @@ case class APlic(p: APlicDomainParam,
                  slaveInfos: Seq[APlicSlaveInfo]) extends Area {
   require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
   require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")
+  require(p.genParam.withDirect || p.genParam.withMSI, "At least one delivery mode should be enabled")
 
   val sources = Bits(sourceIds.size bits)
   val slaveSources = Vec(slaveInfos.map(slaveInfo => Bits(slaveInfo.sourceIds.size bits)))
@@ -130,14 +131,12 @@ case class APlic(p: APlicDomainParam,
   val interruptDelegatable = for (sourceId <- sourceIds) yield slaveInterruptIds.find(_ == sourceId).isDefined
 
   val deliveryEnable = RegInit(False)
-  val isMSI = RegInit(False)
-  val bigEndian = False
-
-  if (!p.genParam.withDirect) {
-    when (!isMSI) {
-      deliveryEnable := False
-    }
+  val isMSI = (p.genParam.withDirect, p.genParam.withMSI) match {
+    case (true, true) => RegInit(False)
+    case (false, true) => True
+    case (true, false) => False
   }
+  val bigEndian = False
 
   val interrupts: Seq[APlicSource] = for (((sourceId, delegatable), i) <- sourceIds.zip(interruptDelegatable).zipWithIndex)
     yield new APlicSource(sourceId, delegatable, isMSI, sources(i))
