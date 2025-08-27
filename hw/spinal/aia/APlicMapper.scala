@@ -45,8 +45,12 @@ object APlicMapper {
     val domaincfg = new Area {
       bus.read(U(0x80, 8 bits), address = domaincfgOffset, bitOffset = 24)
       bus.readAndWrite(aplic.deliveryEnable, address = domaincfgOffset, bitOffset = 8)
-      bus.readAndWrite(aplic.isMSI, address = domaincfgOffset, bitOffset = 2)
+      bus.read(aplic.isMSI, address = domaincfgOffset, bitOffset = 2)
       bus.readAndWrite(aplic.bigEndian, address = domaincfgOffset, bitOffset = 0)
+
+      if (p.genParam.withMSI) {
+        bus.write(aplic.isMSI, address = domaincfgOffset, bitOffset = 2)
+      }
     }
 
     // mapping MSIADDRCFG, MSIADDRCFGH
