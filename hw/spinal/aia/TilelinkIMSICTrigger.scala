@@ -54,15 +54,15 @@ object TilelinkIMSICTrigger {
   }
 }
 
-case class TilelinkIMSICIInfo(hartId: Int, guestId: Int, sourceIds: Seq[Int])
+case class TilelinkIMSICTriggerInfo(hartId: Int, guestId: Int, sourceIds: Seq[Int])
 
-case class TilelinkIMSICFiber() extends Area {
+case class TilelinkIMSICTriggerFiber() extends Area {
   val node = bus.tilelink.fabric.Node.slave()
   val lock = Lock()
 
   var mapping: Option[IMSICMapping] = None
 
-  case class SourceTrigger(info: TilelinkIMSICIInfo, groupId: Int, groupHartId: Int) {
+  case class SourceTrigger(info: TilelinkIMSICTriggerInfo, groupId: Int, groupHartId: Int) {
     val trigger = Bits(info.sourceIds.size bits)
 
     def asIMSICInfo(): IMSICInfo = IMSICInfo(
@@ -75,11 +75,11 @@ case class TilelinkIMSICFiber() extends Area {
   }
 
   var infos = ArrayBuffer[SourceTrigger]()
-  def addIMSICinfo(info: TilelinkIMSICIInfo, groupId: Int, groupHartId: Int) = {
+  def addIMSICinfo(info: TilelinkIMSICTriggerInfo, groupId: Int, groupHartId: Int) = {
     val source =infos.addRet(SourceTrigger(info, groupId, groupHartId))
     source.trigger
   }
-  def addIMSICinfo(info: TilelinkIMSICIInfo, hartPerGroup: Int = 0) = {
+  def addIMSICinfo(info: TilelinkIMSICTriggerInfo, hartPerGroup: Int = 0) = {
     val source = if(hartPerGroup == 0) {
       infos.addRet(SourceTrigger(info, 0, info.hartId))
     } else {

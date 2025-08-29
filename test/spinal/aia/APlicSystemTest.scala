@@ -45,7 +45,7 @@ case class APlicSystemTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], slave1so
     val ROOT = TilelinkAPLICFiber(APlicDomainParam.root(APlicGenParam.direct.withMSIAddrCfg()))
     ROOT.node at 0x30000000 of access
 
-    val dispatcher = TilelinkIMSICFiber()
+    val dispatcher = TilelinkIMSICTriggerFiber()
     dispatcher.node at 0x40000000 of access
 
     for (block <- blocks) {

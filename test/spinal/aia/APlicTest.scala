@@ -74,7 +74,7 @@ case class APlicUnitTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: 
 
     M_Sender.createMSIStreamConsumer() << M.createMSIStreamProducer()
 
-    val dispatcher = TilelinkIMSICFiber()
+    val dispatcher = TilelinkIMSICTriggerFiber()
     dispatcher.node at 0x30000000 of access
 
     for (hartBlock <- blocks) {
