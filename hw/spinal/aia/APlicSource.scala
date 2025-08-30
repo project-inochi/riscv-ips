@@ -250,6 +250,33 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: 
     }
   }
 
+  def doConfigIpUpdate(modeB: Bits) {
+    val mode = APlicSourceMode()
+    val ctx = WhenBuilder()
+
+    mode.assignFromBits(modeB)
+
+    ctx.when(mode === INACTIVE) {
+      ip := False
+    }
+    ctx.when(mode === EDGE1) {
+      when(input.rise()) {
+        ip := True
+      }
+    }
+    ctx.when(mode === EDGE0) {
+      when(input.fall()) {
+        ip := True
+      }
+    }
+    ctx.when(mode === LEVEL1) {
+      ip := input
+    }
+    ctx.when(mode === LEVEL0) {
+      ip := ~input
+    }
+  }
+
   def setConfig(payload: UInt): Unit = {
     val _delegated = payload(10)
 
@@ -266,6 +293,7 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: 
         for (state <- APlicSourceMode.elements) {
           is(state.asBits.asUInt) {
             config := payload(2 downto 0).resized
+            doConfigIpUpdate(state.asBits)
           }
         }
 
