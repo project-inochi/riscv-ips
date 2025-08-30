@@ -259,20 +259,10 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: 
     ctx.when(mode === INACTIVE) {
       ip := False
     }
-    ctx.when(mode === EDGE1) {
-      when(input.rise()) {
-        ip := True
-      }
-    }
-    ctx.when(mode === EDGE0) {
-      when(input.fall()) {
-        ip := True
-      }
-    }
-    ctx.when(mode === LEVEL1) {
+    ctx.when(List(EDGE1, LEVEL1).map(mode === _).orR) {
       ip := input
     }
-    ctx.when(mode === LEVEL0) {
+    ctx.when(List(EDGE0, LEVEL0).map(mode === _).orR) {
       ip := ~input
     }
   }
