@@ -266,9 +266,6 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: 
         for (state <- APlicSourceMode.elements) {
           is(state.asBits.asUInt) {
             config := payload(2 downto 0).resized
-            when (rectified.value) {
-              doSet()
-            }
           }
         }
 
