@@ -144,16 +144,15 @@ object APlicMapper {
 
     // mapping SETIPNUM, CLRIPNUM, SETIENUM, CLRIPNUM
     val numOPs = new Area {
-      def mapNumArea(offset: Int, func: UInt => Unit, needSwap: Boolean = false, doc: String = null) = new Area {
+      def mapNumArea(offset: Int, func: UInt => Unit, doc: String = null) = new Area {
         val numFlow = bus.createAndDriveFlow(UInt(32 bits), address = offset, documentation = doc)
         when(numFlow.valid) {
-          if (needSwap) func(EndiannessSwap(numFlow.payload)) else func(numFlow.payload)
+          func(numFlow.payload)
         }
       }
 
       val setipnum = mapNumArea(setipnumOffset, APlic.doSet(aplic.interrupts, _))
       val setipnum_le = mapNumArea(setipnum_leOffset, APlic.doSet(aplic.interrupts, _))
-      val setipnum_be = mapNumArea(setipnum_beOffset, APlic.doSet(aplic.interrupts, _), needSwap = true)
       val clripnum = mapNumArea(clripnumOffset, APlic.doClaim(aplic.interrupts, _))
       val setienum = mapNumArea(setienumOffset, APlic.doEnable(aplic.interrupts, _))
       val clrienum = mapNumArea(clrienumOffset, APlic.doDisable(aplic.interrupts, _))

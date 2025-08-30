@@ -431,15 +431,6 @@ class APlicUnitTest extends SpinalSimFunSuite {
       dut.clockDomain.waitRisingEdge(4)
       assertIO(dut.io.ip(0)(0).toBigInt, 0, 0)
 
-      // setipnum_be
-      agent.putFullData(0, aplicAddr + aplicmap.setipnum_beOffset, SimUInt32(0x1, BIG))
-      dut.clockDomain.waitRisingEdge(4)
-      assertIO(dut.io.ip(0)(0).toBigInt, 0, 1, s"assert ip: ip(0) = false when setipnum_be trigger.")
-
-      dut.blocks(0)(0).interrupts(0).ip #= false
-      dut.clockDomain.waitRisingEdge(4)
-      assertIO(dut.io.ip(0)(0).toBigInt, 0, 0)
-
       // rectified_source = 0, can not setipnum.
       dut.io.sources #= 0x0
 
@@ -455,11 +446,6 @@ class APlicUnitTest extends SpinalSimFunSuite {
       agent.putFullData(0, aplicAddr + aplicmap.setipnum_leOffset, SimUInt32(0x1))
       dut.clockDomain.waitRisingEdge(4)
       assertIO(dut.io.ip(0)(0).toBigInt, 0, 0, s"assert ip: ip(0) = true when setipnum_le trigger but rectified source = flase.")
-
-      // setipnum_be
-      agent.putFullData(0, aplicAddr + aplicmap.setipnum_beOffset, SimUInt32(0x1, BIG))
-      dut.clockDomain.waitRisingEdge(4)
-      assertIO(dut.io.ip(0)(0).toBigInt, 0, 0, s"assert ip: ip(0) = true when setipnum_be trigger but rectified source = flase.")
 
       dut.clockDomain.waitRisingEdge(100)
     }
