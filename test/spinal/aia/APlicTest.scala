@@ -366,6 +366,104 @@ class APlicUnitTest extends SpinalSimFunSuite {
       dut.clockDomain.waitRisingEdge(100)
     }
   }
+
+  test("MSITrigger") {
+    SimConfig.withConfig(config.TestConfig.spinal).withFstWave.compile(
+      new APlicUnitTestFiber(hartIds, sourceIds, guestIds)
+    ).doSim("MSITrigger"){ dut =>
+      dut.clockDomain.forkStimulus(10)
+
+      dut.io.sources #= 0x0
+      dut.io.ie.map(_.map(_ #= BigInt("7fffffffffffffff", 16)))
+
+      implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
+      val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
+
+      val aplicAddr = 0x10000000
+      val imsicAddr = 0x30000000
+
+      agent.putFullData(0, aplicAddr + aplicmap.domaincfgOffset, SimUInt32(0x80000004))
+
+      val configs = ArrayBuffer[APlicSimSource]()
+      for (i <- 1 until sourcenum) {
+        val mode = APlicSimSourceMode.LEVEL1
+        val config = createGateway(mode, i, agent, aplicAddr)
+        config.hartId = 0
+        config.deliveryMode = true
+        config.guestIndex = 0
+        config.setMode(agent, aplicAddr, (i-1)*4)
+        configs += config
+      }
+
+      agent.putFullData(0, aplicAddr + aplicmap.mmsiaddrcfgOffset, SimUInt32(imsicAddr>>12))
+      agent.putFullData(0, aplicAddr + aplicmap.mmsiaddrcfghOffset, SimUInt32(0x203000))
+      agent.putFullData(0, aplicAddr + aplicmap.smsiaddrcfgOffset, SimUInt32(imsicAddr>>12))
+      agent.putFullData(0, aplicAddr + aplicmap.smsiaddrcfghOffset, SimUInt32(0x200000))
+
+      agent.putFullData(0, aplicAddr + aplicmap.domaincfgOffset, SimUInt32(0x80000104))
+
+      dut.clockDomain.waitRisingEdge(10)
+
+      // rectified_source = 1 but use setipnum trigger twice eip.
+      dut.io.sources #= 0x1
+      dut.clockDomain.waitRisingEdge(4)
+      assertIO(dut.io.ip(0)(0).toBigInt, 0, 1, s"assert ip: ip(0) = false when rectified source = true.")
+
+      dut.blocks(0)(0).interrupts(0).ip #= false
+      dut.clockDomain.waitRisingEdge(4)
+      assertIO(dut.io.ip(0)(0).toBigInt, 0, 0)
+
+      // setipnum
+      agent.putFullData(0, aplicAddr + aplicmap.setipnumOffset, SimUInt32(0x1))
+      dut.clockDomain.waitRisingEdge(4)
+      assertIO(dut.io.ip(0)(0).toBigInt, 0, 1, s"assert ip: ip(0) = false when setipnum trigger.")
+
+      dut.blocks(0)(0).interrupts(0).ip #= false
+      dut.clockDomain.waitRisingEdge(4)
+      assertIO(dut.io.ip(0)(0).toBigInt, 0, 0)
+
+      // setipnum_le
+      agent.putFullData(0, aplicAddr + aplicmap.setipnum_leOffset, SimUInt32(0x1))
+      dut.clockDomain.waitRisingEdge(4)
+      assertIO(dut.io.ip(0)(0).toBigInt, 0, 1, s"assert ip: ip(0) = false when setipnum_le trigger.")
+
+      dut.blocks(0)(0).interrupts(0).ip #= false
+      dut.clockDomain.waitRisingEdge(4)
+      assertIO(dut.io.ip(0)(0).toBigInt, 0, 0)
+
+      // setipnum_be
+      agent.putFullData(0, aplicAddr + aplicmap.setipnum_beOffset, SimUInt32(0x1, BIG))
+      dut.clockDomain.waitRisingEdge(4)
+      assertIO(dut.io.ip(0)(0).toBigInt, 0, 1, s"assert ip: ip(0) = false when setipnum_be trigger.")
+
+      dut.blocks(0)(0).interrupts(0).ip #= false
+      dut.clockDomain.waitRisingEdge(4)
+      assertIO(dut.io.ip(0)(0).toBigInt, 0, 0)
+
+      // rectified_source = 0, can not setipnum.
+      dut.io.sources #= 0x0
+
+      dut.clockDomain.waitRisingEdge(4)
+      assertIO(dut.io.ip(0)(0).toBigInt, 0, 0, s"assert ip: ip(0) = true when rectified source = flase.")
+
+      // setipnum
+      agent.putFullData(0, aplicAddr + aplicmap.setipnumOffset, SimUInt32(0x1))
+      dut.clockDomain.waitRisingEdge(4)
+      assertIO(dut.io.ip(0)(0).toBigInt, 0, 0, s"assert ip: ip(0) = true when setipnum trigger but rectified source = flase.")
+
+      // setipnum_le
+      agent.putFullData(0, aplicAddr + aplicmap.setipnum_leOffset, SimUInt32(0x1))
+      dut.clockDomain.waitRisingEdge(4)
+      assertIO(dut.io.ip(0)(0).toBigInt, 0, 0, s"assert ip: ip(0) = true when setipnum_le trigger but rectified source = flase.")
+
+      // setipnum_be
+      agent.putFullData(0, aplicAddr + aplicmap.setipnum_beOffset, SimUInt32(0x1, BIG))
+      dut.clockDomain.waitRisingEdge(4)
+      assertIO(dut.io.ip(0)(0).toBigInt, 0, 0, s"assert ip: ip(0) = true when setipnum_be trigger but rectified source = flase.")
+
+      dut.clockDomain.waitRisingEdge(100)
+    }
+  }
 }
 
 object APlicSimSourceMode extends Enumeration {
