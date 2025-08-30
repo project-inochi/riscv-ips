@@ -531,7 +531,7 @@ case class APlicEdge0Source(id: Int, agent: tilelink.sim.MasterAgent, base: Int)
   import APlicTestHelper._
 
   mode = APlicSimSourceMode.EDGE0
-  var reg = 0
+  var reg = 1
 
   override def setMode(agent: tilelink.sim.MasterAgent, base: Int, offset: Int, childId: Int = 0) = {
     ie = 1
