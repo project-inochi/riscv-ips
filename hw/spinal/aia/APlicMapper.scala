@@ -48,7 +48,7 @@ object APlicMapper {
       bus.read(aplic.isMSI, address = domaincfgOffset, bitOffset = 2)
       bus.readAndWrite(aplic.bigEndian, address = domaincfgOffset, bitOffset = 0)
 
-      if (p.genParam.withMSI) {
+      if (p.genParam.withMSI && p.genParam.withDirect) {
         bus.write(aplic.isMSI, address = domaincfgOffset, bitOffset = 2)
       }
     }
