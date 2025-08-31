@@ -45,11 +45,11 @@ case class APlicSystemTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], slave1so
     val ROOT = TilelinkAPLICFiber(APlicDomainParam.root(APlicGenParam.direct.withMSIAddrCfg()))
     ROOT.node at 0x30000000 of access
 
-    val dispatcher = TilelinkIMSICTriggerFiber()
+    val dispatcher = TilelinkImsicTriggerFiber()
     dispatcher.node at 0x40000000 of access
 
     for (block <- blocks) {
-      val trigger = dispatcher.addIMSICinfo(block.asTilelinkIMSICInfo())
+      val trigger = dispatcher.addImsicinfo(block.asTilelinkImsicInfo())
       val connector = SxAIABlockTrigger(block, trigger)
     }
 

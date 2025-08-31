@@ -30,9 +30,9 @@ case class SxAIAInterruptSource(sourceId: Int) extends Area {
 case class SxAIABlock(sourceIds: Seq[Int], hartId: Int, guestId: Int) extends Area {
   val interrupts = for (sourceId <- sourceIds) yield new SxAIAInterruptSource(sourceId)
 
-  def asTilelinkIMSICInfo() = TilelinkIMSICTriggerInfo(hartId, guestId, interrupts.map(_.id))
+  def asTilelinkImsicInfo() = TilelinkImsicTriggerInfo(hartId, guestId, interrupts.map(_.id))
 
-  def asIMSICInfo(groupId: Int, groupHartId: Int): IMSICInfo = IMSICInfo(
+  def asImsicInfo(groupId: Int, groupHartId: Int): ImsicInfo = ImsicInfo(
     hartId      = hartId,
     guestId     = guestId,
     sourceIds   = interrupts.map(_.id),
@@ -40,14 +40,14 @@ case class SxAIABlock(sourceIds: Seq[Int], hartId: Int, guestId: Int) extends Ar
     groupHartId = groupHartId,
   )
 
-  def asIMSICInfo(hartPerGroup: Int = 0): IMSICInfo = {
+  def asImsicInfo(hartPerGroup: Int = 0): ImsicInfo = {
     val info = if (hartPerGroup == 0) {
-      asIMSICInfo(
+      asImsicInfo(
         groupId     = 0,
         groupHartId = hartId,
       )
     } else {
-      asIMSICInfo(
+      asImsicInfo(
         groupId     = hartId / hartPerGroup,
         groupHartId = hartId % hartPerGroup,
       )

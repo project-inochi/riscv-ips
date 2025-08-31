@@ -4,7 +4,7 @@ import spinal.core._
 import spinal.lib._
 import spinal.lib.bus.misc._
 
-case class IMSICTriggerMapper(sourceIds: Seq[Int], hartId: Int, guestId: Int) extends Component {
+case class ImsicTriggerMapper(sourceIds: Seq[Int], hartId: Int, guestId: Int) extends Component {
   val registerWidth = 32
 
   val idWidth = log2Up((sourceIds ++ Seq(0)).max + 1)
@@ -15,14 +15,14 @@ case class IMSICTriggerMapper(sourceIds: Seq[Int], hartId: Int, guestId: Int) ex
     val triggers = out(Bits(sourceIds.size bits))
   }
 
-  case class IMSICSource(sourceId: Int) extends Area {
+  case class ImsicSource(sourceId: Int) extends Area {
     val id = U(sourceId, registerWidth bits)
     val trigger = Bool()
 
     trigger := False
   }
 
-  val sources = for (sourceId <- sourceIds) yield new IMSICSource(sourceId)
+  val sources = for (sourceId <- sourceIds) yield new ImsicSource(sourceId)
 
   io.triggers := sources.map(_.trigger).asBits()
 
@@ -51,7 +51,7 @@ case class IMSICTriggerMapper(sourceIds: Seq[Int], hartId: Int, guestId: Int) ex
 }
 
 /**
- * IMSICMapping: IMSIC interrupt file mapping info
+ * ImsicMapping: IMSIC interrupt file mapping info
  *
  * Each interrupt file address should be calcuated as below:
  * g * 2^E + B + h * 2^D
@@ -75,13 +75,13 @@ case class IMSICTriggerMapper(sourceIds: Seq[Int], hartId: Int, guestId: Int) ex
  * will fail.
  *
  */
-case class IMSICMapping(
+case class ImsicMapping(
   interruptFileHartSize       : BigInt = 0,
   interruptFileHartOffset     : BigInt = 0,
   interruptFileGroupSize      : BigInt = 0,
 )
 
-case class IMSICInfo(
+case class ImsicInfo(
   hartId        : Int,
   guestId       : Int,
   sourceIds     : Seq[Int],
@@ -89,10 +89,10 @@ case class IMSICInfo(
   groupHartId   : Int,
 )
 
-object IMSICTrigger {
+object ImsicTrigger {
   val interruptFileSize: BigInt = 4096
 
-  def mappingCalibrate(mapping: IMSICMapping, maxGuestId: Int, maxGroupHartId: Int, maxGroupId: Int): IMSICMapping = {
+  def mappingCalibrate(mapping: ImsicMapping, maxGuestId: Int, maxGroupHartId: Int, maxGroupId: Int): ImsicMapping = {
     import mapping._
 
     require(interruptFileHartSize == 0 || isPow2(interruptFileHartSize), "interruptFileHartSize should be power of 2")
@@ -116,14 +116,14 @@ object IMSICTrigger {
     val intFileTestMask = intFileGroupMask + realIntFileGroupSize * intFileGroupIdMask
     require((interruptFileHartOffset & intFileTestMask) == 0, "interruptFileHartOffset should not cover any interrupt file")
 
-    return IMSICMapping(
+    return ImsicMapping(
       interruptFileHartSize   = realIntFileHartSize,
       interruptFileHartOffset = interruptFileHartOffset,
       interruptFileGroupSize  = realIntFileGroupSize,
     )
   }
 
-  def imsicOffset(mapping: IMSICMapping, groupId: Int, groupHartId: Int, guestId: Int) = {
+  def imsicOffset(mapping: ImsicMapping, groupId: Int, groupHartId: Int, guestId: Int) = {
     import mapping._
 
     val offset = groupId * interruptFileGroupSize +
@@ -134,7 +134,7 @@ object IMSICTrigger {
     offset
   }
 
-  def apply(bus: BusSlaveFactory, mapping: IMSICMapping)(infos: Seq[IMSICInfo]) = new Area {
+  def apply(bus: BusSlaveFactory, mapping: ImsicMapping)(infos: Seq[ImsicInfo]) = new Area {
     val maxGuestId = infos.map(_.guestId).max
     val maxGroupHartId = infos.map(_.groupHartId).max
     val maxGroupId = infos.map(_.groupId).max
@@ -142,7 +142,7 @@ object IMSICTrigger {
     val realMapping = mappingCalibrate(mapping, maxGuestId, maxGroupHartId, maxGroupId)
 
     val mappers = for (info <- infos) yield new Area {
-      val mapper = IMSICTriggerMapper(info.sourceIds, info.hartId, info.guestId)
+      val mapper = ImsicTriggerMapper(info.sourceIds, info.hartId, info.guestId)
       val offset = imsicOffset(realMapping, info.groupId, info.groupHartId, info.guestId)
 
       mapper.driveFrom(bus, offset)
@@ -151,15 +151,15 @@ object IMSICTrigger {
     val triggers = Vec(mappers.map(_.mapper.io.triggers))
   }
 
-  def addressWidth(mapping: IMSICMapping, maxGuestId: Int, maxGroupHartId: Int, maxGroupId: Int): Int = {
+  def addressWidth(mapping: ImsicMapping, maxGuestId: Int, maxGroupHartId: Int, maxGroupId: Int): Int = {
     val realMapping = mappingCalibrate(mapping, maxGuestId, maxGroupHartId, maxGroupId)
 
     val intFileNumber = 1 << log2Up(maxGuestId + 1)
     val intFileGroupHarts = 1 << log2Up(maxGroupHartId + 1)
     val intFileGroupMax = 1 << log2Up(maxGroupId + 1)
 
-    val IMSICSize = imsicOffset(realMapping, maxGroupId, maxGroupHartId, maxGuestId + 1)
+    val ImsicSize = imsicOffset(realMapping, maxGroupId, maxGroupHartId, maxGuestId + 1)
 
-    return log2Up(IMSICSize)
+    return log2Up(ImsicSize)
   }
 }

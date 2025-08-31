@@ -74,12 +74,12 @@ case class APlicUnitTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: 
 
     M_Sender.createMSIStreamConsumer() << M.createMSIStreamProducer()
 
-    val dispatcher = TilelinkIMSICTriggerFiber()
+    val dispatcher = TilelinkImsicTriggerFiber()
     dispatcher.node at 0x30000000 of access
 
     for (hartBlock <- blocks) {
       for (block <- hartBlock) {
-        val trigger = dispatcher.addIMSICinfo(block.asTilelinkIMSICInfo())
+        val trigger = dispatcher.addImsicinfo(block.asTilelinkImsicInfo())
         val connector = SxAIABlockTrigger(block, trigger)
       }
     }

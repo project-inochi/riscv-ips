@@ -9,12 +9,12 @@ import spinal.lib.bus.tilelink
 import spinal.tester.SpinalSimFunSuite
 import _root_.sim._
 
-case class TilelinkIMSICTest(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: Seq[Int], p: tilelink.M2sParameters) extends Component {
+case class TilelinkImsicTest(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: Seq[Int], p: tilelink.M2sParameters) extends Component {
   val busP = p.toNodeParameters().toBusParameter()
 
   val blocks = hartIds.map(hartId => for (guestId <- guestIds) yield new SxAIABlock(sourceIds, hartId, guestId))
 
-  val imsic = TilelinkIMSICTrigger(blocks.flatMap(_.map(_.asIMSICInfo())), IMSICMapping(), busP)
+  val imsic = TilelinkImsicTrigger(blocks.flatMap(_.map(_.asImsicInfo())), ImsicMapping(), busP)
   val triggers = for ((block, trigger) <- blocks.flatMap(_.toSeq).zip(imsic.io.triggers)) yield new SxAIABlockTrigger(block, trigger)
 
   val io = new Bundle {
@@ -38,7 +38,7 @@ case class TilelinkIMSICTest(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: S
   })
 }
 
-class IMSICTest extends SpinalSimFunSuite {
+class ImsicTest extends SpinalSimFunSuite {
   onlyVerilator()
 
   val hartNum = 8
@@ -48,7 +48,7 @@ class IMSICTest extends SpinalSimFunSuite {
   val sourceIds = for (i <- 1 until sourceNum) yield i
   val guestIds = for (i <- 0 to guestNum) yield i
 
-  val infos = (for {hartId <- hartIds; guestId <- guestIds} yield IMSICInfo(
+  val infos = (for {hartId <- hartIds; guestId <- guestIds} yield ImsicInfo(
       hartId = hartId,
       guestId = guestId,
       sourceIds = sourceIds,
@@ -56,10 +56,10 @@ class IMSICTest extends SpinalSimFunSuite {
       groupHartId = hartId,
     )).toArray.toSeq
 
-  val mapping = IMSICMapping()
+  val mapping = ImsicMapping()
   val tilelinkBusP = tilelink.M2sParameters(
     sourceCount = 1,
-    support = TilelinkIMSICTrigger.getTilelinkSupport(
+    support = TilelinkImsicTrigger.getTilelinkSupport(
       transfers = tilelink.M2sTransfers(
         get = tilelink.SizeRange(1, 8),
         putFull = tilelink.SizeRange(1, 8)
@@ -71,25 +71,25 @@ class IMSICTest extends SpinalSimFunSuite {
   test("compile") {
 
     SimConfig.withConfig(config.TestConfig.spinal).compile(
-      new TilelinkIMSICTrigger(
+      new TilelinkImsicTrigger(
         infos, mapping,
         tilelinkBusP.toNodeParameters().toBusParameter()
       )
     )
   }
 
-  var compiled: SimCompiled[TilelinkIMSICTest] = null
+  var compiled: SimCompiled[TilelinkImsicTest] = null
   val rndTestCase = 4000
 
   def doCompile() = {
     SimConfig.withConfig(config.TestConfig.spinal).withFstWave.compile(
-      new TilelinkIMSICTest(
+      new TilelinkImsicTest(
         hartIds, sourceIds, guestIds, tilelinkBusP
       )
     )
   }
 
-  def testInit(dut: TilelinkIMSICTest): Unit = {
+  def testInit(dut: TilelinkImsicTest): Unit = {
     for (hartId <- hartIds) {
       for (guestId <- guestIds) {
         for (sourceId <- sourceIds) {
@@ -119,7 +119,7 @@ class IMSICTest extends SpinalSimFunSuite {
         yield (Random.nextInt(hartNum), Random.nextInt(sourceNum), Random.nextInt(guestNum + 1))
 
       for ((hartId, sourceId, guestId) <- testCases) {
-        agent.putFullData(0, IMSICTrigger.imsicOffset(realMapping, 0, hartId, guestId).toLong, SimUInt32(sourceId))
+        agent.putFullData(0, ImsicTrigger.imsicOffset(realMapping, 0, hartId, guestId).toLong, SimUInt32(sourceId))
         dut.clockDomain.waitRisingEdge()
 
         if (sourceId != 0) {
@@ -149,7 +149,7 @@ class IMSICTest extends SpinalSimFunSuite {
           assert(!dut.io.ip(hartId)(guestId).toBigInt.testBit(sourceId - 1), s"Interrupt ${sourceId} of hart ${hartId}, guest ${guestId} is not clear")
         }
 
-        agent.putFullData(0, IMSICTrigger.imsicOffset(realMapping, 0, hartId, guestId).toLong, SimUInt32(sourceId))
+        agent.putFullData(0, ImsicTrigger.imsicOffset(realMapping, 0, hartId, guestId).toLong, SimUInt32(sourceId))
         dut.clockDomain.waitRisingEdge(5)
 
         if (sourceId != 0) {
@@ -176,7 +176,7 @@ class IMSICTest extends SpinalSimFunSuite {
       for (hartId <- hartIds) {
         for (sourceId <- sourceIds) {
           dut.io.profile(hartId)(0)(sourceId - 1).en #= true
-          agent.putFullData(0, IMSICTrigger.imsicOffset(realMapping, 0, hartId, 0).toLong, SimUInt32(sourceId))
+          agent.putFullData(0, ImsicTrigger.imsicOffset(realMapping, 0, hartId, 0).toLong, SimUInt32(sourceId))
         }
       }
       dut.clockDomain.waitRisingEdge()
