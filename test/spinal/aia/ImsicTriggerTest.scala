@@ -38,7 +38,7 @@ case class TilelinkImsicTest(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: S
   })
 }
 
-class ImsicTest extends SpinalSimFunSuite {
+class ImsicTriggerTest extends SpinalSimFunSuite {
   onlyVerilator()
 
   val hartNum = 8
