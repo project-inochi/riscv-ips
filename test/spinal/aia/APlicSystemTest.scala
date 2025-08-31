@@ -49,7 +49,7 @@ case class APlicSystemTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], slave1so
     dispatcher.node at 0x40000000 of access
 
     for (block <- blocks) {
-      val trigger = dispatcher.addIMSICinfo(block.asTilelinkIMSICIInfo())
+      val trigger = dispatcher.addIMSICinfo(block.asTilelinkIMSICInfo())
       val connector = SxAIABlockTrigger(block, trigger)
     }
 
