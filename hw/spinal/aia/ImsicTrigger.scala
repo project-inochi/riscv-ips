@@ -78,7 +78,7 @@ case class ImsicTriggerMapper(sourceIds: Seq[Int], hartId: Int, guestId: Int) ex
 case class ImsicMapping(
   interruptFileHartSize       : BigInt = 0,
   interruptFileHartOffset     : BigInt = 0,
-  interruptFileGroupSize      : BigInt = 0,
+  interruptFileGroupSize      : BigInt = 0
 )
 
 case class ImsicInfo(
@@ -86,7 +86,7 @@ case class ImsicInfo(
   guestId       : Int,
   sourceIds     : Seq[Int],
   groupId       : Int,
-  groupHartId   : Int,
+  groupHartId   : Int
 )
 
 object ImsicTrigger {

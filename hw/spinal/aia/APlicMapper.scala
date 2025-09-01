@@ -194,7 +194,7 @@ object APlicMapper {
                               (10 downto 0) -> interrupt.eiid.asBits,
                               default -> False),
           False -> B(18 bits, (7 downto 0) -> interrupt.prio.asBits,
-                              default -> False),
+                              default -> False)
         )
         bus.read(configView, address = targetOffset + configOffset, bitOffset = 0)
 
@@ -247,17 +247,5 @@ object APlicMapper {
         }
       }
     }
-
-    // val coherencyStall = Counter(2)
-    // when(coherencyStall =/= 0) {
-    //   bus.readHalt()
-    //   coherencyStall.increment()
-    // }
-    // bus.onReadPrimitive(AllMapping, haltSensitive = false, documentation = "") {
-    //   coherencyStall.increment()
-    // }
-    // bus.onWritePrimitive(AllMapping, haltSensitive = false, documentation = "") {
-    //   coherencyStall.increment()
-    // }
   }
 }

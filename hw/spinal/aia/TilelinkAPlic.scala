@@ -16,7 +16,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](
   slaveInfos: Seq[APlicSlaveInfo],
   p: APlicDomainParam,
   slaveType: HardType[T],
-  factoryGen: T => BusSlaveFactory,
+  factoryGen: T => BusSlaveFactory
 ) extends Component {
   require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
   require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")

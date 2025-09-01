@@ -70,7 +70,7 @@ case class TilelinkImsicTriggerFiber() extends Area {
       guestId     = info.guestId,
       sourceIds   = info.sourceIds,
       groupId     = groupId,
-      groupHartId = groupHartId,
+      groupHartId = groupHartId
     )
   }
 

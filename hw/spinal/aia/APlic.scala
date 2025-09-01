@@ -8,7 +8,7 @@ case class APlicMSIParam(
   hhxs: Int = 0,
   lhxs: Int = 0,
   hhxw: Int = 0,
-  lhxw: Int = 0,
+  lhxw: Int = 0
 )
 
 case class APlicGenParam(withDirect: Boolean,
@@ -55,23 +55,23 @@ object APlicGenParam {
     withDirect  = true,
     withMSI     = true,
     genIEP      = true,
-    withIForce  = true,
+    withIForce  = true
   )
 
   def full = APlicGenParam(
     withDirect  = true,
     withMSI     = true,
-    genIEP      = true,
+    genIEP      = true
   )
 
   def msi = APlicGenParam(
     withDirect  = false,
-    withMSI     = true,
+    withMSI     = true
   )
 
   def direct = APlicGenParam(
     withDirect  = true,
-    withMSI     = false,
+    withMSI     = false
   )
 }
 
@@ -83,19 +83,19 @@ object APlicDomainParam {
   def root(genParam: APlicGenParam) = APlicDomainParam(
     isRoot    = true,
     isMDomain = true,
-    genParam  = genParam,
+    genParam  = genParam
   )
 
   def M(genParam: APlicGenParam) = APlicDomainParam(
     isRoot    = false,
     isMDomain = true,
-    genParam  = genParam,
+    genParam  = genParam
   )
 
   def S(genParam: APlicGenParam) = APlicDomainParam(
     isRoot    = false,
     isMDomain = false,
-    genParam  = genParam,
+    genParam  = genParam
   )
 }
 
@@ -188,7 +188,7 @@ case class APlic(p: APlicDomainParam,
 
       val msiaddrcfgCovered = lock.mux(
         True  -> U(64 bits, 63 -> True, default -> False),
-        False -> msiaddrcfg,
+        False -> msiaddrcfg
       )
 
       if (p.isRoot) {
@@ -218,7 +218,7 @@ case class APlic(p: APlicDomainParam,
 
       val msiaddrcfgCovered = M.lock.mux(
         True  -> U(0),
-        False -> msiaddrcfg,
+        False -> msiaddrcfg
       )
 
       if (p.isRoot) {
