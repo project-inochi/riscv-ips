@@ -15,14 +15,14 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](
   hartIds: Seq[Int],
   childInfos: Seq[APlicChildInfo],
   p: APlicDomainParam,
-  slaveType: HardType[T],
+  busType: HardType[T],
   factoryGen: T => BusSlaveFactory
 ) extends Component {
   require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
   require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")
 
   val io = new Bundle {
-    val slaveBus = slave(slaveType())
+    val bus = slave(busType())
     val sources = in Bits (sourceIds.size bits)
     val mmsiaddrcfg = (if (p.isRoot) out else in) UInt (64 bits)
     val smsiaddrcfg = (if (p.isRoot) out else in) UInt (64 bits)
@@ -56,7 +56,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](
     io.msiMsg << aplic.msi.msiStream
   }
 
-  val factory = factoryGen(io.slaveBus)
+  val factory = factoryGen(io.bus)
   val mapping = APlicMapper(factory)(aplic)
 }
 
@@ -219,7 +219,7 @@ case class TilelinkAPLICFiber(domainParam: APlicDomainParam) extends Area with I
       msiStream.get << core.io.msiMsg
     }
 
-    core.io.slaveBus <> node.bus
+    core.io.bus <> node.bus
     core.io.sources := sources.map(_.node.flag).asBits()
     if (domainParam.genParam.withDirect) {
       Vec(targets.map(_.node.flag)) := core.io.targets.asBools
