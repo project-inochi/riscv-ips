@@ -123,12 +123,12 @@ case class APlic(p: APlicDomainParam,
   require(p.genParam.withDirect || p.genParam.withMSI, "At least one delivery mode should be enabled")
 
   val sources = Bits(sourceIds.size bits)
-  val slaveSources = Vec(childInfos.map(childInfo => Bits(childInfo.sourceIds.size bits)))
+  val childSources = Vec(childInfos.map(childInfo => Bits(childInfo.sourceIds.size bits)))
   val mmsiaddrcfg = UInt(64 bits)
   val smsiaddrcfg = UInt(64 bits)
 
-  val slaveInterruptIds = childInfos.flatMap(childInfo => childInfo.sourceIds).distinct
-  val interruptDelegatable = for (sourceId <- sourceIds) yield slaveInterruptIds.find(_ == sourceId).isDefined
+  val childInterruptIds = childInfos.flatMap(childInfo => childInfo.sourceIds).distinct
+  val interruptDelegatable = for (sourceId <- sourceIds) yield childInterruptIds.find(_ == sourceId).isDefined
 
   val deliveryEnable = RegInit(False)
   val isMSI = (p.genParam.withDirect, p.genParam.withMSI) match {
@@ -141,13 +141,13 @@ case class APlic(p: APlicDomainParam,
   val interrupts: Seq[APlicSource] = for (((sourceId, delegatable), i) <- sourceIds.zip(interruptDelegatable).zipWithIndex)
     yield new APlicSource(sourceId, delegatable, isMSI, sources(i))
 
-  val slaveMappings = for ((childInfo, slaveSource) <- childInfos.zip(slaveSources)) yield new Area {
-    for ((slaveSourceId, idx) <- childInfo.sourceIds.zipWithIndex) yield new Area {
-      interrupts.find(_.id == slaveSourceId).map(interrupt => new Area {
+  val childMappings = for ((childInfo, childSource) <- childInfos.zip(childSources)) yield new Area {
+    for ((childSourceId, idx) <- childInfo.sourceIds.zipWithIndex) yield new Area {
+      interrupts.find(_.id == childSourceId).map(interrupt => new Area {
         when(interrupt.delegated && (Bool(childInfos.size == 1) || interrupt.childIdx === childInfo.childIdx)) {
-          slaveSource(idx) := interrupt.input
+          childSource(idx) := interrupt.input
         } otherwise {
-          slaveSource(idx) := False
+          childSource(idx) := False
         }
       })
     }

@@ -78,11 +78,11 @@ case class APlicSystemTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], slave1so
     val slaveS1Sources = slave2Infos.map(M.createInterruptDelegation(_))
 
     val sourcesS2Bundles = slave2sourceIds.zip(slaveS1Sources(0).flags).map {
-      case (id, slaveSource) => S.mapUpInterrupt(id, slaveSource)
+      case (id, childSource) => S.mapUpInterrupt(id, childSource)
     }
 
     val sourcesS1Bundles = slave1sourceIds.zip(slaveMSources(0).flags).map {
-      case (id, slaveSource) => M.mapUpInterrupt(id, slaveSource)
+      case (id, childSource) => M.mapUpInterrupt(id, childSource)
     }
 
     M.mmsiaddrcfg := ROOT.mmsiaddrcfg

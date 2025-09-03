@@ -27,7 +27,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](
     val mmsiaddrcfg = (if (p.isRoot) out else in) UInt (64 bits)
     val smsiaddrcfg = (if (p.isRoot) out else in) UInt (64 bits)
     val targets = p.genParam.withDirect generate (out Bits (hartIds.size bits))
-    val slaveSources = out Vec(childInfos.map(childInfo => Bits(childInfo.sourceIds.size bits)))
+    val childSources = out Vec(childInfos.map(childInfo => Bits(childInfo.sourceIds.size bits)))
     val msiMsg = p.genParam.withMSI generate master(Stream(APlicMSIPayload()))
   }
 
@@ -42,7 +42,7 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](
   if (p.genParam.withDirect) {
     io.targets := aplic.direct.targets
   }
-  io.slaveSources := aplic.slaveSources
+  io.childSources := aplic.childSources
 
   if (p.isRoot) {
     io.mmsiaddrcfg := aplic.mmsiaddrcfg
@@ -200,9 +200,9 @@ case class TilelinkAPLICFiber(domainParam: APlicDomainParam) extends Area with I
     spec.node
   }
 
-  val slaveSources = ArrayBuffer[APlicSlaveBundle]()
+  val childSources = ArrayBuffer[APlicSlaveBundle]()
   def createInterruptDelegation(childInfo: APlicChildInfo) = {
-    slaveSources.addRet(APlicSlaveBundle(childInfo))
+    childSources.addRet(APlicSlaveBundle(childInfo))
   }
 
   val thread = Fiber build new Area {
@@ -211,7 +211,7 @@ case class TilelinkAPLICFiber(domainParam: APlicDomainParam) extends Area with I
     node.m2s.supported.load(TilelinkAplic.getTilelinkSlaveSupport(node.m2s.proposed, TilelinkAplic.addressWidth(targets.map(_.id).max + 1)))
     node.s2m.none()
 
-    val aplic = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, slaveSources.map(_.childInfo).toSeq, domainParam, node.bus.p)
+    val aplic = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, childSources.map(_.childInfo).toSeq, domainParam, node.bus.p)
 
     core.load(aplic)
 
@@ -233,8 +233,8 @@ case class TilelinkAPLICFiber(domainParam: APlicDomainParam) extends Area with I
       core.io.smsiaddrcfg := smsiaddrcfg
     }
 
-    for ((slaveSource, ioSlaveSource) <- slaveSources.zip(core.io.slaveSources)) {
-      Vec(slaveSource.flags.map(_.flag)) := ioSlaveSource.asBools
+    for ((childSource, ioSlaveSource) <- childSources.zip(core.io.childSources)) {
+      Vec(childSource.flags.map(_.flag)) := ioSlaveSource.asBools
     }
   }
 }

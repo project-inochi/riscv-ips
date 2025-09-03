@@ -11,13 +11,13 @@ import _root_.sim._
 import scala.util.Random
 import scala.collection.mutable.ArrayBuffer
 
-case class APlicDelegateTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], slavesourceIds: Seq[Int]) extends Component {
+case class APlicDelegateTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], childSourceIds: Seq[Int]) extends Component {
   val masterBus = TilelinkAPlicReadPortFiber()
 
   val crossBar = tilelink.fabric.Node()
   crossBar << masterBus.node
 
-  val childInfos = Seq(APlicChildInfo(1, slavesourceIds), APlicChildInfo(2, slavesourceIds))
+  val childInfos = Seq(APlicChildInfo(1, childSourceIds), APlicChildInfo(2, childSourceIds))
 
   val peripherals = new Area {
     val access = tilelink.fabric.Node()
@@ -71,13 +71,13 @@ case class APlicDelegateTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], slaves
       node
     })
 
-    val slaveSources = childInfos.map(M.createInterruptDelegation(_))
+    val childSources = childInfos.map(M.createInterruptDelegation(_))
 
-    val sourcesS1Bundles = slavesourceIds.zip(slaveSources(0).flags).map {
-      case (id, slaveSource) => S1.mapUpInterrupt(id, slaveSource)
+    val sourcesS1Bundles = childSourceIds.zip(childSources(0).flags).map {
+      case (id, childSource) => S1.mapUpInterrupt(id, childSource)
     }
-    val sourcesS2Bundles = slavesourceIds.zip(slaveSources(1).flags).map {
-      case (id, slaveSource) => S2.mapUpInterrupt(id, slaveSource)
+    val sourcesS2Bundles = childSourceIds.zip(childSources(1).flags).map {
+      case (id, childSource) => S2.mapUpInterrupt(id, childSource)
     }
 
     S1.mmsiaddrcfg := M.mmsiaddrcfg
@@ -114,12 +114,12 @@ class APlicMSTest extends SpinalSimFunSuite {
   val hartnum = 8
 
   val sourceIds = for (i <- 1 until sourcenum) yield i
-  val slavesourceIds = (1 to 63).toIndexedSeq
+  val childSourceIds = (1 to 63).toIndexedSeq
   val hartIds = for (i <- 0 until hartnum) yield i
 
   test("MS Direct") {
     SimConfig.withConfig(config.TestConfig.spinal).withFstWave.compile(
-      new APlicDelegateTestFiber(hartIds, sourceIds, slavesourceIds)
+      new APlicDelegateTestFiber(hartIds, sourceIds, childSourceIds)
     ).doSim("MS Direct"){ dut =>
       dut.clockDomain.forkStimulus(10)
 
