@@ -39,8 +39,10 @@ case class APlicGenMSIPayload() extends Bundle {
 }
 
 object APlicMapper {
-  def apply(bus: BusSlaveFactory, p: APlicDomainParam)(aplic: APlic) = new Area{
+  def apply(bus: BusSlaveFactory)(aplic: APlic) = new Area{
     import APlicMapping._
+
+    val p = aplic.p
 
     val domaincfg = new Area {
       bus.read(U(0x80, 8 bits), address = domaincfgOffset, bitOffset = 24)
