@@ -19,8 +19,8 @@ case class APlicSystemTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], slave1so
 
   val blocks = for (hartId <- hartIds.drop(1)) yield new SxAIABlock(sourceIds, hartId, 0)
 
-  val slave1Infos = Seq(APlicSlaveInfo(1, slave1sourceIds))
-  val slave2Infos = Seq(APlicSlaveInfo(1, slave2sourceIds))
+  val slave1Infos = Seq(APlicChildInfo(1, slave1sourceIds))
+  val slave2Infos = Seq(APlicChildInfo(1, slave2sourceIds))
 
   val peripherals = new Area {
     val access = tilelink.fabric.Node()

@@ -17,7 +17,7 @@ case class APlicDelegateTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], slaves
   val crossBar = tilelink.fabric.Node()
   crossBar << masterBus.node
 
-  val slaveInfos = Seq(APlicSlaveInfo(1, slavesourceIds), APlicSlaveInfo(2, slavesourceIds))
+  val childInfos = Seq(APlicChildInfo(1, slavesourceIds), APlicChildInfo(2, slavesourceIds))
 
   val peripherals = new Area {
     val access = tilelink.fabric.Node()
@@ -71,7 +71,7 @@ case class APlicDelegateTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], slaves
       node
     })
 
-    val slaveSources = slaveInfos.map(M.createInterruptDelegation(_))
+    val slaveSources = childInfos.map(M.createInterruptDelegation(_))
 
     val sourcesS1Bundles = slavesourceIds.zip(slaveSources(0).flags).map {
       case (id, slaveSource) => S1.mapUpInterrupt(id, slaveSource)
