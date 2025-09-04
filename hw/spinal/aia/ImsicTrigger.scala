@@ -111,7 +111,7 @@ object ImsicTrigger {
     return ImsicMapping(
       interruptFileHartSize   = realIntFileHartSize,
       interruptFileHartOffset = interruptFileHartOffset,
-      interruptFileGroupSize  = realIntFileGroupSize,
+      interruptFileGroupSize  = realIntFileGroupSize
     )
   }
 
