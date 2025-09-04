@@ -24,7 +24,7 @@ class MappedImsicFile[T <: spinal.core.Data with IMasterSlave](
   busType: HardType[T],
   factoryGen: T => BusSlaveFactory,
 ) extends Component {
-  val file = new ImsicFile(sourceIds)
+  val file = new ImsicFile(0, 0, sourceIds)
   val interrupts = file.interrupts
 
   val io = new Bundle {

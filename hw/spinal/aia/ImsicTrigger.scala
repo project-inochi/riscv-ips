@@ -81,14 +81,6 @@ case class ImsicMapping(
   interruptFileGroupSize      : BigInt = 0
 )
 
-case class ImsicInfo(
-  hartId        : Int,
-  guestId       : Int,
-  sourceIds     : Seq[Int],
-  groupId       : Int,
-  groupHartId   : Int
-)
-
 object ImsicTrigger {
   val interruptFileSize: BigInt = 4096
 
@@ -134,7 +126,7 @@ object ImsicTrigger {
     offset
   }
 
-  def apply(bus: BusSlaveFactory, mapping: ImsicMapping)(infos: Seq[ImsicInfo]) = new Area {
+  def apply(bus: BusSlaveFactory, mapping: ImsicMapping)(infos: Seq[ImsicFileInfo]) = new Area {
     val maxGuestId = infos.map(_.guestId).max
     val maxGroupHartId = infos.map(_.groupHartId).max
     val maxGroupId = infos.map(_.groupId).max

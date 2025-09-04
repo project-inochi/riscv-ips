@@ -3,7 +3,15 @@ package aia
 import spinal.core._
 import spinal.lib._
 
-case class ImsicFile(sourceIds: Seq[Int]) extends Area {
+case class ImsicFileInfo(
+  hartId        : Int,
+  guestId       : Int,
+  sourceIds     : Seq[Int],
+  groupId       : Int,
+  groupHartId   : Int
+)
+
+case class ImsicFile(hartId: Int, guestId: Int, sourceIds: Seq[Int]) extends Area {
   val idWidth = log2Up((sourceIds ++ Seq(0)).max + 1)
 
   val triggers = Bits(sourceIds.size bits)
@@ -44,4 +52,16 @@ case class ImsicFile(sourceIds: Seq[Int]) extends Area {
       }
     }
   }
+
+  def asImsicFileInfo(hartPerGroup: Int = 0): ImsicFileInfo = ImsicFileInfo(
+    hartId      = hartId,
+    guestId     = guestId,
+    sourceIds   = sourceIds,
+    groupId     = if (hartPerGroup == 0) 0 else (hartId / hartPerGroup),
+    groupHartId = if (hartPerGroup == 0) hartId else (hartId % hartPerGroup)
+  )
+}
+
+object ImsicFile {
+  def apply(hartId: Int, sourceIds: Seq[Int]): ImsicFile = ImsicFile(hartId, 0, sourceIds)
 }

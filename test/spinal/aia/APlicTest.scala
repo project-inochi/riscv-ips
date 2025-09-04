@@ -79,7 +79,7 @@ case class APlicUnitTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: 
 
     for (hartBlock <- blocks) {
       for (block <- hartBlock) {
-        val trigger = dispatcher.addImsicinfo(block.asTilelinkImsicInfo())
+        val trigger = dispatcher.addImsicFileinfo(block.asImsicFileInfo())
         val connector = SxAIABlockTrigger(block, trigger)
       }
     }

@@ -14,7 +14,7 @@ case class TilelinkImsicTest(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: S
 
   val blocks = hartIds.map(hartId => for (guestId <- guestIds) yield new SxAIABlock(sourceIds, hartId, guestId))
 
-  val imsic = TilelinkImsicTrigger(blocks.flatMap(_.map(_.asImsicInfo())), ImsicMapping(), busP)
+  val imsic = TilelinkImsicTrigger(blocks.flatMap(_.map(_.asImsicFileInfo())), ImsicMapping(), busP)
   val triggers = for ((block, trigger) <- blocks.flatMap(_.toSeq).zip(imsic.io.triggers)) yield new SxAIABlockTrigger(block, trigger)
 
   val io = new Bundle {
@@ -48,7 +48,7 @@ class ImsicTriggerTest extends SpinalSimFunSuite {
   val sourceIds = for (i <- 1 until sourceNum) yield i
   val guestIds = for (i <- 0 to guestNum) yield i
 
-  val infos = (for {hartId <- hartIds; guestId <- guestIds} yield ImsicInfo(
+  val infos = (for {hartId <- hartIds; guestId <- guestIds} yield ImsicFileInfo(
       hartId = hartId,
       guestId = guestId,
       sourceIds = sourceIds,

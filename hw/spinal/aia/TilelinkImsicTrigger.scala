@@ -7,7 +7,7 @@ import spinal.lib.bus.misc._
 import spinal.lib.bus.tilelink
 import scala.collection.mutable.ArrayBuffer
 
-class MappedImsicTrigger[T <: spinal.core.Data with IMasterSlave](infos: Seq[ImsicInfo],
+class MappedImsicTrigger[T <: spinal.core.Data with IMasterSlave](infos: Seq[ImsicFileInfo],
                                                            mapping: ImsicMapping,
                                                            busType: HardType[T],
                                                            factoryGen: T => BusSlaveFactory) extends Component {
@@ -23,7 +23,7 @@ class MappedImsicTrigger[T <: spinal.core.Data with IMasterSlave](infos: Seq[Ims
   io.triggers := logic.triggers
 }
 
-case class TilelinkImsicTrigger(infos: Seq[ImsicInfo],
+case class TilelinkImsicTrigger(infos: Seq[ImsicFileInfo],
                                 mapping: ImsicMapping,
                                 p: bus.tilelink.BusParameter) extends MappedImsicTrigger[bus.tilelink.Bus](
   infos,
@@ -43,9 +43,9 @@ object TilelinkImsicTrigger {
       transfers = transfers
     )
   )
-  def getTilelinkSupport(transfers: tilelink.M2sTransfers, mapping: ImsicMapping, infos: Seq[ImsicInfo]): tilelink.M2sSupport = getTilelinkSupport(transfers, addressWidth(mapping, infos))
+  def getTilelinkSupport(transfers: tilelink.M2sTransfers, mapping: ImsicMapping, infos: Seq[ImsicFileInfo]): tilelink.M2sSupport = getTilelinkSupport(transfers, addressWidth(mapping, infos))
 
-  def addressWidth(mapping: ImsicMapping, infos: Seq[ImsicInfo]): Int = {
+  def addressWidth(mapping: ImsicMapping, infos: Seq[ImsicFileInfo]): Int = {
     val maxGuestId = infos.map(_.guestId).max
     val maxGroupHartId = infos.map(_.groupHartId).max
     val maxGroupId = infos.map(_.groupId).max
@@ -54,38 +54,19 @@ object TilelinkImsicTrigger {
   }
 }
 
-case class TilelinkImsicTriggerInfo(hartId: Int, guestId: Int, sourceIds: Seq[Int])
-
 case class TilelinkImsicTriggerFiber() extends Area {
   val node = bus.tilelink.fabric.Node.slave()
   val lock = Lock()
 
   var mapping: Option[ImsicMapping] = None
 
-  case class SourceTrigger(info: TilelinkImsicTriggerInfo, groupId: Int, groupHartId: Int) {
+  case class ImsicFileSource(info: ImsicFileInfo) {
     val trigger = Bits(info.sourceIds.size bits)
-
-    def asImsicInfo(): ImsicInfo = ImsicInfo(
-      hartId      = info.hartId,
-      guestId     = info.guestId,
-      sourceIds   = info.sourceIds,
-      groupId     = groupId,
-      groupHartId = groupHartId
-    )
   }
 
-  var infos = ArrayBuffer[SourceTrigger]()
-  def addImsicinfo(info: TilelinkImsicTriggerInfo, groupId: Int, groupHartId: Int) = {
-    val source =infos.addRet(SourceTrigger(info, groupId, groupHartId))
-    source.trigger
-  }
-  def addImsicinfo(info: TilelinkImsicTriggerInfo, hartPerGroup: Int = 0) = {
-    val source = if(hartPerGroup == 0) {
-      infos.addRet(SourceTrigger(info, 0, info.hartId))
-    } else {
-      infos.addRet(SourceTrigger(info, info.hartId / hartPerGroup, info.hartId % hartPerGroup))
-    }
-
+  var infos = ArrayBuffer[ImsicFileSource]()
+  def addImsicFileinfo(info: ImsicFileInfo) = {
+    val source = infos.addRet(ImsicFileSource(info))
     source.trigger
   }
 
@@ -93,7 +74,7 @@ case class TilelinkImsicTriggerFiber() extends Area {
     lock.await()
 
     val imsicMapping = mapping.getOrElse(ImsicMapping())
-    val imsicInfos = infos.map(_.asImsicInfo()).toSeq
+    val imsicInfos = infos.map(_.info).toSeq
 
     node.m2s.supported.load(TilelinkImsicTrigger.getTilelinkSupport(node.m2s.proposed.transfers, imsicMapping, imsicInfos))
     node.s2m.none()
