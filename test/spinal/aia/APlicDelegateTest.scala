@@ -23,29 +23,29 @@ case class APlicDelegateTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], childS
     val access = tilelink.fabric.Node()
     access << crossBar
 
-    val S1 = TilelinkAPLICFiber(APlicDomainParam.S(APlicGenParam.full))
+    val S1 = TilelinkAPlicFiber(APlicDomainParam.S(APlicGenParam.full))
     S1.node at 0x10000000 of access
 
-    val S1_Sender = TilelinkAPLICMSISenderFiber()
+    val S1_Sender = TilelinkAPlicMsiSenderFiber()
     crossBar << S1_Sender.node
 
-    S1_Sender.createMSIStreamConsumer() << S1.createMSIStreamProducer()
+    S1_Sender.createMsiStreamConsumer() << S1.createMsiStreamProducer()
 
-    val S2 = TilelinkAPLICFiber(APlicDomainParam.S(APlicGenParam.full))
+    val S2 = TilelinkAPlicFiber(APlicDomainParam.S(APlicGenParam.full))
     S2.node at 0x20000000 of access
 
-    val S2_Sender = TilelinkAPLICMSISenderFiber()
+    val S2_Sender = TilelinkAPlicMsiSenderFiber()
     crossBar << S2_Sender.node
 
-    S2_Sender.createMSIStreamConsumer() << S2.createMSIStreamProducer()
+    S2_Sender.createMsiStreamConsumer() << S2.createMsiStreamProducer()
 
-    val M = TilelinkAPLICFiber(APlicDomainParam.root(APlicGenParam.full))
+    val M = TilelinkAPlicFiber(APlicDomainParam.root(APlicGenParam.full))
     M.node at 0x30000000 of access
 
-    val M_Sender = TilelinkAPLICMSISenderFiber()
+    val M_Sender = TilelinkAPlicMsiSenderFiber()
     crossBar << M_Sender.node
 
-    M_Sender.createMSIStreamConsumer() << M.createMSIStreamProducer()
+    M_Sender.createMsiStreamConsumer() << M.createMsiStreamProducer()
 
     val targets1SBundles = hartIds.map(hartId => {
       val node = InterruptNode.slave()

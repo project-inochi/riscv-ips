@@ -3,7 +3,7 @@ package aia
 import spinal.core._
 import spinal.lib._
 
-case class APlicMSIParam(
+case class APlicMsiParam(
   base: BigInt = 0,
   hhxs: Int = 0,
   lhxs: Int = 0,
@@ -15,10 +15,9 @@ case class APlicGenParam(withDirect: Boolean,
                          withMSI: Boolean,
                          genIEP: Boolean = true,
                          withIForce: Boolean = false,
-                         var _MMsiParams: APlicMSIParam = APlicMSIParam(),
-                         var _SMsiParams: APlicMSIParam = APlicMSIParam(),
-
-                         var _withMSIAddrCfg: Boolean = false,
+                         var _MMsiParams: APlicMsiParam = APlicMsiParam(),
+                         var _SMsiParams: APlicMsiParam = APlicMsiParam(),
+                         var _withMsiAddrcfg: Boolean = false,
                          var _lockMSI: Boolean = false) {
 
   def lockMSI(): this.type = {
@@ -26,27 +25,27 @@ case class APlicGenParam(withDirect: Boolean,
     this
   }
 
-  def withMSIAddrCfg(): this.type = {
-    this._withMSIAddrCfg = true
+  def withMsiAddrcfg(): this.type = {
+    this._withMsiAddrcfg = true
     this
   }
 
-  def withMMSIParams(param: APlicMSIParam): this.type = {
+  def withMachineMsiParams(param: APlicMsiParam): this.type = {
     this._MMsiParams = param
     this
   }
 
-  def withMMSIParams(address: BigInt = 0, hhxs: Int = 0, lhxs: Int = 0, hhxw: Int = 0, lhxw: Int = 0): this.type = {
-    withMMSIParams(APlicMSIParam(base = address, hhxs = hhxs, lhxs = lhxs, hhxw = hhxw, lhxw = lhxw))
+  def withMachineMsiParams(address: BigInt = 0, hhxs: Int = 0, lhxs: Int = 0, hhxw: Int = 0, lhxw: Int = 0): this.type = {
+    withMachineMsiParams(APlicMsiParam(base = address, hhxs = hhxs, lhxs = lhxs, hhxw = hhxw, lhxw = lhxw))
   }
 
-  def withSMSIParams(param: APlicMSIParam): this.type = {
+  def withSupervisorMsiParams(param: APlicMsiParam): this.type = {
     this._SMsiParams = param
     this
   }
 
-  def withSMSIParams(address: BigInt = 0, lhxs: Int = 0): this.type = {
-    withSMSIParams(APlicMSIParam(base = address, lhxs = lhxs))
+  def withSupervisorMsiParams(address: BigInt = 0, lhxs: Int = 0): this.type = {
+    withSupervisorMsiParams(APlicMsiParam(base = address, lhxs = lhxs))
   }
 }
 
@@ -101,17 +100,17 @@ object APlicDomainParam {
 
 case class APlicChildInfo(childIdx: Int, sourceIds: Seq[Int])
 
-case class APlicMSIPayload() extends Bundle {
+case class APlicMsiPayload() extends Bundle {
   val address = UInt(64 bits)
   val data = UInt(32 bits)
 }
 
-trait APlicMSIProducerFiber extends Nameable{
-  def createMSIStreamProducer(): Stream[APlicMSIPayload]
+trait APlicMsiProducerFiber extends Nameable{
+  def createMsiStreamProducer(): Stream[APlicMsiPayload]
 }
 
-trait APlicMSIConsumerFiber extends Nameable{
-  def createMSIStreamConsumer(): Stream[APlicMSIPayload]
+trait APlicMsiConsumerFiber extends Nameable{
+  def createMsiStreamConsumer(): Stream[APlicMsiPayload]
 }
 
 case class APlic(p: APlicDomainParam,
@@ -153,7 +152,7 @@ case class APlic(p: APlicDomainParam,
     }
   }
 
-  val msiaddrcfg = (p.genParam.withMSI || p.genParam._withMSIAddrCfg) generate new Area {
+  val msiaddrcfg = (p.genParam.withMSI || p.genParam._withMsiAddrcfg) generate new Area {
     val M = new Area {
       val (lock, hhxs, lhxs, hhxw, lhxw, ppn) = if (p.isRoot) {
         (RegInit(Bool(p.genParam._lockMSI)),
@@ -243,13 +242,13 @@ case class APlic(p: APlicDomainParam,
     val gateway = new APlicMSIGateway(interrupts, deliveryEnable)
 
     val gatewayStream = gateway.requestStream.map(req => {
-      val payload = APlicMSIPayload()
+      val payload = APlicMsiPayload()
       payload.address := msiaddrcfg.msiAddress(req.target.hartId, req.target.guestId).resized
       payload.data := req.target.eiid.resized
       payload
     })
 
-    val genmsiStream = Stream(APlicMSIPayload())
+    val genmsiStream = Stream(APlicMsiPayload())
 
     val msiStream = StreamArbiterFactory().lowerFirst.noLock.onArgs(gatewayStream, genmsiStream)
   }

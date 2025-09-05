@@ -33,7 +33,7 @@ object APlicMapping {
   val claimiOffset        = 0x1c
 }
 
-case class APlicGenMSIPayload() extends Bundle {
+case class APlicGenMsiPayload() extends Bundle {
   val hartId = UInt(14 bits)
   val eiid = UInt(11 bits)
 }
@@ -56,7 +56,7 @@ object APlicMapper {
     }
 
     // mapping MSIADDRCFG, MSIADDRCFGH
-    val msiaddrcfg = (p.genParam.withMSI || p.genParam._withMSIAddrCfg) generate new Area {
+    val msiaddrcfg = (p.genParam.withMSI || p.genParam._withMsiAddrcfg) generate new Area {
       val addrcfg = aplic.msiaddrcfg
 
       bus.read(addrcfg.M.msiaddrcfgCovered(31 downto 0), address = mmsiaddrcfgOffset)
@@ -100,7 +100,7 @@ object APlicMapper {
       val logic = aplic.msi
       val addrcfg = aplic.msiaddrcfg
 
-      val genmsiPayload = Flow(APlicGenMSIPayload())
+      val genmsiPayload = Flow(APlicGenMsiPayload())
       val genmsiFlow = bus.createAndDriveFlow(UInt(32 bits), genmsiOffset).discardWhen(genmsiPayload.valid || !aplic.isMSI)
 
       // use register to store and wrap genmsiFlow's value
@@ -120,7 +120,7 @@ object APlicMapper {
       genmsiPayload.payload.hartId := rGenmsiFlow.hartId
       genmsiPayload.payload.eiid := rGenmsiFlow.eiid
 
-      val genmsiPayloadStream = Stream(APlicGenMSIPayload())
+      val genmsiPayloadStream = Stream(APlicGenMsiPayload())
       genmsiPayloadStream.valid := genmsiPayload.valid && !logic.gateway.requestStreamValidMask
       genmsiPayloadStream.payload := genmsiPayload.payload
 
@@ -131,7 +131,7 @@ object APlicMapper {
       }
 
       val genmsiStream = genmsiPayloadStream.map(param => {
-        val payload = APlicMSIPayload()
+        val payload = APlicMsiPayload()
         payload.address := addrcfg.msiAddress(param.hartId).resized
         payload.data := param.eiid.resized
         payload

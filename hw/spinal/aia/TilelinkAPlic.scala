@@ -10,7 +10,7 @@ import spinal.lib.misc.plic.InterruptCtrlFiber
 import spinal.lib.misc.slot.{Slot, SlotPool}
 import scala.collection.mutable.ArrayBuffer
 
-class MappedAplic[T <: spinal.core.Data with IMasterSlave](
+class MappedAPlic[T <: spinal.core.Data with IMasterSlave](
   sourceIds: Seq[Int],
   hartIds: Seq[Int],
   childInfos: Seq[APlicChildInfo],
@@ -28,10 +28,10 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](
     val smsiaddrcfg = (if (p.isRoot) out else in) UInt (64 bits)
     val targets = p.genParam.withDirect generate (out Bits (hartIds.size bits))
     val childSources = out Vec(childInfos.map(childInfo => Bits(childInfo.sourceIds.size bits)))
-    val msiMsg = p.genParam.withMSI generate master(Stream(APlicMSIPayload()))
+    val msiMsg = p.genParam.withMSI generate master(Stream(APlicMsiPayload()))
   }
 
-  if (p.isRoot && (p.genParam.withMSI || p.genParam._withMSIAddrCfg)) {
+  if (p.isRoot && (p.genParam.withMSI || p.genParam._withMsiAddrcfg)) {
     io.mmsiaddrcfg.assignDontCare()
     io.smsiaddrcfg.assignDontCare()
   }
@@ -60,9 +60,9 @@ class MappedAplic[T <: spinal.core.Data with IMasterSlave](
   val mapping = APlicMapper(factory)(aplic)
 }
 
-case class TilelinkAplic(sourceIds: Seq[Int], hartIds: Seq[Int], childInfos: Seq[APlicChildInfo],
+case class TilelinkAPlic(sourceIds: Seq[Int], hartIds: Seq[Int], childInfos: Seq[APlicChildInfo],
                          domainParam: APlicDomainParam, params: tilelink.BusParameter)
-                         extends MappedAplic(
+                         extends MappedAPlic(
   sourceIds,
   hartIds,
   childInfos,
@@ -71,9 +71,9 @@ case class TilelinkAplic(sourceIds: Seq[Int], hartIds: Seq[Int], childInfos: Seq
   new bus.tilelink.SlaveFactory(_, true)
 )
 
-case class TilelinkAPLICMSISender(pendingSize: Int, busParams: tilelink.BusParameter) extends Component {
+case class TilelinkAPlicMsiSender(pendingSize: Int, busParams: tilelink.BusParameter) extends Component {
   val io = new Bundle {
-    val msiMsg = slave(Stream(APlicMSIPayload()))
+    val msiMsg = slave(Stream(APlicMsiPayload()))
     val bus = master(tilelink.Bus(busParams))
   }
 
@@ -104,7 +104,7 @@ case class TilelinkAPLICMSISender(pendingSize: Int, busParams: tilelink.BusParam
   }
 }
 
-object TilelinkAplic {
+object TilelinkAPlic {
   def getTilelinkSlaveSupport(proposed: bus.tilelink.M2sSupport, addressWidth: Int = 20) = bus.tilelink.SlaveFactory.getSupported(
     addressWidth = addressWidth,
     dataWidth = 32,
@@ -119,7 +119,7 @@ object TilelinkAplic {
   }
 }
 
-object TilelinkAPLICMSISenderFiber {
+object TilelinkAPlicMsiSenderFiber {
   def getTilelinkMasterSupport(pendingSize: Int, addressWidth: Int, name: Nameable) = bus.tilelink.M2sParameters(
     addressWidth = addressWidth,
     dataWidth = 32,
@@ -139,34 +139,34 @@ object TilelinkAPLICMSISenderFiber {
   )
 }
 
-case class TilelinkAPLICMSISenderFiber(pendingSize: Int = 4, addressWidth: Int = 64) extends Area with APlicMSIConsumerFiber {
+case class TilelinkAPlicMsiSenderFiber(pendingSize: Int = 4, addressWidth: Int = 64) extends Area with APlicMsiConsumerFiber {
   val node = tilelink.fabric.Node.down()
-  var msiStream: Option[Stream[APlicMSIPayload]] = None
+  var msiStream: Option[Stream[APlicMsiPayload]] = None
 
-  override def createMSIStreamConsumer(): Stream[APlicMSIPayload] = {
+  override def createMsiStreamConsumer(): Stream[APlicMsiPayload] = {
     if (msiStream.isEmpty) {
-      msiStream = Some(Stream(APlicMSIPayload()))
+      msiStream = Some(Stream(APlicMsiPayload()))
     }
 
     msiStream.get
   }
 
   val thread = Fiber build new Area {
-    val busParams = TilelinkAPLICMSISenderFiber.getTilelinkMasterSupport(pendingSize, addressWidth, TilelinkAPLICMSISenderFiber.this)
+    val busParams = TilelinkAPlicMsiSenderFiber.getTilelinkMasterSupport(pendingSize, addressWidth, TilelinkAPlicMsiSenderFiber.this)
 
     node.m2s forceParameters busParams
     node.s2m.supported load tilelink.S2mSupport.none()
 
-    val core = TilelinkAPLICMSISender(pendingSize, node.bus.p)
+    val core = TilelinkAPlicMsiSender(pendingSize, node.bus.p)
 
     core.io.bus <> node.bus
     core.io.msiMsg << msiStream.get
   }
 }
 
-case class TilelinkAPLICFiber(domainParam: APlicDomainParam) extends Area with InterruptCtrlFiber with APlicMSIProducerFiber {
+case class TilelinkAPlicFiber(domainParam: APlicDomainParam) extends Area with InterruptCtrlFiber with APlicMsiProducerFiber {
   val node = tilelink.fabric.Node.up()
-  val core = Handle[TilelinkAplic]()
+  val core = Handle[TilelinkAPlic]()
 
   case class SourceSpec(node: InterruptNode, id: Int)
   case class TargetSpec(node: InterruptNode, id: Int)
@@ -176,13 +176,13 @@ case class TilelinkAPLICFiber(domainParam: APlicDomainParam) extends Area with I
 
   val sources = ArrayBuffer[SourceSpec]()
   val targets = ArrayBuffer[TargetSpec]()
-  var msiStream: Option[Stream[APlicMSIPayload]] = None
+  var msiStream: Option[Stream[APlicMsiPayload]] = None
   val mmsiaddrcfg = UInt (64 bits)
   val smsiaddrcfg = UInt (64 bits)
 
-  override def createMSIStreamProducer(): Stream[APlicMSIPayload] = {
+  override def createMsiStreamProducer(): Stream[APlicMsiPayload] = {
     if (msiStream.isEmpty) {
-      msiStream = Some(Stream(APlicMSIPayload()))
+      msiStream = Some(Stream(APlicMsiPayload()))
     }
 
     msiStream.get
@@ -208,10 +208,10 @@ case class TilelinkAPLICFiber(domainParam: APlicDomainParam) extends Area with I
   val thread = Fiber build new Area {
     lock.await()
 
-    node.m2s.supported.load(TilelinkAplic.getTilelinkSlaveSupport(node.m2s.proposed, TilelinkAplic.addressWidth(targets.map(_.id).max + 1)))
+    node.m2s.supported.load(TilelinkAPlic.getTilelinkSlaveSupport(node.m2s.proposed, TilelinkAPlic.addressWidth(targets.map(_.id).max + 1)))
     node.s2m.none()
 
-    val aplic = TilelinkAplic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, childSources.map(_.childInfo).toSeq, domainParam, node.bus.p)
+    val aplic = TilelinkAPlic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, childSources.map(_.childInfo).toSeq, domainParam, node.bus.p)
 
     core.load(aplic)
 

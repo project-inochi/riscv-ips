@@ -66,13 +66,13 @@ case class APlicUnitTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: 
     val access = tilelink.fabric.Node()
     access << crossBar
 
-    val M = TilelinkAPLICFiber(APlicDomainParam.root(APlicGenMode))
+    val M = TilelinkAPlicFiber(APlicDomainParam.root(APlicGenMode))
     M.node at 0x10000000 of access
 
-    val M_Sender = TilelinkAPLICMSISenderFiber()
+    val M_Sender = TilelinkAPlicMsiSenderFiber()
     crossBar << M_Sender.node
 
-    M_Sender.createMSIStreamConsumer() << M.createMSIStreamProducer()
+    M_Sender.createMsiStreamConsumer() << M.createMsiStreamProducer()
 
     val dispatcher = TilelinkImsicTriggerFiber()
     dispatcher.node at 0x30000000 of access
