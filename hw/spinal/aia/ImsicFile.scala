@@ -11,6 +11,24 @@ case class ImsicFileInfo(
   groupHartId   : Int
 )
 
+object ImsicFileInfo {
+  def apply(hartId: Int, guestId: Int, sourceIds: Seq[Int]): ImsicFileInfo = ImsicFileInfo(
+    hartId = hartId,
+    guestId = guestId,
+    sourceIds = sourceIds,
+    groupId = 0,
+    groupHartId = hartId
+  )
+
+  def apply(hartId: Int, sourceIds: Seq[Int]): ImsicFileInfo = ImsicFileInfo(
+    hartId = hartId,
+    guestId = 0,
+    sourceIds = sourceIds,
+    groupId = 0,
+    groupHartId = hartId
+  )
+}
+
 case class ImsicFile(hartId: Int, guestId: Int, sourceIds: Seq[Int]) extends Area {
   val idWidth = log2Up((sourceIds ++ Seq(0)).max + 1)
 
