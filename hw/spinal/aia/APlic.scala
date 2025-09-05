@@ -153,7 +153,7 @@ case class APlic(p: APlicDomainParam,
   }
 
   val msiaddrcfg = (p.genParam.withMSI || p.genParam._withMsiAddrcfg) generate new Area {
-    val M = new Area {
+    val m = new Area {
       val (lock, hhxs, lhxs, hhxw, lhxw, ppn) = if (p.isRoot) {
         (RegInit(Bool(p.genParam._lockMSI)),
          RegInit(U(p.genParam._MMsiParams.hhxs, 5 bits)),
@@ -195,7 +195,7 @@ case class APlic(p: APlicDomainParam,
       }
     }
 
-    val S = new Area {
+    val s = new Area {
       val (ppn, lhxs) = if (p.isRoot) {
         (RegInit(U(p.genParam._SMsiParams.base >> 12, 44 bits)),
          RegInit(U(p.genParam._SMsiParams.lhxs, 3 bits)))
@@ -204,18 +204,18 @@ case class APlic(p: APlicDomainParam,
       }
 
       val msiaddrcfg = if (p.isRoot) {
-        U(64 bits, 63             -> M.lock,
-                   (60 downto 56) -> M.hhxs,
+        U(64 bits, 63             -> m.lock,
+                   (60 downto 56) -> m.hhxs,
                    (54 downto 52) -> lhxs,
-                   (50 downto 48) -> M.hhxw,
-                   (47 downto 44) -> M.lhxw,
+                   (50 downto 48) -> m.hhxw,
+                   (47 downto 44) -> m.lhxw,
                    (43 downto 0)  -> ppn,
                    default        -> False)
       } else {
         smsiaddrcfg
       }
 
-      val msiaddrcfgCovered = M.lock.mux(
+      val msiaddrcfgCovered = m.lock.mux(
         True  -> U(0),
         False -> msiaddrcfg
       )
@@ -226,11 +226,11 @@ case class APlic(p: APlicDomainParam,
     }
 
     def msiAddress(hartIndex: UInt, guestIndex: UInt = 0): UInt = {
-      val groupId = (hartIndex >> M.lhxw) & M.maskH.resized
-      val hartId = hartIndex & M.maskL.resized
-      val groupOffset = groupId << (M.hhxs + 12)
-      val lhxs = if (p.isMDomain) M.lhxs else S.lhxs
-      val ppn = if (p.isMDomain) M.ppn else S.ppn
+      val groupId = (hartIndex >> m.lhxw) & m.maskH.resized
+      val hartId = hartIndex & m.maskL.resized
+      val groupOffset = groupId << (m.hhxs + 12)
+      val lhxs = if (p.isMDomain) m.lhxs else s.lhxs
+      val ppn = if (p.isMDomain) m.ppn else s.ppn
       val hartOffset = hartId << lhxs
 
       val msiaddr = (ppn | groupOffset.resized | hartOffset.resized | guestIndex.resized) << 12
