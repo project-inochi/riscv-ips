@@ -138,6 +138,8 @@ object ImsicTrigger {
       val offset = imsicOffset(realMapping, info.groupId, info.groupHartId, info.guestId)
 
       mapper.driveFrom(bus, offset)
+
+      setName(f"trigger_g${info.groupId}h${info.groupHartId}v${info.guestId}")
     }
 
     val triggers = Vec(mappers.map(_.mapper.io.triggers))
