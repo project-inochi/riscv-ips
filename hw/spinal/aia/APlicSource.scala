@@ -108,58 +108,31 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: 
 
 
   val state = new Area {
-    val allowSet = Bool()
-    val allowClear = Bool()
-    val ctx = WhenBuilder()
-    val rectified = Bool()
+    val rectified = mode.mux(
+      EDGE0    -> input.rise(),
+      EDGE1    -> input.fall(),
+      LEVEL1   -> input,
+      LEVEL0   -> ~input,
+      default  -> False
+    )
 
-    switch(mode) {
-      is(EDGE1) {
-        rectified := input.rise()
-      }
-      is(EDGE0) {
-        rectified := input.fall()
-      }
-      is(LEVEL1) {
-        rectified := input
-      }
-      is(LEVEL0) {
-        rectified := ~input
-      }
-      default {
-        rectified := False
-      }
-    }
+    val allowSet = mode.mux(
+      EDGE0    -> True,
+      EDGE1    -> True,
+      LEVEL1   -> Mux(isMSI, rectified, False),
+      LEVEL0   -> Mux(isMSI, rectified, False),
+      DETACHED -> True,
+      default  -> False
+    )
 
-    ctx.when(delegated) {
-      allowSet := False
-      allowClear := False
-    }
-
-    ctx.when(List(LEVEL1, LEVEL0).map(mode === _).orR && !isMSI) {
-      allowSet := False
-      allowClear := False
-    }
-
-    ctx.when(List(LEVEL1, LEVEL0).map(mode === _).orR && isMSI) {
-      allowSet := rectified
-      allowClear := True
-    }
-
-    ctx.when(List(EDGE1, EDGE0, DETACHED).map(mode === _).orR) {
-      allowSet := True
-      allowClear := True
-    }
-
-    ctx.when(mode === INACTIVE) {
-      allowSet := False
-      allowClear := False
-    }
-
-    ctx.otherwise {
-      allowSet := False
-      allowClear := False
-    }
+    val allowClear = mode.mux(
+      EDGE0    -> True,
+      EDGE1    -> True,
+      LEVEL1   -> Mux(isMSI, rectified, True),
+      LEVEL0   -> Mux(isMSI, rectified, True),
+      DETACHED -> True,
+      default  -> False
+    )
   }
 
   when(delegated) {
