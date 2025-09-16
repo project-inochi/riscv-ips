@@ -2,6 +2,7 @@ package aia
 
 import spinal.core._
 import spinal.lib._
+import spinal.lib.com.spi.sim.FlashModel
 
 abstract class APlicGenericRequest(idWidth: Int) extends Bundle {
   val id = UInt(idWidth bits)
@@ -130,6 +131,11 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: 
       }
     }
 
+    ctx.when(delegated) {
+      allowSet := False
+      allowClear := False
+    }
+
     ctx.when(List(LEVEL1, LEVEL0).map(mode === _).orR && !isMSI) {
       allowSet := False
       allowClear := False
@@ -140,19 +146,19 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: 
       allowClear := True
     }
 
+    ctx.when(List(EDGE1, EDGE0, DETACHED).map(mode === _).orR) {
+      allowSet := True
+      allowClear := True
+    }
+
     ctx.when(mode === INACTIVE) {
       allowSet := False
       allowClear := False
     }
 
-    ctx.when(mode === DETACHED) {
-      allowSet := True
-      allowClear := True
-    }
-
     ctx.otherwise {
-      allowSet := !delegated
-      allowClear := !delegated
+      allowSet := False
+      allowClear := False
     }
   }
 
