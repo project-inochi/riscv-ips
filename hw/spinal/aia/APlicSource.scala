@@ -106,7 +106,7 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: 
   val eiid = RegInit(U(0x0, 11 bits))
 
 
-  val ipState = new Area {
+  val state = new Area {
     val allowSet = Bool()
     val allowClear = Bool()
     val ctx = WhenBuilder()
@@ -218,13 +218,13 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: 
   }
 
   def doClaim(): Unit = {
-    when(ipState.allowClear) {
+    when(state.allowClear) {
       ip := False
     }
   }
 
   def doSet(): Unit = {
-    when(ipState.allowSet) {
+    when(state.allowSet) {
       ip := True
     }
   }

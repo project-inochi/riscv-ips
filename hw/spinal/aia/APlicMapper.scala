@@ -212,7 +212,7 @@ object APlicMapper {
           interrupt.doPendingUpdate(ipDrive.payload)
         }
 
-        bus.read(interrupt.ipState.rectified, address = in_clripOffset + interruptOffset, bitOffset = interruptBitOffset)
+        bus.read(interrupt.state.rectified, address = in_clripOffset + interruptOffset, bitOffset = interruptBitOffset)
         val clripDrive = bus.createAndDriveFlow(Bool(), address = in_clripOffset + interruptOffset, bitOffset = interruptBitOffset)
         when(clripDrive.valid && clripDrive.payload === True) {
           interrupt.doClaim()
