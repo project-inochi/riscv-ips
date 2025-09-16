@@ -105,32 +105,30 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: 
   val guestId = RegInit(U(0x0, 6 bits))
   val eiid = RegInit(U(0x0, 11 bits))
 
-  val rectified = new Area {
-    val value = Bool()
-
-    switch(mode) {
-      is(EDGE1) {
-        value := input.rise()
-      }
-      is(EDGE0) {
-        value := input.fall()
-      }
-      is(LEVEL1) {
-        value := input
-      }
-      is(LEVEL0) {
-        value := ~input
-      }
-      default {
-        value := False
-      }
-    }
-  }
 
   val ipState = new Area {
     val allowSet = Bool()
     val allowClear = Bool()
     val ctx = WhenBuilder()
+    val rectified = Bool()
+
+    switch(mode) {
+      is(EDGE1) {
+        rectified := input.rise()
+      }
+      is(EDGE0) {
+        rectified := input.fall()
+      }
+      is(LEVEL1) {
+        rectified := input
+      }
+      is(LEVEL0) {
+        rectified := ~input
+      }
+      default {
+        rectified := False
+      }
+    }
 
     ctx.when(List(LEVEL1, LEVEL0).map(mode === _).orR && !isMSI) {
       allowSet := False
@@ -138,13 +136,18 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: 
     }
 
     ctx.when(List(LEVEL1, LEVEL0).map(mode === _).orR && isMSI) {
-      allowSet := rectified.value
+      allowSet := rectified
       allowClear := True
     }
 
     ctx.when(mode === INACTIVE) {
       allowSet := False
       allowClear := False
+    }
+
+    ctx.when(mode === DETACHED) {
+      allowSet := True
+      allowClear := True
     }
 
     ctx.otherwise {
