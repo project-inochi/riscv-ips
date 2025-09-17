@@ -181,7 +181,7 @@ object APlicMapper {
       val target = new Area {
         val configFlow = bus.createAndDriveFlow(UInt(18 bits), address = targetOffset + configOffset, bitOffset = 0)
 
-        when(configFlow.valid) {
+        when(configFlow.valid && interrupt.isActive) {
           when(aplic.isMSI) {
             interrupt.guestId := configFlow.payload(17 downto 12)
             interrupt.eiid := configFlow.payload(10 downto 0)
@@ -200,7 +200,13 @@ object APlicMapper {
         )
         bus.read(configView, address = targetOffset + configOffset, bitOffset = 0)
 
-        bus.readAndWrite(interrupt.targetId, address = targetOffset + configOffset, bitOffset = 18)
+        val targetFlow = bus.createAndDriveFlow(interrupt.targetId, address = targetOffset + configOffset, bitOffset = 18)
+
+        when(targetFlow.valid && interrupt.isActive) {
+          interrupt.targetId := targetFlow.payload
+        }
+
+        bus.read(interrupt.targetId, address = targetOffset + configOffset, bitOffset = 18)
       }
 
       val iep = p.genParam.genIEP generate new Area {

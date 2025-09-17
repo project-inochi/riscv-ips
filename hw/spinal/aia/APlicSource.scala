@@ -232,6 +232,8 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: 
     }
   }
 
+  def isActive: Bool = mode =/= INACTIVE
+
   def doConfigIpUpdate(modeB: Bits) {
     val mode = APlicSourceMode()
     val ctx = WhenBuilder()
