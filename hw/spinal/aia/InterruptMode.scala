@@ -5,7 +5,7 @@ import spinal.lib._
 import spinal.lib.misc.InterruptNode
 import spinal.lib.misc.plic.InterruptCtrlFiber
 
-sealed trait InterruptMode extends AreaObject
+sealed trait InterruptMode
 object EDGE_RISING extends InterruptMode
 object EDGE_FALLING extends InterruptMode
 object LEVEL_HIGH extends InterruptMode
