@@ -89,10 +89,7 @@ case class APlicMSIRequest(idWidth: Int) extends APlicGenericRequest(idWidth) {
   }
 }
 
-case class APlicSourceParam(
-  id: Int,
-  modes: InterruptMode
-)
+case class APlicSourceParam(id: Int, mode: InterruptMode)
 
 case class APlicSourceState(
   withDelegation: Boolean,
@@ -256,7 +253,7 @@ object APlicSource {
   def apply(param: APlicSourceParam, state: APlicSourceState): APlicSource = {
     val sourceId = param.id
 
-    param.modes match {
+    param.mode match {
       case EDGE_FALLING => APlicSourceActiveFalling(sourceId, state)
       case EDGE_RISING  => APlicSourceActiveRising(sourceId, state)
       case LEVEL_HIGH   => APlicSourceActiveHigh(sourceId, state)
