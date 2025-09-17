@@ -5,8 +5,7 @@ import spinal.core.fiber._
 import spinal.lib._
 import spinal.lib.bus.misc._
 import spinal.lib.bus.tilelink
-import spinal.lib.misc.InterruptNode
-import spinal.lib.misc.plic.InterruptCtrlFiber
+import spinal.lib.misc._
 import spinal.lib.misc.slot.{Slot, SlotPool}
 import scala.collection.mutable.ArrayBuffer
 
@@ -162,7 +161,7 @@ case class TilelinkAPlicMsiSenderFiber(pendingSize: Int = 4, addressWidth: Int =
   }
 }
 
-case class TilelinkAPlicFiber(domainParam: APlicDomainParam) extends Area with TypedInterruptCtrlFiber with APlicMsiProducerFiber {
+case class TilelinkAPlicFiber(domainParam: APlicDomainParam) extends Area with InterruptCtrlFiber with APlicMsiProducerFiber {
   val node = tilelink.fabric.Node.up()
   val core = Handle[TilelinkAPlic]()
 
