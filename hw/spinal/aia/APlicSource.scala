@@ -150,37 +150,32 @@ case class APlicSource(param: APlicSourceParam, delegatable: Boolean, isMSI: Boo
     allowClearMapping.filter(map => param.modes.contains(map._1)).map(_._2).toSeq ++ Seq((default, False))
   )
 
-  when(delegated) {
+  val ctx = WhenBuilder()
+  ctx.when(mode === EDGE1) {
+    ip.setWhen(input.rise())
+  }
+  ctx.when(mode === EDGE0) {
+    ip.setWhen(input.fall())
+  }
+  ctx.when(mode === LEVEL1 && !isMSI) {
+    ip := input
+  }
+  ctx.when(mode === LEVEL1 && isMSI) {
+    ip.setWhen(input.rise())
+    ip.clearWhen(!input)
+  }
+  ctx.when(mode === LEVEL0 && !isMSI) {
+    ip := ~input
+  }
+  ctx.when(mode === LEVEL0 && isMSI) {
+    ip.setWhen(input.fall())
+    ip.clearWhen(input)
+  }
+  ctx.when(mode === DETACHED) {
+  }
+  ctx.otherwise {
+    ip := False
     ie := False
-  } otherwise {
-    val ctx = WhenBuilder()
-
-    ctx.when(mode === EDGE1) {
-      ip.setWhen(input.rise())
-    }
-    ctx.when(mode === EDGE0) {
-      ip.setWhen(input.fall())
-    }
-    ctx.when(mode === LEVEL1 && !isMSI) {
-      ip := input
-    }
-    ctx.when(mode === LEVEL1 && isMSI) {
-      ip.setWhen(input.rise())
-      ip.clearWhen(!input)
-    }
-    ctx.when(mode === LEVEL0 && !isMSI) {
-      ip := ~input
-    }
-    ctx.when(mode === LEVEL0 && isMSI) {
-      ip.setWhen(input.fall())
-      ip.clearWhen(input)
-    }
-    ctx.when(mode === DETACHED) {
-    }
-    ctx.otherwise {
-      ip := False
-      ie := False
-    }
   }
 
   def asDirectRequest(idWidth: Int, targetHart: Int): APlicGenericRequest = {
