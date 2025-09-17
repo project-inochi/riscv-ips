@@ -106,7 +106,6 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: 
   val guestId = RegInit(U(0x0, 6 bits))
   val eiid = RegInit(U(0x0, 11 bits))
 
-
   val state = new Area {
     val rectified = mode.mux(
       EDGE0    -> input.fall(),
@@ -140,39 +139,31 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: 
   } otherwise {
     val ctx = WhenBuilder()
 
-    ctx.when(mode === INACTIVE) {
-      ip := False
-      ie := False
-    }
     ctx.when(mode === EDGE1) {
-      when(input.rise()) {
-        ip := True
-      }
+      ip.setWhen(input.rise())
     }
     ctx.when(mode === EDGE0) {
-      when(input.fall()) {
-        ip := True
-      }
+      ip.setWhen(input.fall())
     }
     ctx.when(mode === LEVEL1 && !isMSI) {
       ip := input
     }
     ctx.when(mode === LEVEL1 && isMSI) {
-      when(input.rise()) {
-        ip := True
-      } elsewhen(!input) {
-        ip := False
-      }
+      ip.setWhen(input.rise())
+      ip.clearWhen(!input)
     }
     ctx.when(mode === LEVEL0 && !isMSI) {
       ip := ~input
     }
     ctx.when(mode === LEVEL0 && isMSI) {
-      when(input.fall()) {
-        ip := True
-      } elsewhen(input) {
-        ip := False
-      }
+      ip.setWhen(input.fall())
+      ip.clearWhen(input)
+    }
+    ctx.when(mode === DETACHED) {
+    }
+    ctx.otherwise {
+      ip := False
+      ie := False
     }
   }
 
@@ -197,15 +188,11 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: 
   }
 
   def doClaim(): Unit = {
-    when(state.allowClear) {
-      ip := False
-    }
+    ip.clearWhen(state.allowClear)
   }
 
   def doSet(): Unit = {
-    when(state.allowSet) {
-      ip := True
-    }
+    ip.setWhen(state.allowSet)
   }
 
   def doPendingUpdate(pending: Bool): Unit = {
