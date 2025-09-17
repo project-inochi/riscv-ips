@@ -115,42 +115,40 @@ case class APlicSource(param: APlicSourceParam, delegatable: Boolean, isMSI: Boo
   val guestId = RegInit(U(0x0, 6 bits))
   val eiid = RegInit(U(0x0, 11 bits))
 
-  val state = new Area {
-    val rectifiedMapping = LinkedHashMap[InterruptMode, (APlicSourceMode.E, Bool)](
-      (EDGE_FALLING, (EDGE0,    input.fall())),
-      (EDGE_RISING,  (EDGE1,    input.rise())),
-      (LEVEL_HIGH,   (LEVEL1,   input)),
-      (LEVEL_LOWEL,  (LEVEL0,   ~input)),
-    )
+  val rectifiedMapping = LinkedHashMap[InterruptMode, (APlicSourceMode.E, Bool)](
+    (EDGE_FALLING, (EDGE0,    input.fall())),
+    (EDGE_RISING,  (EDGE1,    input.rise())),
+    (LEVEL_HIGH,   (LEVEL1,   input)),
+    (LEVEL_LOWEL,  (LEVEL0,   ~input)),
+  )
 
-    val rectified = mode.muxList(
-      rectifiedMapping.filter(map => param.modes.contains(map._1)).map(_._2).toSeq ++ Seq((default, False))
-    )
+  val rectified = mode.muxList(
+    rectifiedMapping.filter(map => param.modes.contains(map._1)).map(_._2).toSeq ++ Seq((default, False))
+  )
 
-    val allowSetMapping = LinkedHashMap[InterruptMode, (APlicSourceMode.E, Bool)](
-      (EDGE_FALLING, (EDGE0,    True)),
-      (EDGE_RISING,  (EDGE1,    True)),
-      (LEVEL_HIGH,   (LEVEL1,   Mux(isMSI, rectified, False))),
-      (LEVEL_LOWEL,  (LEVEL0,   Mux(isMSI, rectified, False))),
-      (SPURIOUS,     (DETACHED, True)),
-    )
+  val allowSetMapping = LinkedHashMap[InterruptMode, (APlicSourceMode.E, Bool)](
+    (EDGE_FALLING, (EDGE0,    True)),
+    (EDGE_RISING,  (EDGE1,    True)),
+    (LEVEL_HIGH,   (LEVEL1,   Mux(isMSI, rectified, False))),
+    (LEVEL_LOWEL,  (LEVEL0,   Mux(isMSI, rectified, False))),
+    (SPURIOUS,     (DETACHED, True)),
+  )
 
-    val allowSet = mode.muxList(
-      allowSetMapping.filter(map => param.modes.contains(map._1)).map(_._2).toSeq ++ Seq((default, False))
-    )
+  val allowSet = mode.muxList(
+    allowSetMapping.filter(map => param.modes.contains(map._1)).map(_._2).toSeq ++ Seq((default, False))
+  )
 
-    val allowClearMapping = LinkedHashMap[InterruptMode, (APlicSourceMode.E, Bool)](
-      (EDGE_FALLING, (EDGE0,    True)),
-      (EDGE_RISING,  (EDGE1,    True)),
-      (LEVEL_HIGH,   (LEVEL1,   Mux(isMSI, True, False))),
-      (LEVEL_LOWEL,  (LEVEL0,   Mux(isMSI, True, False))),
-      (SPURIOUS,     (DETACHED, True)),
-    )
+  val allowClearMapping = LinkedHashMap[InterruptMode, (APlicSourceMode.E, Bool)](
+    (EDGE_FALLING, (EDGE0,    True)),
+    (EDGE_RISING,  (EDGE1,    True)),
+    (LEVEL_HIGH,   (LEVEL1,   Mux(isMSI, True, False))),
+    (LEVEL_LOWEL,  (LEVEL0,   Mux(isMSI, True, False))),
+    (SPURIOUS,     (DETACHED, True)),
+  )
 
-    val allowClear = mode.muxList(
-      allowClearMapping.filter(map => param.modes.contains(map._1)).map(_._2).toSeq ++ Seq((default, False))
-    )
-  }
+  val allowClear = mode.muxList(
+    allowClearMapping.filter(map => param.modes.contains(map._1)).map(_._2).toSeq ++ Seq((default, False))
+  )
 
   when(delegated) {
     ie := False
@@ -206,11 +204,11 @@ case class APlicSource(param: APlicSourceParam, delegatable: Boolean, isMSI: Boo
   }
 
   def doClaim(): Unit = {
-    ip.clearWhen(state.allowClear)
+    ip.clearWhen(allowClear)
   }
 
   def doSet(): Unit = {
-    ip.setWhen(state.allowSet)
+    ip.setWhen(allowSet)
   }
 
   def doPendingUpdate(pending: Bool): Unit = {
