@@ -5,7 +5,7 @@ import spinal.lib._
 
 case class APlicDirectGateway(interrupts: Seq[APlicSource], hartId: Int, allowSpuriousInterrupt: Boolean) extends Area {
   val maxSource = (interrupts.map(_.id) ++ Seq(0)).max + 1
-  val priorityWidth = (interrupts.map(i => widthOf(i.prio))).max
+  val priorityWidth = (interrupts.map(i => widthOf(i.direct.prio))).max
   val idWidth = log2Up(maxSource)
 
   val idelivery = RegInit(False)

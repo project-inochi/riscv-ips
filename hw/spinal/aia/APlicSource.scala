@@ -94,12 +94,22 @@ case class APlicSourceParam(
   modes: Seq[InterruptMode]
 )
 
-case class APlicSource(param: APlicSourceParam, delegatable: Boolean, isMSI: Bool, input: Bool) extends Area {
+case class APlicSourceState(
+  withDelegation: Boolean,
+  withDirect: Boolean,
+  withMSI: Boolean,
+  msiState: Bool,
+  input: Bool
+)
+
+case class APlicSource(param: APlicSourceParam, state: APlicSourceState) extends Area {
   import APlicSourceMode._
 
   val id = param.id
+  val input = state.input
   val ie = RegInit(False)
   val ip = RegInit(False)
+  val isMSI = state.msiState
   val config = RegInit(U(0, 11 bits))
   val delegated = config(10)
   val childIdx = config(9 downto 0)
@@ -108,12 +118,16 @@ case class APlicSource(param: APlicSourceParam, delegatable: Boolean, isMSI: Boo
 
   mode.assignFromBits(modeBit)
 
+  /* target field */
   val targetId = RegInit(U(0x0, 14 bits))
-  val prio = RegInit(U(1, 8 bits))
+  val direct = state.withDirect generate new Area {
+    val prio = RegInit(U(1, 8 bits))
+  }
 
-  // for msi delivery mode
-  val guestId = RegInit(U(0x0, 6 bits))
-  val eiid = RegInit(U(0x0, 11 bits))
+  val msi = state.withMSI generate new Area {
+    val guestId = RegInit(U(0x0, 6 bits))
+    val eiid = RegInit(U(0x0, 11 bits))
+  }
 
   val rectifiedMapping = LinkedHashMap[InterruptMode, (APlicSourceMode.E, Bool)](
     (EDGE_FALLING, (EDGE0,    input.fall())),
@@ -179,11 +193,11 @@ case class APlicSource(param: APlicSourceParam, delegatable: Boolean, isMSI: Boo
   }
 
   def asDirectRequest(idWidth: Int, targetHart: Int): APlicGenericRequest = {
-    val ret = new APlicDirectRequest(idWidth, prio.getWidth)
+    val ret = new APlicDirectRequest(idWidth, direct.prio.getWidth)
     val enable = ie && !isMSI
     ret.id := U(id)
     ret.valid := ip && enable && (targetId === targetHart)
-    ret.prio := prio
+    ret.prio := direct.prio
     ret
   }
 
@@ -191,8 +205,8 @@ case class APlicSource(param: APlicSourceParam, delegatable: Boolean, isMSI: Boo
     val ret = new APlicMSIRequest(idWidth)
     val enable = (ie || ret.keep) && isMSI
     ret.target.hartId := targetId
-    ret.target.guestId := guestId
-    ret.target.eiid := eiid
+    ret.target.guestId := msi.guestId
+    ret.target.eiid := msi.eiid
     ret.id := U(id)
     ret.valid := ip && enable
     ret
@@ -253,7 +267,7 @@ case class APlicSource(param: APlicSourceParam, delegatable: Boolean, isMSI: Boo
     val _delegated = payload(10)
 
     when (_delegated) {
-      if (delegatable) {
+      if (state.withDelegation) {
         config := payload
       } else {
         config := 0

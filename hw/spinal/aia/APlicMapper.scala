@@ -3,6 +3,7 @@ package aia
 import spinal.core._
 import spinal.lib._
 import spinal.lib.bus.misc.{BusSlaveFactory, AllMapping, SingleMapping}
+import scala.collection.mutable.ArrayBuffer
 
 object APlicMapping {
   val domaincfgOffset     = 0x0000
@@ -182,22 +183,34 @@ object APlicMapper {
         val configFlow = bus.createAndDriveFlow(UInt(18 bits), address = targetOffset + configOffset, bitOffset = 0)
 
         when(configFlow.valid && interrupt.isActive) {
-          when(aplic.isMSI) {
-            interrupt.guestId := configFlow.payload(17 downto 12)
-            interrupt.eiid := configFlow.payload(10 downto 0)
-          } otherwise {
-            val prio = configFlow.payload(7 downto 0)
-            interrupt.prio := (prio === 0) ? U(1) | prio
+          if(p.genParam.withDirect) {
+            when(!aplic.isMSI) {
+              val prio = configFlow.payload(7 downto 0)
+              interrupt.direct.prio := (prio === 0) ? U(1) | prio
+            }
+          }
+          if(p.genParam.withMSI) {
+            when(aplic.isMSI) {
+              interrupt.msi.guestId := configFlow.payload(17 downto 12)
+              interrupt.msi.eiid := configFlow.payload(10 downto 0)
+            }
           }
         }
 
-        val configView = aplic.isMSI.mux(
-          True  -> B(18 bits, (17 downto 12) -> interrupt.guestId.asBits,
-                              (10 downto 0) -> interrupt.eiid.asBits,
-                              default -> False),
-          False -> B(18 bits, (7 downto 0) -> interrupt.prio.asBits,
-                              default -> False)
-        )
+        val configViewList = ArrayBuffer[(Bool, Bits)]()
+        if (p.genParam.withDirect) {
+          val view = B(18 bits, (7 downto 0) -> interrupt.direct.prio.asBits,
+                                default -> False)
+          configViewList.addOne((False, view))
+        }
+        if (p.genParam.withMSI) {
+          val view = B(18 bits, (17 downto 12) -> interrupt.msi.guestId.asBits,
+                                (10 downto 0) -> interrupt.msi.eiid.asBits,
+                                default -> False)
+          configViewList.addOne((True, view))
+        }
+        val configView = aplic.isMSI.muxListDc(configViewList)
+
         bus.read(configView, address = targetOffset + configOffset, bitOffset = 0)
 
         val targetFlow = bus.createAndDriveFlow(interrupt.targetId, address = targetOffset + configOffset, bitOffset = 18)

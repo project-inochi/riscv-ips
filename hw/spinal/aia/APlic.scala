@@ -139,7 +139,7 @@ case class APlic(p: APlicDomainParam,
   val bigEndian = False
 
   val interrupts: Seq[APlicSource] = for (((param, delegatable), i) <- sourceParams.zip(interruptDelegatable).zipWithIndex)
-    yield new APlicSource(param, delegatable, isMSI, sources(i))
+    yield new APlicSource(param, APlicSourceState(delegatable, p.genParam.withDirect, p.genParam.withMSI, isMSI, sources(i)))
 
   val childMappings = for ((childInfo, childSource) <- childInfos.zip(childSources)) yield new Area {
     for ((childSourceId, idx) <- childInfo.sourceIds.zipWithIndex) yield new Area {
