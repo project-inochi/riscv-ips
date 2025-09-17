@@ -130,7 +130,7 @@ case class APlic(p: APlicDomainParam,
   val interruptDelegatable = for (sourceId <- sourceIds) yield childInterruptIds.find(_ == sourceId).isDefined
 
   val deliveryEnable = RegInit(False)
-  val isMSI = (p.genParam.withDirect, p.genParam.withMSI) match {
+  val isMSI = ((p.genParam.withDirect, p.genParam.withMSI): @unchecked) match {
     case (true, true) => RegInit(False)
     case (false, true) => True
     case (true, false) => False
