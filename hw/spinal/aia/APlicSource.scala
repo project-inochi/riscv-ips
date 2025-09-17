@@ -91,7 +91,7 @@ case class APlicMSIRequest(idWidth: Int) extends APlicGenericRequest(idWidth) {
 
 case class APlicSourceParam(
   id: Int,
-  modes: Seq[InterruptMode]
+  modes: InterruptMode
 )
 
 case class APlicSourceState(
@@ -253,7 +253,16 @@ abstract class APlicSource(sourceId: Int, state: APlicSourceState) extends Area 
 }
 
 object APlicSource {
-  def apply(param: APlicSourceParam, state: APlicSourceState):  APlicSource = {
+  def apply(param: APlicSourceParam, state: APlicSourceState): APlicSource = {
+    val sourceId = param.id
+
+    param.modes match {
+      case EDGE_FALLING => APlicSourceActiveFalling(sourceId, state)
+      case EDGE_RISING  => APlicSourceActiveRising(sourceId, state)
+      case LEVEL_HIGH   => APlicSourceActiveHigh(sourceId, state)
+      case LEVEL_LOW    => APlicSourceActiveLow(sourceId, state)
+      case SPURIOUS     => APlicSourceActiveSpurious(sourceId, state)
+    }
     new APlicFullSource(param.id, state)
   }
 }

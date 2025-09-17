@@ -162,7 +162,7 @@ case class TilelinkAPlicMsiSenderFiber(pendingSize: Int = 4, addressWidth: Int =
   }
 }
 
-case class TilelinkAPlicFiber(domainParam: APlicDomainParam) extends Area with InterruptCtrlFiber with APlicMsiProducerFiber {
+case class TilelinkAPlicFiber(domainParam: APlicDomainParam) extends Area with TypedInterruptCtrlFiber with APlicMsiProducerFiber {
   val node = tilelink.fabric.Node.up()
   val core = Handle[TilelinkAPlic]()
 
@@ -178,6 +178,8 @@ case class TilelinkAPlicFiber(domainParam: APlicDomainParam) extends Area with I
   val mmsiaddrcfg = UInt (64 bits)
   val smsiaddrcfg = UInt (64 bits)
 
+  def defaultInterruptMode = LEVEL_HIGH
+
   override def createMsiStreamProducer(): Stream[APlicMsiPayload] = {
     if (msiStream.isEmpty) {
       msiStream = Some(Stream(APlicMsiPayload()))
@@ -192,8 +194,8 @@ case class TilelinkAPlicFiber(domainParam: APlicDomainParam) extends Area with I
     spec.node
   }
 
-  override def createInterruptSlave(id: Int) : InterruptNode = {
-    val param = APlicSourceParam(id, Seq(EDGE_RISING, EDGE_FALLING, LEVEL_HIGH, LEVEL_LOWEL, SPURIOUS))
+  override def createInterruptSlave(id: Int, mode: InterruptMode) : InterruptNode = {
+    val param = APlicSourceParam(id, mode)
     val spec = node.clockDomain on SourceSpec(InterruptNode.slave(), param)
     sources += spec
     spec.node
