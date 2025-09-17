@@ -178,7 +178,7 @@ case class TilelinkAPlicFiber(domainParam: APlicDomainParam) extends Area with T
   val mmsiaddrcfg = UInt (64 bits)
   val smsiaddrcfg = UInt (64 bits)
 
-  def defaultInterruptMode = LEVEL_HIGH
+  override def defaultInterruptMode = LEVEL_HIGH
 
   override def createMsiStreamProducer(): Stream[APlicMsiPayload] = {
     if (msiStream.isEmpty) {
@@ -188,7 +188,7 @@ case class TilelinkAPlicFiber(domainParam: APlicDomainParam) extends Area with T
     msiStream.get
   }
 
-  override def createInterruptMaster(id : Int) : InterruptNode = {
+  override def createInterruptMaster(id: Int) : InterruptNode = {
     val spec = node.clockDomain on TargetSpec(InterruptNode.master(), id)
     targets += spec
     spec.node

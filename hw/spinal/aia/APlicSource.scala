@@ -267,9 +267,9 @@ object APlicSource {
 case class APlicFullSource(sourceId: Int, state: APlicSourceState) extends APlicSource(sourceId, state) {
   import APlicSourceMode._
 
-  def supportModes(): Seq[E] = Seq(INACTIVE, EDGE0, EDGE1, LEVEL0, LEVEL1, DETACHED)
+  override def supportModes(): Seq[E] = Seq(INACTIVE, EDGE0, EDGE1, LEVEL0, LEVEL1, DETACHED)
 
-  def driveRectifiedCtx(ctx: WhenBuilder): Unit = {
+  override def driveRectifiedCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === EDGE1) {
       rectified := input.rise()
     }
@@ -284,7 +284,7 @@ case class APlicFullSource(sourceId: Int, state: APlicSourceState) extends APlic
     }
   }
 
-  def driveAllowCtx(ctx: WhenBuilder): Unit = {
+  override def driveAllowCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === DETACHED) {
       allowSet := True
       allowClear := True
@@ -307,7 +307,7 @@ case class APlicFullSource(sourceId: Int, state: APlicSourceState) extends APlic
     }
   }
 
-  def driveIepCtx(ctx: WhenBuilder): Unit = {
+  override def driveIepCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === DETACHED) {
     }
     ctx.when(mode === EDGE1) {
@@ -332,7 +332,7 @@ case class APlicFullSource(sourceId: Int, state: APlicSourceState) extends APlic
     }
   }
 
-  def driveConfigUpdateCtx(ctx: WhenBuilder): Unit = {
+  override def driveConfigUpdateCtx(ctx: WhenBuilder): Unit = {
     ctx.when(List(EDGE1, LEVEL1).map(mode === _).orR) {
       ip := input
     }
@@ -345,22 +345,22 @@ case class APlicFullSource(sourceId: Int, state: APlicSourceState) extends APlic
 case class APlicSourceActiveHigh(sourceId: Int, state: APlicSourceState) extends APlicSource(sourceId, state) {
   import APlicSourceMode._
 
-  def supportModes(): Seq[E] = Seq(INACTIVE, LEVEL1)
+  override def supportModes(): Seq[E] = Seq(INACTIVE, LEVEL1)
 
-  def driveRectifiedCtx(ctx: WhenBuilder): Unit = {
+  override def driveRectifiedCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === LEVEL1) {
       rectified := input
     }
   }
 
-  def driveAllowCtx(ctx: WhenBuilder): Unit = {
+  override def driveAllowCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === LEVEL1) {
       allowSet := Mux(isMSI, rectified, False)
       allowClear := Mux(isMSI, True, False)
     }
   }
 
-  def driveIepCtx(ctx: WhenBuilder): Unit = {
+  override def driveIepCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === LEVEL1 && !isMSI) {
       ip := input
     }
@@ -370,7 +370,7 @@ case class APlicSourceActiveHigh(sourceId: Int, state: APlicSourceState) extends
     }
   }
 
-  def driveConfigUpdateCtx(ctx: WhenBuilder): Unit = {
+  override def driveConfigUpdateCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === LEVEL1) {
       ip := input
     }
@@ -380,22 +380,22 @@ case class APlicSourceActiveHigh(sourceId: Int, state: APlicSourceState) extends
 case class APlicSourceActiveLow(sourceId: Int, state: APlicSourceState) extends APlicSource(sourceId, state) {
   import APlicSourceMode._
 
-  def supportModes(): Seq[E] = Seq(INACTIVE, LEVEL0)
+  override def supportModes(): Seq[E] = Seq(INACTIVE, LEVEL0)
 
-  def driveRectifiedCtx(ctx: WhenBuilder): Unit = {
+  override def driveRectifiedCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === LEVEL0) {
       rectified := ~input
     }
   }
 
-  def driveAllowCtx(ctx: WhenBuilder): Unit = {
+  override def driveAllowCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === LEVEL0) {
       allowSet := Mux(isMSI, rectified, False)
       allowClear := Mux(isMSI, True, False)
     }
   }
 
-  def driveIepCtx(ctx: WhenBuilder): Unit = {
+  override def driveIepCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === LEVEL0 && !isMSI) {
       ip := ~input
     }
@@ -405,7 +405,7 @@ case class APlicSourceActiveLow(sourceId: Int, state: APlicSourceState) extends 
     }
   }
 
-  def driveConfigUpdateCtx(ctx: WhenBuilder): Unit = {
+  override def driveConfigUpdateCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === LEVEL0) {
       ip := ~input
     }
@@ -415,28 +415,28 @@ case class APlicSourceActiveLow(sourceId: Int, state: APlicSourceState) extends 
 case class APlicSourceActiveRising(sourceId: Int, state: APlicSourceState) extends APlicSource(sourceId, state) {
   import APlicSourceMode._
 
-  def supportModes(): Seq[E] = Seq(INACTIVE, EDGE1)
+  override def supportModes(): Seq[E] = Seq(INACTIVE, EDGE1)
 
-  def driveRectifiedCtx(ctx: WhenBuilder): Unit = {
+  override def driveRectifiedCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === EDGE1) {
       rectified := input.rise()
     }
   }
 
-  def driveAllowCtx(ctx: WhenBuilder): Unit = {
+  override def driveAllowCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === EDGE1) {
       allowSet := True
       allowClear := True
     }
   }
 
-  def driveIepCtx(ctx: WhenBuilder): Unit = {
+  override def driveIepCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === EDGE1) {
       ip.setWhen(input.rise())
     }
   }
 
-  def driveConfigUpdateCtx(ctx: WhenBuilder): Unit = {
+  override def driveConfigUpdateCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === EDGE1) {
       ip := input
     }
@@ -446,28 +446,28 @@ case class APlicSourceActiveRising(sourceId: Int, state: APlicSourceState) exten
 case class APlicSourceActiveFalling(sourceId: Int, state: APlicSourceState) extends APlicSource(sourceId, state) {
   import APlicSourceMode._
 
-  def supportModes(): Seq[E] = Seq(INACTIVE, EDGE0)
+  override def supportModes(): Seq[E] = Seq(INACTIVE, EDGE0)
 
-  def driveRectifiedCtx(ctx: WhenBuilder): Unit = {
+  override def driveRectifiedCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === EDGE0) {
       rectified := input.fall()
     }
   }
 
-  def driveAllowCtx(ctx: WhenBuilder): Unit = {
+  override def driveAllowCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === EDGE0) {
       allowSet := True
       allowClear := True
     }
   }
 
-  def driveIepCtx(ctx: WhenBuilder): Unit = {
+  override def driveIepCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === EDGE0) {
       ip.setWhen(input.fall())
     }
   }
 
-  def driveConfigUpdateCtx(ctx: WhenBuilder): Unit = {
+  override def driveConfigUpdateCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === EDGE0) {
       ip := ~input
     }
@@ -477,21 +477,21 @@ case class APlicSourceActiveFalling(sourceId: Int, state: APlicSourceState) exte
 case class APlicSourceActiveSpurious(sourceId: Int, state: APlicSourceState) extends APlicSource(sourceId, state) {
   import APlicSourceMode._
 
-  def supportModes(): Seq[E] = Seq(INACTIVE, DETACHED)
+  override def supportModes(): Seq[E] = Seq(INACTIVE, DETACHED)
 
-  def driveRectifiedCtx(ctx: WhenBuilder): Unit = {}
+  override def driveRectifiedCtx(ctx: WhenBuilder): Unit = {}
 
-  def driveAllowCtx(ctx: WhenBuilder): Unit = {
+  override def driveAllowCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === DETACHED) {
       allowSet := True
       allowClear := True
     }
   }
 
-  def driveIepCtx(ctx: WhenBuilder): Unit = {
+  override def driveIepCtx(ctx: WhenBuilder): Unit = {
     ctx.when(mode === DETACHED) {
     }
   }
 
-  def driveConfigUpdateCtx(ctx: WhenBuilder): Unit = {}
+  override def driveConfigUpdateCtx(ctx: WhenBuilder): Unit = {}
 }
