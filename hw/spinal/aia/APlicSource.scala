@@ -2,7 +2,8 @@ package aia
 
 import spinal.core._
 import spinal.lib._
-import spinal.lib.com.spi.sim.FlashModel
+
+import scala.collection.mutable.LinkedHashMap
 
 abstract class APlicGenericRequest(idWidth: Int) extends Bundle {
   val id = UInt(idWidth bits)
@@ -115,30 +116,39 @@ case class APlicSource(param: APlicSourceParam, delegatable: Boolean, isMSI: Boo
   val eiid = RegInit(U(0x0, 11 bits))
 
   val state = new Area {
-    val rectified = mode.mux(
-      EDGE0    -> input.fall(),
-      EDGE1    -> input.rise(),
-      LEVEL1   -> input,
-      LEVEL0   -> ~input,
-      default  -> False
+    val rectifiedMapping = LinkedHashMap[InterruptMode, (APlicSourceMode.E, Bool)](
+      (EDGE_FALLING, (EDGE0,    input.fall())),
+      (EDGE_RISING,  (EDGE1,    input.rise())),
+      (LEVEL_HIGH,   (LEVEL1,   input)),
+      (LEVEL_LOWEL,  (LEVEL0,   ~input)),
     )
 
-    val allowSet = mode.mux(
-      EDGE0    -> True,
-      EDGE1    -> True,
-      LEVEL1   -> Mux(isMSI, rectified, False),
-      LEVEL0   -> Mux(isMSI, rectified, False),
-      DETACHED -> True,
-      default  -> False
+    val rectified = mode.muxList(
+      rectifiedMapping.filter(map => param.modes.contains(map._1)).map(_._2).toSeq ++ Seq((default, False))
     )
 
-    val allowClear = mode.mux(
-      EDGE0    -> True,
-      EDGE1    -> True,
-      LEVEL1   -> Mux(isMSI, rectified, True),
-      LEVEL0   -> Mux(isMSI, rectified, True),
-      DETACHED -> True,
-      default  -> False
+    val allowSetMapping = LinkedHashMap[InterruptMode, (APlicSourceMode.E, Bool)](
+      (EDGE_FALLING, (EDGE0,    True)),
+      (EDGE_RISING,  (EDGE1,    True)),
+      (LEVEL_HIGH,   (LEVEL1,   Mux(isMSI, rectified, False))),
+      (LEVEL_LOWEL,  (LEVEL0,   Mux(isMSI, rectified, False))),
+      (SPURIOUS,     (DETACHED, True)),
+    )
+
+    val allowSet = mode.muxList(
+      allowSetMapping.filter(map => param.modes.contains(map._1)).map(_._2).toSeq ++ Seq((default, False))
+    )
+
+    val allowClearMapping = LinkedHashMap[InterruptMode, (APlicSourceMode.E, Bool)](
+      (EDGE_FALLING, (EDGE0,    True)),
+      (EDGE_RISING,  (EDGE1,    True)),
+      (LEVEL_HIGH,   (LEVEL1,   Mux(isMSI, True, False))),
+      (LEVEL_LOWEL,  (LEVEL0,   Mux(isMSI, True, False))),
+      (SPURIOUS,     (DETACHED, True)),
+    )
+
+    val allowClear = mode.muxList(
+      allowClearMapping.filter(map => param.modes.contains(map._1)).map(_._2).toSeq ++ Seq((default, False))
     )
   }
 
