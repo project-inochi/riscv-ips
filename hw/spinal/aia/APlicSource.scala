@@ -109,8 +109,8 @@ case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: 
 
   val state = new Area {
     val rectified = mode.mux(
-      EDGE0    -> input.rise(),
-      EDGE1    -> input.fall(),
+      EDGE0    -> input.fall(),
+      EDGE1    -> input.rise(),
       LEVEL1   -> input,
       LEVEL0   -> ~input,
       default  -> False
