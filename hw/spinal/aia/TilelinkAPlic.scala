@@ -11,19 +11,16 @@ import spinal.lib.misc.slot.{Slot, SlotPool}
 import scala.collection.mutable.ArrayBuffer
 
 class MappedAPlic[T <: spinal.core.Data with IMasterSlave](
-  sourceIds: Seq[Int],
+  sourceParams: Seq[APlicSourceParam],
   hartIds: Seq[Int],
   childInfos: Seq[APlicChildInfo],
   p: APlicDomainParam,
   busType: HardType[T],
   factoryGen: T => BusSlaveFactory
 ) extends Component {
-  require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
-  require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")
-
   val io = new Bundle {
     val bus = slave(busType())
-    val sources = in Bits (sourceIds.size bits)
+    val sources = in Bits (sourceParams.size bits)
     val mmsiaddrcfg = (if (p.isRoot) out else in) UInt (64 bits)
     val smsiaddrcfg = (if (p.isRoot) out else in) UInt (64 bits)
     val targets = p.genParam.withDirect generate (out Bits (hartIds.size bits))
@@ -36,7 +33,7 @@ class MappedAPlic[T <: spinal.core.Data with IMasterSlave](
     io.smsiaddrcfg.assignDontCare()
   }
 
-  val aplic = APlic(p, sourceIds, hartIds, childInfos)
+  val aplic = APlic(p, sourceParams, hartIds, childInfos)
 
   aplic.sources := io.sources
   if (p.genParam.withDirect) {
@@ -60,10 +57,11 @@ class MappedAPlic[T <: spinal.core.Data with IMasterSlave](
   val mapping = APlicMapper(factory)(aplic)
 }
 
-case class TilelinkAPlic(sourceIds: Seq[Int], hartIds: Seq[Int], childInfos: Seq[APlicChildInfo],
+case class TilelinkAPlic(sourceParams: Seq[APlicSourceParam], hartIds: Seq[Int],
+                         childInfos: Seq[APlicChildInfo],
                          domainParam: APlicDomainParam, params: tilelink.BusParameter)
                          extends MappedAPlic(
-  sourceIds,
+  sourceParams,
   hartIds,
   childInfos,
   domainParam,
@@ -168,7 +166,7 @@ case class TilelinkAPlicFiber(domainParam: APlicDomainParam) extends Area with I
   val node = tilelink.fabric.Node.up()
   val core = Handle[TilelinkAPlic]()
 
-  case class SourceSpec(node: InterruptNode, id: Int)
+  case class SourceSpec(node: InterruptNode, param: APlicSourceParam)
   case class TargetSpec(node: InterruptNode, id: Int)
   case class APlicSlaveBundle(childInfo: APlicChildInfo) extends Area {
     val flags = childInfo.sourceIds.map(_ => InterruptNode.master())
@@ -195,7 +193,8 @@ case class TilelinkAPlicFiber(domainParam: APlicDomainParam) extends Area with I
   }
 
   override def createInterruptSlave(id: Int) : InterruptNode = {
-    val spec = node.clockDomain on SourceSpec(InterruptNode.slave(), id)
+    val param = APlicSourceParam(id, Seq(EDGE_RISING, EDGE_FALLING, LEVEL_HIGH, LEVEL_LOWEL, SPURIOUS))
+    val spec = node.clockDomain on SourceSpec(InterruptNode.slave(), param)
     sources += spec
     spec.node
   }
@@ -211,7 +210,7 @@ case class TilelinkAPlicFiber(domainParam: APlicDomainParam) extends Area with I
     node.m2s.supported.load(TilelinkAPlic.getTilelinkSlaveSupport(node.m2s.proposed, TilelinkAPlic.addressWidth(targets.map(_.id).max + 1)))
     node.s2m.none()
 
-    val aplic = TilelinkAPlic(sources.map(_.id).toSeq, targets.map(_.id).toSeq, childSources.map(_.childInfo).toSeq, domainParam, node.bus.p)
+    val aplic = TilelinkAPlic(sources.map(_.param).toSeq, targets.map(_.id).toSeq, childSources.map(_.childInfo).toSeq, domainParam, node.bus.p)
 
     core.load(aplic)
 

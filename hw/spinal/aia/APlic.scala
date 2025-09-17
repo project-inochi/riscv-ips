@@ -114,9 +114,10 @@ trait APlicMsiConsumerFiber extends Nameable{
 }
 
 case class APlic(p: APlicDomainParam,
-                 sourceIds: Seq[Int],
+                 sourceParams: Seq[APlicSourceParam],
                  hartIds: Seq[Int],
                  childInfos: Seq[APlicChildInfo]) extends Area {
+  val sourceIds = sourceParams.map(_.id)
   require(sourceIds.distinct.size == sourceIds.size, "APlic requires no duplicate interrupt source")
   require(hartIds.distinct.size == hartIds.size, "APlic requires no duplicate harts")
   require(p.genParam.withDirect || p.genParam.withMSI, "At least one delivery mode should be enabled")
@@ -137,8 +138,8 @@ case class APlic(p: APlicDomainParam,
   }
   val bigEndian = False
 
-  val interrupts: Seq[APlicSource] = for (((sourceId, delegatable), i) <- sourceIds.zip(interruptDelegatable).zipWithIndex)
-    yield new APlicSource(sourceId, delegatable, isMSI, sources(i))
+  val interrupts: Seq[APlicSource] = for (((param, delegatable), i) <- sourceParams.zip(interruptDelegatable).zipWithIndex)
+    yield new APlicSource(param, delegatable, isMSI, sources(i))
 
   val childMappings = for ((childInfo, childSource) <- childInfos.zip(childSources)) yield new Area {
     for ((childSourceId, idx) <- childInfo.sourceIds.zipWithIndex) yield new Area {

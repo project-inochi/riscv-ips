@@ -21,9 +21,12 @@ abstract class APlicGenericRequest(idWidth: Int) extends Bundle {
  */
 object APlicSourceMode extends SpinalEnum {
   val INACTIVE, DETACHED, EDGE1, EDGE0, LEVEL1, LEVEL0 = newElement()
+  val RESERVED2, RESERVED3 = newElement()
   defaultEncoding = SpinalEnumEncoding("sm")(
     INACTIVE -> 0,
     DETACHED -> 1,
+    RESERVED2 -> 2,
+    RESERVED3 -> 3,
     EDGE1 -> 4,
     EDGE0 -> 5,
     LEVEL1 -> 6,
@@ -85,10 +88,15 @@ case class APlicMSIRequest(idWidth: Int) extends APlicGenericRequest(idWidth) {
   }
 }
 
-case class APlicSource(sourceId: Int, delegatable: Boolean, isMSI: Bool, input: Bool) extends Area {
+case class APlicSourceParam(
+  id: Int,
+  modes: Seq[InterruptMode]
+)
+
+case class APlicSource(param: APlicSourceParam, delegatable: Boolean, isMSI: Bool, input: Bool) extends Area {
   import APlicSourceMode._
 
-  val id = sourceId
+  val id = param.id
   val ie = RegInit(False)
   val ip = RegInit(False)
   val config = RegInit(U(0, 11 bits))
