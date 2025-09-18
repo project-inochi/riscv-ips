@@ -2,6 +2,7 @@ package aia
 
 import spinal.core._
 import spinal.lib._
+import spinal.lib.misc._
 
 import scala.collection.mutable.LinkedHashMap
 
