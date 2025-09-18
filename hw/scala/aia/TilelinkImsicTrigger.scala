@@ -55,11 +55,9 @@ object TilelinkImsicTrigger {
   }
 }
 
-case class TilelinkImsicTriggerFiber() extends Area {
+case class TilelinkImsicTriggerFiber(mapping: ImsicMapping = ImsicMapping()) extends Area {
   val node = bus.tilelink.fabric.Node.slave()
   val lock = Lock()
-
-  var mapping: Option[ImsicMapping] = None
 
   case class ImsicFileSource(info: ImsicFileInfo) {
     val trigger = Bits(info.sourceIds.size bits)
@@ -74,13 +72,12 @@ case class TilelinkImsicTriggerFiber() extends Area {
   val thread = Fiber build new Area {
     lock.await()
 
-    val imsicMapping = mapping.getOrElse(ImsicMapping())
     val imsicInfos = infos.map(_.info).toSeq
 
-    node.m2s.supported.load(TilelinkImsicTrigger.getTilelinkSupport(node.m2s.proposed.transfers, imsicMapping, imsicInfos))
+    node.m2s.supported.load(TilelinkImsicTrigger.getTilelinkSupport(node.m2s.proposed.transfers, mapping, imsicInfos))
     node.s2m.none()
 
-    val core = TilelinkImsicTrigger(imsicInfos, imsicMapping, node.bus.p)
+    val core = TilelinkImsicTrigger(imsicInfos, mapping, node.bus.p)
 
     core.io.bus <> node.bus
 
