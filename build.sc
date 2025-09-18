@@ -20,7 +20,7 @@ trait SpinalHDLModule extends SbtModule {
 
 object hw extends SpinalHDLModule {
   override def millSourcePath = os.pwd / "hw"
-  override def sources = T.sources(millSourcePath / "spinal")
+  override def sources = T.sources(millSourcePath / "scala")
 }
 
 object test extends SpinalHDLModule {
@@ -29,7 +29,7 @@ object test extends SpinalHDLModule {
   object test extends SbtTests with TestModule.ScalaTest {
     override def forkArgs = Seq("-Xss16M")
     override def millSourcePath = os.pwd / "test"
-    override def sources = T.sources(millSourcePath / "spinal")
+    override def sources = T.sources(millSourcePath / "scala")
     override def ivyDeps = Agg(ivy"com.github.spinalhdl::spinalhdl-tester::${spinalVersion}")
   }
 }

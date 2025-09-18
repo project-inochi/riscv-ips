@@ -17,7 +17,7 @@ lazy val hw = (project in file("hw"))
   .settings(
     name := "hw",
     fork := true,
-    Compile / scalaSource := baseDirectory.value / "spinal",
+    Compile / scalaSource := baseDirectory.value / "scala",
     libraryDependencies ++= Seq(spinalCore, spinalLib, spinalIdslPlugin),
   )
 
@@ -25,7 +25,7 @@ lazy val test = (project in file("test"))
   .settings(
     name := "test",
     fork := true,
-    Test / scalaSource := baseDirectory.value / "spinal",
+    Test / scalaSource := baseDirectory.value / "scala",
     libraryDependencies ++= Seq(spinalCore, spinalLib, spinalIdslPlugin, spinalTester),
   )
   .dependsOn(hw)
