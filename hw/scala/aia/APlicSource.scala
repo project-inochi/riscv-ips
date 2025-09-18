@@ -255,13 +255,12 @@ object APlicSource {
     val sourceId = param.id
 
     param.mode match {
-      case EDGE_FALLING => APlicSourceActiveFalling(sourceId, state)
-      case EDGE_RISING  => APlicSourceActiveRising(sourceId, state)
-      case LEVEL_HIGH   => APlicSourceActiveHigh(sourceId, state)
-      case LEVEL_LOW    => APlicSourceActiveLow(sourceId, state)
-      case SPURIOUS     => APlicSourceActiveSpurious(sourceId, state)
+      case EDGE_FALLING => new APlicSourceActiveFalling(sourceId, state)
+      case EDGE_RISING  => new APlicSourceActiveRising(sourceId, state)
+      case LEVEL_HIGH   => new APlicSourceActiveHigh(sourceId, state)
+      case LEVEL_LOW    => new APlicSourceActiveLow(sourceId, state)
+      case SPURIOUS     => new APlicSourceActiveSpurious(sourceId, state)
     }
-    new APlicFullSource(param.id, state)
   }
 }
 
