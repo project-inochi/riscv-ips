@@ -202,13 +202,13 @@ object APlicMapper {
         if (p.genParam.withDirect) {
           val view = B(18 bits, (7 downto 0) -> interrupt.direct.prio.asBits,
                                 default -> False)
-          configViewList.addOne((False, view))
+          configViewList.addRet((False, view))
         }
         if (p.genParam.withMSI) {
           val view = B(18 bits, (17 downto 12) -> interrupt.msi.guestId.asBits,
                                 (10 downto 0) -> interrupt.msi.eiid.asBits,
                                 default -> False)
-          configViewList.addOne((True, view))
+          configViewList.addRet((True, view))
         }
         val configView = aplic.isMSI.muxListDc(configViewList)
 
