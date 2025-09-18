@@ -3,6 +3,7 @@ package aia
 import spinal.core._
 import spinal.lib._
 import spinal.lib.bus.misc.{BusSlaveFactory, AllMapping, SingleMapping}
+
 import scala.collection.mutable.ArrayBuffer
 
 object APlicMapping {

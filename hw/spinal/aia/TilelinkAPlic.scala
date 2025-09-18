@@ -7,6 +7,7 @@ import spinal.lib.bus.misc._
 import spinal.lib.bus.tilelink
 import spinal.lib.misc._
 import spinal.lib.misc.slot.{Slot, SlotPool}
+
 import scala.collection.mutable.ArrayBuffer
 
 class MappedAPlic[T <: spinal.core.Data with IMasterSlave](
