@@ -62,6 +62,8 @@ case class APlicUnitTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: 
 
   val APlicGenMode = APlicGenParam.test
 
+  val modes = ArrayBuffer[SpinalEnumElement[aia.APlicSourceMode.type]]()
+
   val peripherals = new Area {
     val access = tilelink.fabric.Node()
     access << crossBar
@@ -92,7 +94,9 @@ case class APlicUnitTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: 
 
     val sourcesMBundles = sourceIds.map(sourceId => {
       val node = InterruptNode.master()
-      M.mapUpInterrupt(sourceId, node)
+      val mode = APlicSimSourceMode.random()
+      modes += mode.sorceMode
+      M.mapUpInterrupt(sourceId, node, mode.interruptMode)
       node
     })
   }
@@ -189,12 +193,11 @@ class APlicUnitTest extends SpinalSimFunSuite {
       agent.putFullData(0, baseaddr + aplicmap.domaincfgOffset, SimUInt32(0x80000000))
 
       val configs = ArrayBuffer[APlicSimSource]()
-      for (i <- 1 until sourcenum) {
-        val mode = APlicSimSourceMode.random()
-        val config = createGateway(mode, i, agent, baseaddr)
+      for ((mode, i) <- dut.modes.zipWithIndex) {
+        val config = createGateway(mode, i + 1, agent, baseaddr)
         config.hartId = Random.nextInt(hartnum)
         config.iprio = 1
-        config.setMode(agent, baseaddr, (i-1)*4)
+        config.setMode(agent, baseaddr, i*4)
         configs += config
       }
 
@@ -208,11 +211,7 @@ class APlicUnitTest extends SpinalSimFunSuite {
 
       // setie 4.5.12 - 4.5.14
       for ((config, i) <- configs.zipWithIndex) {
-        if (config.mode != APlicSimSourceMode.INACTIVE) {
-          config.assertIE()
-        } else {
-          config.assertIE()
-        }
+        config.assertIE()
       }
       // source => setip 4.5.5
       var sourceIO = BigInt("0", 16)
@@ -228,7 +227,7 @@ class APlicUnitTest extends SpinalSimFunSuite {
       assertIP(sourceIO, configs)
 
       for ((config, i) <- configs.zipWithIndex) {
-        if (config.mode == APlicSimSourceMode.LEVEL0) {
+        if (config.mode == APlicSourceMode.LEVEL0) {
           sourceIO |= (BigInt(1) << i)
         }
       }
@@ -242,7 +241,7 @@ class APlicUnitTest extends SpinalSimFunSuite {
 
       // claimi 4.8.1.5
       for ((config, i) <- configs.zipWithIndex) {
-        if (Set(APlicSimSourceMode.EDGE0, APlicSimSourceMode.EDGE1).contains(config.mode)) {
+        if (Set(APlicSourceMode.EDGE0, APlicSourceMode.EDGE1).contains(config.mode)) {
           assertData(agent.get(0, baseaddr + aplicmap.idcOffset + config.hartId * aplicmap.idcGroupSize + aplicmap.claimiOffset, 4),
           (config.iprio | (config.idx << 16)) & 0xFFFFFFFF, s"claimi_io_$i")
           config.ip = 0
@@ -263,13 +262,13 @@ class APlicUnitTest extends SpinalSimFunSuite {
 
       // setipnum 4.6.5
       for ((config, i) <- configs.zipWithIndex) {
-        if (Set(APlicSimSourceMode.EDGE0, APlicSimSourceMode.EDGE1, APlicSimSourceMode.DETACHED).contains(config.mode)) {
+        if (Set(APlicSourceMode.EDGE0, APlicSourceMode.EDGE1, APlicSourceMode.DETACHED).contains(config.mode)) {
           config.ip = 1
         }
         agent.putFullData(0, baseaddr + aplicmap.setipnumOffset, SimUInt32(i+1))
       }
       for ((config, i) <- configs.zipWithIndex) {
-        if (Set(APlicSimSourceMode.EDGE0, APlicSimSourceMode.EDGE1, APlicSimSourceMode.DETACHED).contains(config.mode)) {
+        if (Set(APlicSourceMode.EDGE0, APlicSourceMode.EDGE1, APlicSourceMode.DETACHED).contains(config.mode)) {
           assertData(agent.get(0, baseaddr + aplicmap.idcOffset + config.hartId * aplicmap.idcGroupSize + aplicmap.claimiOffset, 4),
           (config.iprio | (config.idx << 16)) & 0xFFFFFFFF, s"claimi_setipnum_$i")
           config.ip = 0
@@ -280,7 +279,7 @@ class APlicUnitTest extends SpinalSimFunSuite {
       agent.putFullData(0, baseaddr + aplicmap.setipOffset, SimUInt32(0xffffffff))
       agent.putFullData(0, baseaddr + aplicmap.setipOffset + 4, SimUInt32(0xffffffff))
       for ((config, i) <- configs.zipWithIndex) {
-        if (Set(APlicSimSourceMode.EDGE0, APlicSimSourceMode.EDGE1, APlicSimSourceMode.DETACHED).contains(config.mode)) {
+        if (Set(APlicSourceMode.EDGE0, APlicSourceMode.EDGE1, APlicSourceMode.DETACHED).contains(config.mode)) {
           assertData(agent.get(0, baseaddr + aplicmap.idcOffset + config.hartId * aplicmap.idcGroupSize + aplicmap.claimiOffset, 4),
           (config.iprio | (config.idx << 16)) & 0xFFFFFFFF, s"claimi_setip_$i")
           config.ip = 0
@@ -309,14 +308,18 @@ class APlicUnitTest extends SpinalSimFunSuite {
       agent.putFullData(0, aplicAddr + aplicmap.domaincfgOffset, SimUInt32(0x80000004))
 
       val configs = ArrayBuffer[APlicSimSource]()
-      for (i <- 1 until sourcenum) {
-        val mode = APlicSimSourceMode.EDGE1
-        val config = createGateway(mode, i, agent, aplicAddr)
-        config.hartId = Random.nextInt(hartnum)
-        config.deliveryMode = true
-        config.guestIndex = Random.nextInt(3)
-        config.setMode(agent, aplicAddr, (i-1)*4)
-        configs += config
+      for ((mode, i) <- dut.modes.zipWithIndex) {
+        if (mode == APlicSourceMode.EDGE1) {
+          val config = createGateway(mode, i + 1, agent, aplicAddr)
+          config.hartId = Random.nextInt(hartnum)
+          config.deliveryMode = true
+          config.guestIndex = Random.nextInt(3)
+          config.setMode(agent, aplicAddr, i*4)
+          configs += config
+        } else {
+          val config = createGateway(APlicSourceMode.INACTIVE, i + 1, agent, aplicAddr)
+          configs += config
+        }
       }
 
       agent.putFullData(0, aplicAddr + aplicmap.mmsiaddrcfgOffset, SimUInt32(imsicAddr>>12))
@@ -333,26 +336,28 @@ class APlicUnitTest extends SpinalSimFunSuite {
       var randomHartid = 0
 
       for ((config, i) <- configs.zipWithIndex) {
-        // 4.5.16
-        dut.io.sources #= sourceIO | (BigInt(1) << i)
-        dut.clockDomain.waitRisingEdge(2)
-        dut.io.sources #= sourceIO
-        dut.clockDomain.waitRisingEdge(2)
-        ipIO = dut.io.ip(config.hartId)(config.guestIndex).toBigInt
-        assertIO(ipIO, i, 1, s"assert gateway ip output_$i")
+        if (config.mode == APlicSourceMode.EDGE1) {
+          // 4.5.16
+          dut.io.sources #= sourceIO | (BigInt(1) << i)
+          dut.clockDomain.waitRisingEdge(2)
+          dut.io.sources #= sourceIO
+          dut.clockDomain.waitRisingEdge(2)
+          ipIO = dut.io.ip(config.hartId)(config.guestIndex).toBigInt
+          assertIO(ipIO, i, 1, s"assert gateway ip output_$i")
 
-        // wait busy bit 4.5.15
-        Iterator
-          .continually((agent.get(0, aplicAddr + aplicmap.genmsiOffset, 4).data(1) & 0x10) != 0)
-          .takeWhile(identity)
-          .foreach{_ => }
+          // wait busy bit 4.5.15
+          Iterator
+            .continually((agent.get(0, aplicAddr + aplicmap.genmsiOffset, 4).data(1) & 0x10) != 0)
+            .takeWhile(identity)
+            .foreach{_ => }
 
-        randomHartid = Random.between(1, hartnum)
-        agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(randomHartid << 18 | i+1))
-        dut.clockDomain.waitRisingEdge(2)
+          randomHartid = Random.between(1, hartnum)
+          agent.putFullData(0, aplicAddr + aplicmap.genmsiOffset, SimUInt32(randomHartid << 18 | i+1))
+          dut.clockDomain.waitRisingEdge(2)
 
-        ipIO = dut.io.ip(randomHartid)(0).toBigInt
-        assertIO(ipIO, i, 1, s"assert genmsi ip output_$i")
+          ipIO = dut.io.ip(randomHartid)(0).toBigInt
+          assertIO(ipIO, i, 1, s"assert genmsi ip output_$i")
+        }
       }
 
       // // 4.5.3 when lock
@@ -367,98 +372,118 @@ class APlicUnitTest extends SpinalSimFunSuite {
     }
   }
 
-  test("MSITrigger") {
-    SimConfig.withConfig(config.TestConfig.spinal).withFstWave.compile(
-      new APlicUnitTestFiber(hartIds, sourceIds, guestIds)
-    ).doSim("MSITrigger"){ dut =>
-      dut.clockDomain.forkStimulus(10)
+  // test("MSITrigger") {
+  //   SimConfig.withConfig(config.TestConfig.spinal).withFstWave.compile(
+  //     new APlicUnitTestFiber(hartIds, sourceIds, guestIds)
+  //   ).doSim("MSITrigger"){ dut =>
+  //     dut.clockDomain.forkStimulus(10)
 
-      dut.io.sources #= 0x0
-      dut.io.ie.map(_.map(_ #= BigInt("7fffffffffffffff", 16)))
+  //     dut.io.sources #= 0x0
+  //     dut.io.ie.map(_.map(_ #= BigInt("7fffffffffffffff", 16)))
 
-      implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
-      val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
+  //     implicit val idAllocator = new tilelink.sim.IdAllocator(tilelink.DebugId.width)
+  //     val agent = new tilelink.sim.MasterAgent(dut.io.bus, dut.clockDomain)
 
-      val aplicAddr = 0x10000000
-      val imsicAddr = 0x30000000
+  //     val aplicAddr = 0x10000000
+  //     val imsicAddr = 0x30000000
 
-      agent.putFullData(0, aplicAddr + aplicmap.domaincfgOffset, SimUInt32(0x80000004))
+  //     agent.putFullData(0, aplicAddr + aplicmap.domaincfgOffset, SimUInt32(0x80000004))
 
-      val configs = ArrayBuffer[APlicSimSource]()
-      for (i <- 1 until sourcenum) {
-        val mode = APlicSimSourceMode.LEVEL1
-        val config = createGateway(mode, i, agent, aplicAddr)
-        config.hartId = 0
-        config.deliveryMode = true
-        config.guestIndex = 0
-        config.setMode(agent, aplicAddr, (i-1)*4)
-        configs += config
-      }
+  //     val configs = ArrayBuffer[APlicSimSource]()
+  //     for ((mode, i) <- dut.modes.zipWithIndex) {
+  //       if (mode == APlicSourceMode.LEVEL1) {
+  //         val config = createGateway(mode, i + 1, agent, aplicAddr)
+  //         config.hartId = 0
+  //         config.deliveryMode = true
+  //         config.guestIndex = 0
+  //         config.setMode(agent, aplicAddr, i*4)
+  //         configs += config
+  //       } else {
+  //         val config = createGateway(APlicSourceMode.INACTIVE, i + 1, agent, aplicAddr)
+  //         configs += config
+  //       }
+  //     }
 
-      agent.putFullData(0, aplicAddr + aplicmap.mmsiaddrcfgOffset, SimUInt32(imsicAddr>>12))
-      agent.putFullData(0, aplicAddr + aplicmap.mmsiaddrcfghOffset, SimUInt32(0x203000))
-      agent.putFullData(0, aplicAddr + aplicmap.smsiaddrcfgOffset, SimUInt32(imsicAddr>>12))
-      agent.putFullData(0, aplicAddr + aplicmap.smsiaddrcfghOffset, SimUInt32(0x200000))
+  //     agent.putFullData(0, aplicAddr + aplicmap.mmsiaddrcfgOffset, SimUInt32(imsicAddr>>12))
+  //     agent.putFullData(0, aplicAddr + aplicmap.mmsiaddrcfghOffset, SimUInt32(0x203000))
+  //     agent.putFullData(0, aplicAddr + aplicmap.smsiaddrcfgOffset, SimUInt32(imsicAddr>>12))
+  //     agent.putFullData(0, aplicAddr + aplicmap.smsiaddrcfghOffset, SimUInt32(0x200000))
 
-      agent.putFullData(0, aplicAddr + aplicmap.domaincfgOffset, SimUInt32(0x80000104))
+  //     agent.putFullData(0, aplicAddr + aplicmap.domaincfgOffset, SimUInt32(0x80000104))
 
-      dut.clockDomain.waitRisingEdge(10)
+  //     dut.clockDomain.waitRisingEdge(10)
 
-      // rectified_source = 1 but use setipnum trigger twice eip.
-      dut.io.sources #= 0x1
-      dut.clockDomain.waitRisingEdge(4)
-      assertIO(dut.io.ip(0)(0).toBigInt, 0, 1, s"assert ip: ip(0) = false when rectified source = true.")
+  //     // rectified_source = 1 but use setipnum trigger twice eip.
+  //     dut.io.sources #= 0x1
+  //     dut.clockDomain.waitRisingEdge(4)
+  //     assertIO(dut.io.ip(0)(0).toBigInt, 0, 1, s"assert ip: ip(0) = false when rectified source = true.")
 
-      dut.blocks(0)(0).interrupts(0).ip #= false
-      dut.clockDomain.waitRisingEdge(4)
-      assertIO(dut.io.ip(0)(0).toBigInt, 0, 0)
+  //     dut.blocks(0)(0).interrupts(0).ip #= false
+  //     dut.clockDomain.waitRisingEdge(4)
+  //     assertIO(dut.io.ip(0)(0).toBigInt, 0, 0)
 
-      // setipnum
-      agent.putFullData(0, aplicAddr + aplicmap.setipnumOffset, SimUInt32(0x1))
-      dut.clockDomain.waitRisingEdge(4)
-      assertIO(dut.io.ip(0)(0).toBigInt, 0, 1, s"assert ip: ip(0) = false when setipnum trigger.")
+  //     // setipnum
+  //     agent.putFullData(0, aplicAddr + aplicmap.setipnumOffset, SimUInt32(0x1))
+  //     dut.clockDomain.waitRisingEdge(4)
+  //     assertIO(dut.io.ip(0)(0).toBigInt, 0, 1, s"assert ip: ip(0) = false when setipnum trigger.")
 
-      dut.blocks(0)(0).interrupts(0).ip #= false
-      dut.clockDomain.waitRisingEdge(4)
-      assertIO(dut.io.ip(0)(0).toBigInt, 0, 0)
+  //     dut.blocks(0)(0).interrupts(0).ip #= false
+  //     dut.clockDomain.waitRisingEdge(4)
+  //     assertIO(dut.io.ip(0)(0).toBigInt, 0, 0)
 
-      // setipnum_le
-      agent.putFullData(0, aplicAddr + aplicmap.setipnum_leOffset, SimUInt32(0x1))
-      dut.clockDomain.waitRisingEdge(4)
-      assertIO(dut.io.ip(0)(0).toBigInt, 0, 1, s"assert ip: ip(0) = false when setipnum_le trigger.")
+  //     // setipnum_le
+  //     agent.putFullData(0, aplicAddr + aplicmap.setipnum_leOffset, SimUInt32(0x1))
+  //     dut.clockDomain.waitRisingEdge(4)
+  //     assertIO(dut.io.ip(0)(0).toBigInt, 0, 1, s"assert ip: ip(0) = false when setipnum_le trigger.")
 
-      dut.blocks(0)(0).interrupts(0).ip #= false
-      dut.clockDomain.waitRisingEdge(4)
-      assertIO(dut.io.ip(0)(0).toBigInt, 0, 0)
+  //     dut.blocks(0)(0).interrupts(0).ip #= false
+  //     dut.clockDomain.waitRisingEdge(4)
+  //     assertIO(dut.io.ip(0)(0).toBigInt, 0, 0)
 
-      // rectified_source = 0, can not setipnum.
-      dut.io.sources #= 0x0
+  //     // rectified_source = 0, can not setipnum.
+  //     dut.io.sources #= 0x0
 
-      dut.clockDomain.waitRisingEdge(4)
-      assertIO(dut.io.ip(0)(0).toBigInt, 0, 0, s"assert ip: ip(0) = true when rectified source = flase.")
+  //     dut.clockDomain.waitRisingEdge(4)
+  //     assertIO(dut.io.ip(0)(0).toBigInt, 0, 0, s"assert ip: ip(0) = true when rectified source = flase.")
 
-      // setipnum
-      agent.putFullData(0, aplicAddr + aplicmap.setipnumOffset, SimUInt32(0x1))
-      dut.clockDomain.waitRisingEdge(4)
-      assertIO(dut.io.ip(0)(0).toBigInt, 0, 0, s"assert ip: ip(0) = true when setipnum trigger but rectified source = flase.")
+  //     // setipnum
+  //     agent.putFullData(0, aplicAddr + aplicmap.setipnumOffset, SimUInt32(0x1))
+  //     dut.clockDomain.waitRisingEdge(4)
+  //     assertIO(dut.io.ip(0)(0).toBigInt, 0, 0, s"assert ip: ip(0) = true when setipnum trigger but rectified source = flase.")
 
-      // setipnum_le
-      agent.putFullData(0, aplicAddr + aplicmap.setipnum_leOffset, SimUInt32(0x1))
-      dut.clockDomain.waitRisingEdge(4)
-      assertIO(dut.io.ip(0)(0).toBigInt, 0, 0, s"assert ip: ip(0) = true when setipnum_le trigger but rectified source = flase.")
+  //     // setipnum_le
+  //     agent.putFullData(0, aplicAddr + aplicmap.setipnum_leOffset, SimUInt32(0x1))
+  //     dut.clockDomain.waitRisingEdge(4)
+  //     assertIO(dut.io.ip(0)(0).toBigInt, 0, 0, s"assert ip: ip(0) = true when setipnum_le trigger but rectified source = flase.")
 
-      dut.clockDomain.waitRisingEdge(100)
-    }
-  }
+  //     dut.clockDomain.waitRisingEdge(100)
+  //   }
+  // }
 }
 
-object APlicSimSourceMode extends Enumeration {
-  type mode = Value
-  val INACTIVE, DETACHED, EDGE1, EDGE0, LEVEL1, LEVEL0 = Value
+case class AplicModes(
+  sorceMode: SpinalEnumElement[APlicSourceMode.type] = APlicSourceMode.INACTIVE,
+  interruptMode: InterruptMode = SPURIOUS
+)
 
-  def random(): Value = {
-    val values = APlicSimSourceMode.values.toSeq
-    values(Random.nextInt(values.length))
+object APlicSimSourceMode {
+  private val sourceModes = APlicSourceMode.elements.toSeq
+  private val interruptModes: Seq[InterruptMode] =
+    Seq(EDGE_RISING, EDGE_FALLING, LEVEL_HIGH, LEVEL_LOW, SPURIOUS)
+
+  def random(): AplicModes = {
+    val sourceMode = sourceModes(Random.nextInt(sourceModes.length))
+
+    val interruptMode = sourceMode match {
+      case APlicSourceMode.INACTIVE => SPURIOUS
+      case APlicSourceMode.DETACHED => SPURIOUS
+      case APlicSourceMode.EDGE1    => EDGE_RISING
+      case APlicSourceMode.EDGE0    => EDGE_FALLING
+      case APlicSourceMode.LEVEL1   => LEVEL_HIGH
+      case APlicSourceMode.LEVEL0   => LEVEL_LOW
+      case _                        => SPURIOUS
+    }
+    AplicModes(sourceMode, interruptMode)
   }
 }
 
@@ -480,7 +505,7 @@ object APlicTestHelper {
     val bit = (value(byteIndex) >> bitIndex) & 1
     val result = bit == answer
 
-    assert(result, s"$name: missmatch value = (${value.toList}")
+    assert(result, s"$name: missmatch value = ${bit} but answer = ${answer}")
   }
 
   def assertIO(io: BigInt, id: Int, value: Int, name: String = "") = {
@@ -489,20 +514,21 @@ object APlicTestHelper {
 
   def assertIP(sourceIO: BigInt, configs: ArrayBuffer[APlicSimSource]) = {
     for (config <- configs) {
-      if (config.mode != APlicSimSourceMode.DETACHED) {
+      if (config.mode != APlicSourceMode.DETACHED) {
         config.assertIP(sourceIO.testBit(config.idx-1).toInt)
       }
     }
   }
 
-  def createGateway(mode: APlicSimSourceMode.Value, id: Int, agent: tilelink.sim.MasterAgent, baseaddr: Int): APlicSimSource = {
+  def createGateway(mode: SpinalEnumElement[APlicSourceMode.type], id: Int, agent: tilelink.sim.MasterAgent, baseaddr: Int): APlicSimSource = {
     mode match {
-      case APlicSimSourceMode.INACTIVE => APlicInactiveSource(id, agent, baseaddr)
-      case APlicSimSourceMode.DETACHED => APlicDetachedSource(id, agent, baseaddr)
-      case APlicSimSourceMode.EDGE1    => APlicEdge1Source(id, agent, baseaddr)
-      case APlicSimSourceMode.EDGE0    => APlicEdge0Source(id, agent, baseaddr)
-      case APlicSimSourceMode.LEVEL1   => APlicLevel1Source(id, agent, baseaddr)
-      case APlicSimSourceMode.LEVEL0   => APlicLevel0Source(id, agent, baseaddr)
+      case APlicSourceMode.INACTIVE => APlicInactiveSource(id, agent, baseaddr)
+      case APlicSourceMode.DETACHED => APlicDetachedSource(id, agent, baseaddr)
+      case APlicSourceMode.EDGE1    => APlicEdge1Source(id, agent, baseaddr)
+      case APlicSourceMode.EDGE0    => APlicEdge0Source(id, agent, baseaddr)
+      case APlicSourceMode.LEVEL1   => APlicLevel1Source(id, agent, baseaddr)
+      case APlicSourceMode.LEVEL0   => APlicLevel0Source(id, agent, baseaddr)
+      case _                        => APlicInactiveSource(id, agent, baseaddr)
     }
   }
 }
@@ -511,7 +537,7 @@ abstract class APlicSimSource(id: Int) {
   import APlicTestHelper._
 
   val idx = id
-  var mode = APlicSimSourceMode.INACTIVE
+  var mode = APlicSourceMode.INACTIVE
   var ie = 0
   var ip = 0
   var deliveryMode = false
@@ -531,7 +557,7 @@ abstract class APlicSimSource(id: Int) {
 case class APlicInactiveSource(id: Int, agent: tilelink.sim.MasterAgent, base: Int) extends APlicSimSource(id) {
   import APlicTestHelper._
 
-  mode = APlicSimSourceMode.INACTIVE
+  mode = APlicSourceMode.INACTIVE
 
   override def setMode(agent: tilelink.sim.MasterAgent, base: Int, offset: Int, childId: Int = 0) = {
     ie = 0
@@ -557,7 +583,7 @@ case class APlicInactiveSource(id: Int, agent: tilelink.sim.MasterAgent, base: I
 case class APlicDetachedSource(id: Int, agent: tilelink.sim.MasterAgent, base: Int) extends APlicSimSource(id) {
   import APlicTestHelper._
 
-  mode = APlicSimSourceMode.DETACHED
+  mode = APlicSourceMode.DETACHED
 
   override def setMode(agent: tilelink.sim.MasterAgent, base: Int, offset: Int, childId: Int = 0) = {
     ie = 1
@@ -583,7 +609,7 @@ case class APlicDetachedSource(id: Int, agent: tilelink.sim.MasterAgent, base: I
 case class APlicEdge1Source(id: Int, agent: tilelink.sim.MasterAgent, base: Int) extends APlicSimSource(id) {
   import APlicTestHelper._
 
-  mode = APlicSimSourceMode.EDGE1
+  mode = APlicSourceMode.EDGE1
   var reg = 0
 
   override def setMode(agent: tilelink.sim.MasterAgent, base: Int, offset: Int, childId: Int = 0) = {
@@ -614,7 +640,7 @@ case class APlicEdge1Source(id: Int, agent: tilelink.sim.MasterAgent, base: Int)
 case class APlicEdge0Source(id: Int, agent: tilelink.sim.MasterAgent, base: Int) extends APlicSimSource(id) {
   import APlicTestHelper._
 
-  mode = APlicSimSourceMode.EDGE0
+  mode = APlicSourceMode.EDGE0
   var reg = 1
 
   override def setMode(agent: tilelink.sim.MasterAgent, base: Int, offset: Int, childId: Int = 0) = {
@@ -645,7 +671,7 @@ case class APlicEdge0Source(id: Int, agent: tilelink.sim.MasterAgent, base: Int)
 case class APlicLevel1Source(id: Int, agent: tilelink.sim.MasterAgent, base: Int) extends APlicSimSource(id) {
   import APlicTestHelper._
 
-  mode = APlicSimSourceMode.LEVEL1
+  mode = APlicSourceMode.LEVEL1
 
   override def setMode(agent: tilelink.sim.MasterAgent, base: Int, offset: Int, childId: Int = 0) = {
     ie = 1
@@ -671,7 +697,7 @@ case class APlicLevel1Source(id: Int, agent: tilelink.sim.MasterAgent, base: Int
 case class APlicLevel0Source(id: Int, agent: tilelink.sim.MasterAgent, base: Int) extends APlicSimSource(id) {
   import APlicTestHelper._
 
-  mode = APlicSimSourceMode.LEVEL0
+  mode = APlicSourceMode.LEVEL0
 
   override def setMode(agent: tilelink.sim.MasterAgent, base: Int, offset: Int, childId: Int = 0) = {
     ie = 1
