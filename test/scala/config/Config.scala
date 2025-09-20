@@ -5,6 +5,7 @@ import spinal.core.sim._
 
 object Config {
   def spinal = SpinalConfig(
+    mode = SystemVerilog,
     targetDirectory = "hw/gen",
     defaultConfigForClockDomains = ClockDomainConfig(
       resetActiveLevel = HIGH
@@ -21,6 +22,7 @@ object Config {
 
 object TestConfig {
   def spinal = SpinalConfig(
+    mode = SystemVerilog,
     defaultConfigForClockDomains = ClockDomainConfig(
       resetActiveLevel = HIGH
     ),
