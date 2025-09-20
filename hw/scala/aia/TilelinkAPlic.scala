@@ -60,13 +60,13 @@ class MappedAPlic[T <: spinal.core.Data with IMasterSlave](
 case class TilelinkAPlic(sourceParams: Seq[APlicSourceParam], hartIds: Seq[Int],
                          childInfos: Seq[APlicChildInfo],
                          domainParam: APlicDomainParam, params: tilelink.BusParameter)
-                         extends MappedAPlic(
+                         extends MappedAPlic[tilelink.Bus](
   sourceParams,
   hartIds,
   childInfos,
   domainParam,
-  new bus.tilelink.Bus(params),
-  new bus.tilelink.SlaveFactory(_, true)
+  new tilelink.Bus(params),
+  new tilelink.SlaveFactory(_, true)
 )
 
 case class TilelinkAPlicMsiSender(pendingSize: Int, busParams: tilelink.BusParameter) extends Component {
