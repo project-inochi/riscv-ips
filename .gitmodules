@@ -1,0 +1,4 @@
+[submodule "ext/SpinalHDL"]
+	path = ext/SpinalHDL
+	url = https://github.com/SpinalHDL/SpinalHDL/
+	branch = dev

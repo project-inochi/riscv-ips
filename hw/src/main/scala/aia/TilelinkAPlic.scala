@@ -162,7 +162,7 @@ case class TilelinkAPlicMsiSenderFiber(pendingSize: Int = 4, addressWidth: Int =
   }
 }
 
-case class TilelinkAPlicFiber(domainParam: APlicDomainParam) extends Area with InterruptCtrlFiber with APlicMsiProducerFiber {
+case class TilelinkAPlicFiber(domainParam: APlicDomainParam) extends Area with CasInterruptCtrlFiber with APlicMsiProducerFiber {
   val node = tilelink.fabric.Node.up()
   val core = Handle[TilelinkAPlic]()
 

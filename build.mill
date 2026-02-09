@@ -1,0 +1,32 @@
+//| mill-allow-nested-build-mill: true
+//| mvnDeps:
+//| - com.typesafe:config:1.4.3
+package build
+
+import mill._, scalalib._
+import mill.api.Task.Simple
+
+object Const {
+  def ScalaVersion = "2.13.12"
+}
+
+trait SpinalHDLModule extends SbtModule {
+  def moduleInfo = build.ext.SpinalHDL.SpinalModuleInfo(Const.ScalaVersion)
+  def moduleRefs = moduleInfo._1
+  def modulePluginOptions = moduleInfo._2()
+
+  override def scalaVersion = Const.ScalaVersion
+
+  override def forkArgs = Seq("-Xss16M")
+
+  override def moduleDeps = Seq(moduleRefs("core"), moduleRefs("lib"), moduleRefs("idslplugin"), moduleRefs("sim"))
+
+  override def scalacOptions = super.scalacOptions() ++ modulePluginOptions()
+}
+
+object hw extends SpinalHDLModule {
+  object test extends SbtTests with TestModule.ScalaTest {
+    override def forkArgs = Seq("-Xss16M")
+    override def moduleDeps = super.moduleDeps ++ Seq(moduleRefs("tester"))
+  }
+}

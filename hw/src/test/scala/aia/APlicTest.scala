@@ -7,7 +7,7 @@ import spinal.sim._
 import spinal.lib._
 import spinal.lib.bus.misc.SizeMapping
 import spinal.lib.bus.tilelink
-import spinal.lib.misc.InterruptNode
+import spinal.lib.misc._
 import spinal.tester.SpinalSimFunSuite
 import _root_.sim._
 
@@ -62,7 +62,7 @@ case class APlicUnitTestFiber(hartIds: Seq[Int], sourceIds: Seq[Int], guestIds: 
 
   val APlicGenMode = APlicGenParam.test
 
-  val modes = ArrayBuffer[SpinalEnumElement[aia.APlicSourceMode.type]]()
+  val modes = ArrayBuffer[SpinalEnumElement[APlicSourceMode.type]]()
 
   val peripherals = new Area {
     val access = tilelink.fabric.Node()
